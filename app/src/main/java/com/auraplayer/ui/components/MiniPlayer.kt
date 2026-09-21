@@ -44,9 +44,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -104,7 +105,7 @@ fun MiniPlayer(
                         RoundedCornerShape(22.dp)
                     )
                     .pointerInput(Unit) {
-                        androidx.compose.foundation.gestures.detectDragGestures(
+                        detectDragGestures(
                             onDragEnd = {
                                 if (dragOffset < -60f) {
                                     onNextClick()
@@ -113,7 +114,7 @@ fun MiniPlayer(
                                 }
                                 dragOffset = 0f
                             },
-                            onDrag = { change, dragAmount ->
+                            onDrag = { change: PointerInputChange, dragAmount: Offset ->
                                 change.consume()
                                 dragOffset += dragAmount.x
                                 if (dragAmount.y < -25f) {
