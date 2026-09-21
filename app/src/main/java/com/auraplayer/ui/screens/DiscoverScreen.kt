@@ -1,5 +1,7 @@
 package com.auraplayer.ui.screens
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -28,15 +30,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.VideoLibrary
-import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,7 +53,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -75,15 +75,13 @@ import coil.request.ImageRequest
 import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.repository.DownloadEngine
 import com.auraplayer.data.repository.DownloadStatus
-import com.auraplayer.data.repository.LiveRadioRepository
-import com.auraplayer.data.repository.OnlineMusicRepository
+import com.auraplayer.data.repository.GlobalSearchService
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
-    onlineRepo: OnlineMusicRepository,
-    liveRadioRepo: LiveRadioRepository,
+    searchService: GlobalSearchService,
     downloadEngine: DownloadEngine,
     onPreviewTrack: (OnlineTrack) -> Unit,
     onDownloadComplete: () -> Unit,
@@ -94,12 +92,19 @@ fun DiscoverScreen(
     val focusManager = LocalFocusManager.current
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedSource by remember { mutableStateOf("Todas") } // "Todas", "Jamendo", "Deezer", "Archive"
     var selectedGenre by remember { mutableStateOf("Trending") }
-    var searchSource by remember { mutableIntStateOf(0) } // 0: Hi-Fi / Global, 1: Live Radio 24/7
     var trackList by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
     val downloadStates by downloadEngine.downloadStates.collectAsState()
+
+    val sourceFilters = listOf(
+        "Todas" to "🌐 Todas",
+        "Jamendo" to "⚡ Jamendo (Full)",
+        "Deezer" to "💎 Deezer (Metadatos)",
+        "Archive" to "🏛️ Archive"
+    )
 
     val genres = listOf(
         "Trending" to "🔥 Tendencias",
@@ -117,24 +122,16 @@ fun DiscoverScreen(
         focusManager.clearFocus()
         scope.launch {
             isLoading = true
-            trackList = if (searchSource == 1) {
-                liveRadioRepo.searchStations(searchQuery)
-            } else {
-                onlineRepo.searchTracks(searchQuery)
-            }
+            trackList = searchService.searchOrExtract(searchQuery, selectedSource)
             isLoading = false
         }
     }
 
-    // Load initial trending tracks / radio stations
-    LaunchedEffect(selectedGenre, searchSource) {
+    // Load initial trending tracks
+    LaunchedEffect(selectedGenre, selectedSource) {
         if (searchQuery.isBlank()) {
             isLoading = true
-            trackList = if (searchSource == 1) {
-                liveRadioRepo.getTopStations(selectedGenre)
-            } else {
-                onlineRepo.getTrendingTracks(selectedGenre)
-            }
+            trackList = searchService.getTrending(selectedGenre, selectedSource)
             isLoading = false
         }
     }
@@ -151,7 +148,7 @@ fun DiscoverScreen(
         ) {
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Header Title (Protected from system status bar)
+            // Header Title (Protected with notch & status bar padding)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -171,100 +168,78 @@ fun DiscoverScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "Canciones completas y radio en alta fidelidad",
+                        text = "Omnibar global: Jamendo, Deezer, Archive y enlaces",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Source Selector: Hi-Fi vs Live Radio 24/7
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                    .padding(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (searchSource == 0) MaterialTheme.colorScheme.primary else Color.Transparent)
-                        .clickable {
-                            searchSource = 0
-                            if (searchQuery.isNotBlank()) executeSearch()
-                        }
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "💎 Catálogo Hi-Fi",
-                        fontSize = 12.sp,
-                        fontWeight = if (searchSource == 0) FontWeight.Bold else FontWeight.Medium,
-                        color = if (searchSource == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (searchSource == 1) Color(0xFF10B981) else Color.Transparent)
-                        .clickable {
-                            searchSource = 1
-                            if (searchQuery.isNotBlank()) executeSearch()
-                        }
-                        .padding(vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "📻 Radios en Vivo 24/7",
-                        fontSize = 12.sp,
-                        fontWeight = if (searchSource == 1) FontWeight.Bold else FontWeight.Medium,
-                        color = if (searchSource == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Search Bar
+            // Omnibar Global Input
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = {
                     Text(
-                        if (searchSource == 1) "Buscar tema o artista en YouTube..." else "Buscar en catálogo global...",
+                        "Buscar canción, artista o pegar enlace (TikTok/Web)...",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Buscar",
-                        tint = if (searchSource == 1) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { executeSearch() }) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Buscar",
-                                tint = if (searchSource == 1) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
-                            )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = {
+                                searchQuery = ""
+                                scope.launch {
+                                    isLoading = true
+                                    trackList = searchService.getTrending(selectedGenre, selectedSource)
+                                    isLoading = false
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Limpiar",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            // Quick Paste Button from Clipboard
+                            IconButton(onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
+                                if (!clip.isNullOrBlank()) {
+                                    searchQuery = clip.trim()
+                                    executeSearch()
+                                } else {
+                                    Toast.makeText(context, "Portapapeles vacío", Toast.LENGTH_SHORT).show()
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Pegar enlace",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (searchSource == 1) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
@@ -273,33 +248,33 @@ fun DiscoverScreen(
                 keyboardActions = KeyboardActions(onSearch = { executeSearch() })
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Genre Chips
+            // Source Filter Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                genres.forEach { (genreKey, label) ->
-                    val isSelected = selectedGenre == genreKey && searchQuery.isBlank()
+                sourceFilters.forEach { (key, label) ->
+                    val isSelected = selectedSource == key
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .background(
                                 if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
                             )
                             .clickable {
-                                searchQuery = ""
-                                selectedGenre = genreKey
+                                selectedSource = key
+                                if (searchQuery.isNotBlank()) executeSearch()
                             }
-                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = label,
-                            style = MaterialTheme.typography.labelMedium,
+                            fontSize = 11.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -307,16 +282,57 @@ fun DiscoverScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Results Header
+            // Genre Quick Filter Chips (when no custom search is active)
+            if (searchQuery.isBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    genres.forEach { (genreKey, genreLabel) ->
+                        val isSelected = selectedGenre == genreKey
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
+                                    else Color.Transparent
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                                    RoundedCornerShape(20.dp)
+                                )
+                                .clickable { selectedGenre = genreKey }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = genreLabel,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            } else {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            // Results Counter & Header
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (searchQuery.isNotBlank()) "Resultados de búsqueda" else "Tendencias (${if (searchSource == 1) "YouTube" else "Hi-Fi"})",
+                    text = if (searchQuery.isNotBlank()) "Resultados unificados" else "Tendencias ($selectedSource)",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -335,7 +351,7 @@ fun DiscoverScreen(
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Buscando canciones completas...",
+                            "Buscando en catálogo global...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -374,15 +390,11 @@ fun DiscoverScreen(
                                 onPreviewTrack(track)
                             },
                             onDownload = {
-                                if (track.id.startsWith("radio_")) {
-                                    Toast.makeText(context, "📻 La radio en vivo es una transmisión continua y no requiere descarga", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
-                                    scope.launch {
-                                        downloadEngine.downloadTrack(track) {
-                                            Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                            onDownloadComplete()
-                                        }
+                                Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    downloadEngine.downloadTrack(track) {
+                                        Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
+                                        onDownloadComplete()
                                     }
                                 }
                             }
@@ -403,6 +415,14 @@ fun OnlineTrackCard(
 ) {
     val context = LocalContext.current
 
+    val sourceBadgeColor = when (track.source) {
+        "Jamendo" -> Color(0xFF8B5CF6)
+        "Deezer" -> Color(0xFF3B82F6)
+        "Archive" -> Color(0xFFF59E0B)
+        "TikTok" -> Color(0xFFEC4899)
+        else -> Color(0xFF10B981)
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -415,7 +435,7 @@ fun OnlineTrackCard(
         // Album Cover Art
         Box(
             modifier = Modifier
-                .size(54.dp)
+                .size(56.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
@@ -456,22 +476,36 @@ fun OnlineTrackCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Source Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                        .background(sourceBadgeColor.copy(alpha = 0.2f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text("HQ 320K", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA78BFA))
+                    Text(
+                        text = track.source,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = sourceBadgeColor
+                    )
                 }
+
                 Spacer(modifier = Modifier.width(6.dp))
+
+                // Bitrate / Quality Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF10B981).copy(alpha = 0.2f))
+                        .background(Color.White.copy(alpha = 0.1f))
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
-                    Text(track.license, fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF34D399))
+                    Text(
+                        text = track.format,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
                 }
             }
         }
@@ -480,7 +514,7 @@ fun OnlineTrackCard(
 
         // Action Buttons
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Preview / Play Stream button
+            // Play Stream / Preview Button
             IconButton(
                 onClick = onPreview,
                 modifier = Modifier
@@ -498,7 +532,7 @@ fun OnlineTrackCard(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            // Download Button with dynamic state
+            // Download Button with Dynamic State
             when (status) {
                 is DownloadStatus.Idle -> {
                     IconButton(

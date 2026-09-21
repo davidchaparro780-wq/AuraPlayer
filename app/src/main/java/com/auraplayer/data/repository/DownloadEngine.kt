@@ -54,15 +54,30 @@ class DownloadEngine(
             val safeFileName = "${sanitize(track.artist)} - ${sanitize(track.title)}.mp3"
             val targetFile = File(targetDir, safeFileName)
 
-            // 2. Stream & Download Audio File with Progress
-            val url = URL(track.audioUrl)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 15000
-                readTimeout = 15000
-                requestMethod = "GET"
-                instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                setRequestProperty("Accept", "*/*")
+            // 2. Stream & Download Audio File with Progress & Multi-redirect support
+            var currentUrl = track.audioUrl
+            var connection: HttpURLConnection
+            var redirectCount = 0
+            while (true) {
+                val url = URL(currentUrl)
+                connection = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    requestMethod = "GET"
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    setRequestProperty("Accept", "*/*")
+                }
+                val code = connection.responseCode
+                if ((code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308) && redirectCount < 5) {
+                    val newLocation = connection.getHeaderField("Location")
+                    if (!newLocation.isNullOrBlank()) {
+                        currentUrl = newLocation
+                        redirectCount++
+                        continue
+                    }
+                }
+                break
             }
 
             if (connection.responseCode !in 200..299) {

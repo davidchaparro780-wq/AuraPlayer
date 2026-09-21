@@ -10,10 +10,13 @@ data class OnlineTrack(
     val coverUrl: String,
     val format: String = "MP3",
     val bitrateKbps: Int = 320,
-    val license: String = "Open / CC"
+    val license: String = "Open / CC",
+    val source: String = "Jamendo", // "Jamendo", "Deezer", "Archive", "TikTok"
+    val isDownloadable: Boolean = true
 ) {
     val durationFormatted: String
         get() {
+            if (durationSec <= 0) return "--:--"
             val minutes = durationSec / 60
             val seconds = durationSec % 60
             return String.format("%02d:%02d", minutes, seconds)
