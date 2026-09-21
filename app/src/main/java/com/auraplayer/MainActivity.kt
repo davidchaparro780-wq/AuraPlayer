@@ -411,12 +411,14 @@ fun AuraApp() {
                         }
                     },
                     onDeleteSong = { song ->
-                        val success = mediaRepository.deleteAudioFile(song)
-                        if (success) {
-                            songs = songs.filter { it.id != song.id }
-                            if (currentMedia?.id == song.id) {
-                                controller?.stop()
-                                currentMedia = null
+                        scope.launch {
+                            val success = mediaRepository.deleteAudioFile(song)
+                            if (success) {
+                                songs = songs.filter { it.id != song.id }
+                                if (currentMedia?.id == song.id) {
+                                    controller?.stop()
+                                    currentMedia = null
+                                }
                             }
                         }
                     },
