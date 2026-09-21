@@ -370,13 +370,44 @@ fun DiscoverScreen(
                         OnlineTrackCard(
                             track = track,
                             status = status,
-                            onPreview = { onPreviewTrack(track) },
+                            onPreview = {
+                                scope.launch {
+                                    val playableTrack = if (track.id.startsWith("yt_")) {
+                                        Toast.makeText(context, "Conectando stream de YouTube...", Toast.LENGTH_SHORT).show()
+                                        val streamUrl = youTubeRepo.resolveAudioStream(track.id.removePrefix("yt_"))
+                                        if (!streamUrl.isNullOrBlank()) {
+                                            track.copy(audioUrl = streamUrl)
+                                        } else {
+                                            Toast.makeText(context, "No se pudo obtener el audio de este video", Toast.LENGTH_SHORT).show()
+                                            null
+                                        }
+                                    } else {
+                                        track
+                                    }
+                                    if (playableTrack != null) {
+                                        onPreviewTrack(playableTrack)
+                                    }
+                                }
+                            },
                             onDownload = {
                                 scope.launch {
-                                    Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
-                                    downloadEngine.downloadTrack(track) {
-                                        Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                        onDownloadComplete()
+                                    Toast.makeText(context, "Preparando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
+                                    val downloadableTrack = if (track.id.startsWith("yt_")) {
+                                        val streamUrl = youTubeRepo.resolveAudioStream(track.id.removePrefix("yt_"))
+                                        if (!streamUrl.isNullOrBlank()) {
+                                            track.copy(audioUrl = streamUrl)
+                                        } else {
+                                            Toast.makeText(context, "Error al preparar enlace de descarga", Toast.LENGTH_SHORT).show()
+                                            null
+                                        }
+                                    } else {
+                                        track
+                                    }
+                                    if (downloadableTrack != null) {
+                                        downloadEngine.downloadTrack(downloadableTrack) {
+                                            Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
+                                            onDownloadComplete()
+                                        }
                                     }
                                 }
                             }

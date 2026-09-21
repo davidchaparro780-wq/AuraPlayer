@@ -57,10 +57,16 @@ class DownloadEngine(
             // 2. Stream & Download Audio File with Progress
             val url = URL(track.audioUrl)
             val connection = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 12000
-                readTimeout = 12000
+                connectTimeout = 15000
+                readTimeout = 15000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.6.0 (Android)")
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                setRequestProperty("Accept", "*/*")
+            }
+
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("Servidor respondió con código ${connection.responseCode}")
             }
 
             val contentLength = connection.contentLength
@@ -113,7 +119,7 @@ class DownloadEngine(
             MediaScannerConnection.scanFile(
                 context,
                 arrayOf(targetFile.absolutePath),
-                arrayOf("audio/mpeg")
+                null
             ) { _, _ ->
                 // Media store scanned
             }
