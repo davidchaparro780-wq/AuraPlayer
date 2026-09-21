@@ -1,0 +1,40 @@
+*.apk
+*.ap_
+*.aab
+*.xapk
+
+# Built application files
+build/
+app/build/
+bin/
+gen/
+out/
+
+# Files for the ART/Dalvik VM
+*.dex
+
+# Java class files
+*.class
+
+# Generated files
+.gradle/
+.idea/
+*.iml
+local.properties
+
+# Android Studio Navigation editor temp files
+.navigation/
+
+# Log Files
+*.log
+
+# Keystore files
+*.jks
+*.keystore
+
+# Google Services keys
+google-services.json
+
+# OS files
+.DS_Store
+Thumbs.db
