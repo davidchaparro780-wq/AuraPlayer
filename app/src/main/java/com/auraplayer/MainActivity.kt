@@ -76,9 +76,11 @@ import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.OnlineMusicRepository
 import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.data.repository.SongLyrics
+import com.auraplayer.data.repository.YouTubeMusicRepository
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
+import com.auraplayer.ui.screens.CarModeScreen
 import com.auraplayer.ui.screens.DiscoverScreen
 import com.auraplayer.ui.screens.EqualizerScreen
 import com.auraplayer.ui.screens.MusicScreen
@@ -131,6 +133,7 @@ fun AuraApp(
     val lyricsManager = remember { LyricsManager(context) }
     val coverArtManager = remember { CoverArtManager(context) }
     val onlineRepo = remember { OnlineMusicRepository() }
+    val youTubeRepo = remember { YouTubeMusicRepository() }
     val downloadEngine = remember { DownloadEngine(context, coverArtManager, lyricsManager) }
 
     var hasPermission by remember {
@@ -166,6 +169,7 @@ fun AuraApp(
     var favoritesTrigger by remember { mutableIntStateOf(0) }
 
     var showPlayerScreen by remember { mutableStateOf(false) }
+    var showCarModeScreen by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
 
@@ -495,6 +499,29 @@ fun AuraApp(
         )
     }
 
+    // Car Mode Fullscreen Screen
+    if (showCarModeScreen && currentMedia != null) {
+        CarModeScreen(
+            currentMedia = currentMedia,
+            isPlaying = isPlaying,
+            onPlayPause = {
+                controller?.let {
+                    if (it.isPlaying) it.pause() else it.play()
+                }
+            },
+            onNext = {
+                controller?.seekToNextMediaItem()
+            },
+            onPrevious = {
+                controller?.seekToPreviousMediaItem()
+            },
+            onClose = {
+                showCarModeScreen = false
+            }
+        )
+        return
+    }
+
     // Fullscreen Audio Player Screen
     if (showPlayerScreen && currentMedia != null) {
         val isFav = favoritesTrigger.let { favoritesManager.isFavorite(currentMedia!!.id) }
@@ -576,6 +603,7 @@ fun AuraApp(
                 controller?.playbackParameters = PlaybackParameters(speed, pitch)
             },
             onOpenSleepTimer = { showSleepTimerDialog = true },
+            onOpenCarMode = { showCarModeScreen = true },
             onDeleteSong = { song ->
                 handleDeleteSong(song)
             },
@@ -769,6 +797,7 @@ fun AuraApp(
             }
             1 -> DiscoverScreen(
                 onlineRepo = onlineRepo,
+                youTubeRepo = youTubeRepo,
                 downloadEngine = downloadEngine,
                 onPreviewTrack = { onlineTrack ->
                     val previewItem = MediaItem.Builder()
@@ -813,7 +842,8 @@ fun AuraApp(
                             songs = updatedSongs
                         }
                     }
-                }
+                },
+                modifier = Modifier.padding(innerPadding)
             )
             2 -> VideoScreen(
                 videos = videos,

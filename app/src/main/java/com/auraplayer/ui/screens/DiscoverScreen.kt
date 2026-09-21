@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,6 +52,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,15 +76,18 @@ import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.repository.DownloadEngine
 import com.auraplayer.data.repository.DownloadStatus
 import com.auraplayer.data.repository.OnlineMusicRepository
+import com.auraplayer.data.repository.YouTubeMusicRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
     onlineRepo: OnlineMusicRepository,
+    youTubeRepo: YouTubeMusicRepository,
     downloadEngine: DownloadEngine,
     onPreviewTrack: (OnlineTrack) -> Unit,
-    onDownloadComplete: () -> Unit
+    onDownloadComplete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -89,6 +95,7 @@ fun DiscoverScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedGenre by remember { mutableStateOf("Trending") }
+    var searchSource by remember { mutableIntStateOf(0) } // 0: Hi-Fi / Global, 1: YouTube Full-Length
     var trackList by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
@@ -105,31 +112,46 @@ fun DiscoverScreen(
         "Acoustic" to "🌿 Acústico"
     )
 
-    // Load initial trending tracks
-    LaunchedEffect(selectedGenre) {
-        isLoading = true
-        trackList = onlineRepo.getTrendingTracks(selectedGenre)
-        isLoading = false
-    }
-
     fun executeSearch() {
         if (searchQuery.isBlank()) return
         focusManager.clearFocus()
         scope.launch {
             isLoading = true
-            trackList = onlineRepo.searchTracks(searchQuery)
+            trackList = if (searchSource == 1) {
+                youTubeRepo.searchYouTube(searchQuery)
+            } else {
+                onlineRepo.searchTracks(searchQuery)
+            }
+            isLoading = false
+        }
+    }
+
+    // Load initial trending tracks
+    LaunchedEffect(selectedGenre, searchSource) {
+        if (searchQuery.isBlank()) {
+            isLoading = true
+            trackList = if (searchSource == 1) {
+                youTubeRepo.searchYouTube(if (selectedGenre == "Trending") "musica tendencias 2026" else "$selectedGenre canciones completas")
+            } else {
+                onlineRepo.getTrendingTracks(selectedGenre)
+            }
             isLoading = false
         }
     }
 
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Header Title
+            // Header Title (Protected from system status bar)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -149,39 +171,100 @@ fun DiscoverScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "Música abierta en alta fidelidad 320 kbps",
+                        text = "Canciones completas y audio en alta fidelidad",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Source Selector: Hi-Fi vs YouTube Full-Length
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                    .padding(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (searchSource == 0) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable {
+                            searchSource = 0
+                            if (searchQuery.isNotBlank()) executeSearch()
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "💎 Catálogo Hi-Fi",
+                        fontSize = 12.sp,
+                        fontWeight = if (searchSource == 0) FontWeight.Bold else FontWeight.Medium,
+                        color = if (searchSource == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (searchSource == 1) Color(0xFFEF4444) else Color.Transparent)
+                        .clickable {
+                            searchSource = 1
+                            if (searchQuery.isNotBlank()) executeSearch()
+                        }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "▶️ YouTube Largo",
+                        fontSize = 12.sp,
+                        fontWeight = if (searchSource == 1) FontWeight.Bold else FontWeight.Medium,
+                        color = if (searchSource == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Buscar canción, artista o género...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                placeholder = {
+                    Text(
+                        if (searchSource == 1) "Buscar tema o artista en YouTube..." else "Buscar en catálogo global...",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 14.sp
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Buscar",
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = if (searchSource == 1) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
                     )
                 },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { executeSearch() }) {
-                            Icon(Icons.Default.Search, contentDescription = "Buscar", tint = MaterialTheme.colorScheme.primary)
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = "Buscar",
+                                tint = if (searchSource == 1) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedBorderColor = if (searchSource == 1) Color(0xFFEF4444) else MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
@@ -190,7 +273,7 @@ fun DiscoverScreen(
                 keyboardActions = KeyboardActions(onSearch = { executeSearch() })
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Genre Chips
             Row(
@@ -212,7 +295,7 @@ fun DiscoverScreen(
                                 searchQuery = ""
                                 selectedGenre = genreKey
                             }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
+                            .padding(horizontal = 14.dp, vertical = 7.dp)
                     ) {
                         Text(
                             text = label,
@@ -224,7 +307,7 @@ fun DiscoverScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Results Header
             Row(
@@ -233,7 +316,7 @@ fun DiscoverScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (searchQuery.isNotBlank()) "Resultados de búsqueda" else "Tendencias Populares",
+                    text = if (searchQuery.isNotBlank()) "Resultados de búsqueda" else "Tendencias (${if (searchSource == 1) "YouTube" else "Hi-Fi"})",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -251,22 +334,35 @@ fun DiscoverScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Buscando pistas en alta fidelidad...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "Buscando canciones completas...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             } else if (trackList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Headphones, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), modifier = Modifier.size(56.dp))
+                        Icon(
+                            Icons.Default.Headphones,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            modifier = Modifier.size(56.dp)
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("No se encontraron canciones.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "No se encontraron canciones.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 90.dp, top = 6.dp)
+                    contentPadding = PaddingValues(bottom = 90.dp, top = 4.dp)
                 ) {
                     items(trackList, key = { it.id }) { track ->
                         val status = downloadStates[track.id] ?: DownloadStatus.Idle
@@ -284,190 +380,6 @@ fun DiscoverScreen(
                                     }
                                 }
                             }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun OnlineTrackCard(
-    track: OnlineTrack,
-    status: DownloadStatus,
-    onPreview: () -> Unit,
-    onDownload: () -> Unit
-) {
-    val context = LocalContext.current
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Album Cover Art
-        Box(
-            modifier = Modifier
-                .size(54.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(track.coverUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = track.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Info: Title, Artist, Badges
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = "${track.artist} • ${track.durationFormatted}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text("HQ 320K", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA78BFA))
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color(0xFF10B981).copy(alpha = 0.2f))
-                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                ) {
-                    Text(track.license, fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF34D399))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Action Buttons
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Preview / Play Stream button
-            IconButton(
-                onClick = onPreview,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Escuchar",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Download Button with dynamic state
-            when (status) {
-                is DownloadStatus.Idle -> {
-                    IconButton(
-                        onClick = onDownload,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = "Descargar",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                is DownloadStatus.Downloading -> {
-                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            progress = { status.progress / 100f },
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp),
-                            strokeWidth = 3.dp
-                        )
-                        Text(
-                            text = "${status.progress}%",
-                            fontSize = 8.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-                is DownloadStatus.Tagging -> {
-                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(
-                            color = Color(0xFFEC4899),
-                            modifier = Modifier.size(28.dp),
-                            strokeWidth = 2.5.dp
-                        )
-                    }
-                }
-                is DownloadStatus.Completed -> {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF10B981)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Descargado",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                is DownloadStatus.Error -> {
-                    IconButton(
-                        onClick = onDownload,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = "Reintentar",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

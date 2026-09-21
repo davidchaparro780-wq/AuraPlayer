@@ -459,6 +459,68 @@ fun EqualizerScreen(
                         activeTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
+
+                Spacer(modifier = Modifier.height(14.dp))
+                androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // ReplayGain Normalization
+                var isReplayGain by remember { mutableStateOf(playlistManager.isReplayGainEnabled()) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Normalización de Volumen (ReplayGain)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Ajusta todas las pistas a un volumen uniforme sin saturación",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = isReplayGain,
+                        onCheckedChange = {
+                            isReplayGain = it
+                            playlistManager.setReplayGainEnabled(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Autoplay / Radio Mode
+                var isAutoplay by remember { mutableStateOf(playlistManager.isAutoplayEnabled()) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Autoplay / Modo Radio", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Continúa reproduciendo temas similares al terminar la lista",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = isAutoplay,
+                        onCheckedChange = {
+                            isAutoplay = it
+                            playlistManager.setAutoplayEnabled(it)
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        )
+                    )
+                }
             }
         }
 

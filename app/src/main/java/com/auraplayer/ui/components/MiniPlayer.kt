@@ -104,7 +104,7 @@ fun MiniPlayer(
                         RoundedCornerShape(22.dp)
                     )
                     .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
+                        androidx.compose.foundation.gestures.detectDragGestures(
                             onDragEnd = {
                                 if (dragOffset < -60f) {
                                     onNextClick()
@@ -113,8 +113,12 @@ fun MiniPlayer(
                                 }
                                 dragOffset = 0f
                             },
-                            onHorizontalDrag = { _, dragAmount ->
-                                dragOffset += dragAmount
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                dragOffset += dragAmount.x
+                                if (dragAmount.y < -25f) {
+                                    onClick()
+                                }
                             }
                         )
                     }

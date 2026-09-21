@@ -177,4 +177,22 @@ class PlaylistManager(context: Context) {
     fun setThemeAccent(accent: String) {
         prefs.edit().putString("theme_accent", accent).apply()
     }
+
+    // --- SPOTIFY REPLAYGAIN & AUTOPLAY ---
+
+    fun isReplayGainEnabled(): Boolean {
+        return prefs.getBoolean("audio_replay_gain", true)
+    }
+
+    fun setReplayGainEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("audio_replay_gain", enabled).apply()
+    }
+
+    fun isAutoplayEnabled(): Boolean {
+        return prefs.getBoolean("audio_autoplay_radio", true)
+    }
+
+    fun setAutoplayEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("audio_autoplay_radio", enabled).apply()
+    }
 }

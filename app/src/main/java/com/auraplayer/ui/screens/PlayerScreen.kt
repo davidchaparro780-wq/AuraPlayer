@@ -41,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
@@ -146,6 +147,7 @@ fun PlayerScreen(
     onToggleShake: () -> Unit,
     onAudioFxChange: (speed: Float, pitch: Float) -> Unit,
     onOpenSleepTimer: () -> Unit,
+    onOpenCarMode: () -> Unit = {},
     onDeleteSong: (MediaModel) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -163,6 +165,16 @@ fun PlayerScreen(
     var showAudioSpecSheet by remember { mutableStateOf(false) }
     var visualizerMode by remember { mutableIntStateOf(0) } // 0: Spectrum bars, 1: Neon wave, 2: Radial pulse, 3: Starfield
     var lyricsFontSizeMultiplier by remember { mutableFloatStateOf(1.0f) }
+
+    // Dynamic Atmospheric Gradient Background
+    val dynamicBg = remember(currentMedia.id, currentMedia.title) {
+        val hash = Math.abs((currentMedia.artist + currentMedia.title).hashCode())
+        val hue = (hash % 360).toFloat()
+        val col1 = Color.hsl(hue, 0.50f, 0.14f)
+        val col2 = Color.hsl((hue + 45) % 360, 0.35f, 0.07f)
+        val col3 = Color(0xFF09090B)
+        listOf(col1, col2, col3)
+    }
 
     // On-Screen HUD for Gestures (Volume & Brightness)
     var hudText by remember { mutableStateOf("") }
@@ -266,9 +278,13 @@ fun PlayerScreen(
                     }
                 )
             },
-        color = MaterialTheme.colorScheme.background
+        color = Color.Transparent
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(dynamicBg))
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -316,6 +332,16 @@ fun PlayerScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Car Mode Button (Spotify Style)
+                        IconButton(onClick = onOpenCarMode) {
+                            Icon(
+                                imageVector = Icons.Default.DirectionsCar,
+                                contentDescription = "Modo Conducción",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
                         // Queue Button (Musicolet Style)
                         IconButton(onClick = { showQueueSheet = true }) {
                             Icon(
