@@ -592,6 +592,9 @@ fun AuraApp(
                     onNextClick = {
                         controller?.seekToNextMediaItem()
                     },
+                    onPreviousClick = {
+                        controller?.seekToPreviousMediaItem()
+                    },
                     onClick = {
                         showPlayerScreen = true
                     }

@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Card
@@ -65,9 +67,18 @@ fun EqualizerScreen(
     val eqManager = remember { EqualizerManager.instance }
     var isEqEnabled by remember { mutableStateOf(eqManager.isEnabled) }
     var selectedPreset by remember { mutableIntStateOf(0) }
+    var selectedProfile by remember { mutableIntStateOf(0) }
     val presets = listOf(
         "Aura Flat", "Cyber Bass", "Vocal Glow", "Neon Pop",
         "Rock Velvet", "Lo-Fi Lounge", "Electronic", "Audiófilo Hi-Fi"
+    )
+
+    val deviceProfiles = listOf(
+        "🎧 In-Ear Earbuds",
+        "🦻 Over-Ear Bass",
+        "🚗 Car Audio",
+        "🎙️ Studio Flat",
+        "🔊 Altavoz Móvil"
     )
 
     val bandFrequencies = EqualizerManager.TEN_BAND_FREQUENCIES
@@ -150,9 +161,69 @@ fun EqualizerScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        // Headphone & Output Acoustic Device Profiles
+        Text(
+            text = "PERFILES ACÚSTICOS DE DISPOSITIVO (DOLBY / POWERAMP)",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = 1.5.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            itemsIndexed(deviceProfiles) { index, profile ->
+                FilterChip(
+                    selected = selectedProfile == index,
+                    onClick = {
+                        selectedProfile = index
+                        when (index) {
+                            0 -> { // In-Ear
+                                eqManager.applyPreset(3) // Neon Pop
+                                virtualizer = 60f
+                                bassBoost = 45f
+                            }
+                            1 -> { // Over-Ear Bass
+                                eqManager.applyPreset(1) // Cyber Bass
+                                bassBoost = 85f
+                                virtualizer = 50f
+                            }
+                            2 -> { // Car Audio
+                                eqManager.applyPreset(4) // Rock
+                                loudness = 40f
+                                virtualizer = 30f
+                            }
+                            3 -> { // Studio Flat
+                                eqManager.applyPreset(0) // Flat
+                                bassBoost = 0f
+                                virtualizer = 0f
+                                loudness = 0f
+                            }
+                            4 -> { // Phone Speaker
+                                eqManager.applyPreset(2) // Vocal
+                                loudness = 80f
+                                bassBoost = 20f
+                            }
+                        }
+                        for (i in 0 until 10) bandLevels[i] = eqManager.bandLevels[i]
+                        eqManager.setBassBoostStrength((bassBoost * 10).toInt().toShort())
+                        eqManager.setVirtualizerStrength((virtualizer * 10).toInt().toShort())
+                        eqManager.setLoudnessGain((loudness * 10).toInt())
+                    },
+                    label = { Text(profile, fontSize = 12.sp) },
+                    enabled = isEqEnabled,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.85f),
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Presets Chips
         Text(
-            text = "PRESETS DE ESTUDIO (POWERAMP STYLE)",
+            text = "PRESETS DE ESTUDIO",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,

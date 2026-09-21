@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AvTimer
@@ -23,10 +26,15 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,7 +53,8 @@ fun SleepTimerDialog(
     val isTimerActive by sleepTimerManager.isTimerActive.collectAsState()
     val remainingSeconds by sleepTimerManager.remainingSeconds.collectAsState()
 
-    val presets = listOf(10, 15, 30, 45, 60)
+    val presets = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
+    var customMinutes by remember { mutableIntStateOf(30) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -127,53 +136,73 @@ fun SleepTimerDialog(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Detener Temporizador", color = Color.White)
+                        Text("Detener Temporizador", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     Text(
-                        text = "Selecciona en cuántos minutos pausar la reproducción automáticamente:",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = "Selecciona el tiempo de apagado automático:",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 12.dp)
                     )
 
-                    presets.forEach { minutes ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
-                                .clickable {
-                                    sleepTimerManager.startTimer(minutes, onFinish)
-                                    onDismiss()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.AvTimer,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
+                    // Presets Grid
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().height(140.dp)
+                    ) {
+                        items(presets) { minutes ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                                    .clickable {
+                                        sleepTimerManager.startTimer(minutes, onFinish)
+                                        onDismiss()
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
-                                    text = "$minutes Minutos",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Medium
+                                    text = "$minutes min",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
                                 )
                             }
-                            Text(
-                                text = "Iniciar",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Custom Slider Option
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Tiempo Personalizado", style = MaterialTheme.typography.bodySmall, color = Color.White)
+                        Text("$customMinutes min", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Slider(
+                        value = customMinutes.toFloat(),
+                        onValueChange = { customMinutes = it.toInt() },
+                        valueRange = 1f..180f,
+                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary)
+                    )
+
+                    Button(
+                        onClick = {
+                            sleepTimerManager.startTimer(customMinutes, onFinish)
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Iniciar $customMinutes min", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }

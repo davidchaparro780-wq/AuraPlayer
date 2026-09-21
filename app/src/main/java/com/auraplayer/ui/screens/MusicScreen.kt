@@ -4,6 +4,7 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,7 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -28,6 +31,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
@@ -41,6 +45,7 @@ import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.AlertDialog
@@ -49,6 +54,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -111,6 +118,11 @@ fun MusicScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Canciones", "Playlists 📂", "Favoritos ❤️", "Carpetas", "Artistas")
 
+    // Filter & Sort States
+    var selectedFilterIndex by remember { mutableIntStateOf(0) } // 0: Todas, 1: HD/Lossless, 2: Favoritas, 3: Cortas, 4: Largas
+    var selectedSortMode by remember { mutableIntStateOf(0) } // 0: Título, 1: Artista, 2: Duración, 3: Más Escuchadas
+    var showSortMenu by remember { mutableStateOf(false) }
+
     var selectedSongForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var songToDelete by remember { mutableStateOf<MediaModel?>(null) }
     var songForDetails by remember { mutableStateOf<MediaModel?>(null) }
@@ -123,18 +135,49 @@ fun MusicScreen(
     var newPlaylistName by remember { mutableStateOf("") }
     var playlistSubCategory by remember { mutableIntStateOf(0) } // 0: Mis Playlists, 1: Top Escuchadas, 2: Historial
 
-    val filteredSongs = remember(songs, searchQuery) {
-        if (searchQuery.isBlank()) songs
+    // Process Filter and Sort
+    val filteredSongs = remember(songs, searchQuery, selectedFilterIndex, selectedSortMode, favoritesManager) {
+        var list = if (searchQuery.isBlank()) songs
         else songs.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
             it.artist.contains(searchQuery, ignoreCase = true) ||
             it.album.contains(searchQuery, ignoreCase = true)
         }
+
+        // Apply quick filter
+        list = when (selectedFilterIndex) {
+            1 -> list.filter {
+                val ext = File(it.path).extension.lowercase()
+                ext in listOf("flac", "wav", "m4a", "alac", "dsf", "dff")
+            }
+            2 -> {
+                val favs = favoritesManager.getFavoriteIds()
+                list.filter { favs.contains(it.id) }
+            }
+            3 -> list.filter { it.duration in 1..150000L } // < 2.5 min
+            4 -> list.filter { it.duration >= 240000L } // > 4 min
+            else -> list
+        }
+
+        // Apply sort
+        when (selectedSortMode) {
+            1 -> list.sortedBy { it.artist.lowercase() }
+            2 -> list.sortedByDescending { it.duration }
+            3 -> list.sortedByDescending { playlistManager.getPlayCount(it.id) }
+            else -> list.sortedBy { it.title.lowercase() }
+        }
     }
 
-    val favoriteSongs = remember(filteredSongs, favoritesManager) {
+    val favoriteSongs = remember(songs, favoritesManager) {
         val favIds = favoritesManager.getFavoriteIds()
-        filteredSongs.filter { favIds.contains(it.id) }
+        songs.filter { favIds.contains(it.id) }
+    }
+
+    val totalDurationFormatted = remember(songs) {
+        val totalMs = songs.sumOf { it.duration }
+        val hours = totalMs / (1000 * 60 * 60)
+        val minutes = (totalMs / (1000 * 60)) % 60
+        if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
     }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -142,13 +185,13 @@ fun MusicScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Buscar en Aura...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
+                placeholder = { Text("Buscar pista, artista...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
@@ -168,13 +211,39 @@ fun MusicScreen(
                 )
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Sort Menu Button
+            Box {
+                IconButton(
+                    onClick = { showSortMenu = true },
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                ) {
+                    Icon(Icons.Default.Sort, contentDescription = "Ordenar", tint = MaterialTheme.colorScheme.primary)
+                }
+
+                DropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false },
+                    modifier = Modifier.background(Color(0xFF101422))
+                ) {
+                    DropdownMenuItem(text = { Text("🔤 Título (A-Z)", color = Color.White) }, onClick = { selectedSortMode = 0; showSortMenu = false })
+                    DropdownMenuItem(text = { Text("👤 Artista", color = Color.White) }, onClick = { selectedSortMode = 1; showSortMenu = false })
+                    DropdownMenuItem(text = { Text("⏱️ Mayor Duración", color = Color.White) }, onClick = { selectedSortMode = 2; showSortMenu = false })
+                    DropdownMenuItem(text = { Text("🔥 Más Reproducidas", color = Color.White) }, onClick = { selectedSortMode = 3; showSortMenu = false })
+                }
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
 
             IconButton(
                 onClick = onOpenSleepTimer,
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
             ) {
                 Icon(
@@ -211,6 +280,29 @@ fun MusicScreen(
             }
         }
 
+        // Quick Filter Chips (When in Canciones tab)
+        if (selectedTab == 0) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                val filters = listOf("Todas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
+                itemsIndexed(filters) { index, label ->
+                    FilterChip(
+                        selected = selectedFilterIndex == index,
+                        onClick = { selectedFilterIndex = index },
+                        label = { Text(label, fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+            }
+        }
+
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -222,6 +314,27 @@ fun MusicScreen(
                         EmptyListMessage(if (searchQuery.isEmpty()) "No se encontraron canciones en el dispositivo." else "Sin resultados")
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            item {
+                                // Stats Bar
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 18.dp, vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "${filteredSongs.size} canciones • $totalDurationFormatted",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = "100% Offline • 0 Ads",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                             items(filteredSongs, key = { it.id }) { song ->
                                 val isSelected = currentMedia?.id == song.id
                                 SongListItem(
@@ -459,8 +572,8 @@ fun MusicScreen(
                     }
                 }
                 3 -> { // Carpetas
-                    val folderGroups = remember(filteredSongs) {
-                        filteredSongs.groupBy { it.folderName.ifEmpty { "Música" } }
+                    val folderGroups = remember(songs) {
+                        songs.groupBy { it.folderName.ifEmpty { "Música" } }
                     }
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(folderGroups.keys.toList()) { folderName ->
@@ -504,8 +617,8 @@ fun MusicScreen(
                     }
                 }
                 4 -> { // Artistas
-                    val artistGroups = remember(filteredSongs) {
-                        filteredSongs.groupBy { it.artist }
+                    val artistGroups = remember(songs) {
+                        songs.groupBy { it.artist }
                     }
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(artistGroups.keys.toList()) { artistName ->
@@ -945,6 +1058,10 @@ fun SongListItem(
     onLongClick: () -> Unit,
     onOptionsClick: () -> Unit
 ) {
+    val ext = remember(song.path) {
+        File(song.path).extension.uppercase().ifEmpty { "AUDIO" }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -953,10 +1070,10 @@ fun SongListItem(
                 onLongClick = onLongClick
             )
             .background(
-                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                 else Color.Transparent
             )
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -967,8 +1084,8 @@ fun SongListItem(
                     if (isSelected) {
                         Brush.linearGradient(
                             listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
                             )
                         )
                     } else {
@@ -998,7 +1115,7 @@ fun SongListItem(
             }
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1029,8 +1146,25 @@ fun SongListItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Small dynamic format badge chip
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                ) {
+                    Text(
+                        text = ext,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4) else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 if (extraBadge != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = extraBadge,
                         style = MaterialTheme.typography.labelSmall,
