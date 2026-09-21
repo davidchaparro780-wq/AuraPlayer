@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
@@ -424,6 +425,16 @@ fun MusicScreen(
                 )
 
                 MenuOptionItem(
+                    icon = Icons.Default.NotificationsActive,
+                    iconColor = Color(0xFFF59E0B),
+                    title = "Establecer como Tono de Llamada",
+                    onClick = {
+                        selectedSongForMenu = null
+                        setAsRingtone(context, song)
+                    }
+                )
+
+                MenuOptionItem(
                     icon = Icons.Default.Delete,
                     iconColor = MaterialTheme.colorScheme.error,
                     title = "Eliminar del Teléfono",
@@ -661,5 +672,29 @@ private fun EmptyListMessage(message: String) {
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier.padding(32.dp)
         )
+    }
+}
+
+private fun setAsRingtone(context: android.content.Context, song: MediaModel) {
+    try {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (!android.provider.Settings.System.canWrite(context)) {
+                val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                    data = android.net.Uri.parse("package:" + context.packageName)
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+                android.widget.Toast.makeText(context, "Concede permiso para modificar tono de llamada", android.widget.Toast.LENGTH_LONG).show()
+                return
+            }
+        }
+        android.media.RingtoneManager.setActualDefaultRingtoneUri(
+            context,
+            android.media.RingtoneManager.TYPE_RINGTONE,
+            song.uri
+        )
+        android.widget.Toast.makeText(context, "¡'${song.title}' es ahora tu tono de llamada!", android.widget.Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(context, "No se pudo establecer como tono: ${e.localizedMessage}", android.widget.Toast.LENGTH_SHORT).show()
     }
 }

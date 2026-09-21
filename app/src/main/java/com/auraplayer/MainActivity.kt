@@ -4,10 +4,14 @@ import android.Manifest
 import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.ComponentName
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -52,15 +56,19 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.auraplayer.audio.ShakeDetector
 import com.auraplayer.audio.SleepTimerManager
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.RepeatMode
 import com.auraplayer.data.repository.FavoritesManager
+import com.auraplayer.data.repository.LyricsManager
 import com.auraplayer.data.repository.MediaRepository
+import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
@@ -100,6 +108,7 @@ fun AuraApp() {
     val mediaRepository = remember { MediaRepository(context) }
     val favoritesManager = remember { FavoritesManager(context) }
     val sleepTimerManager = remember { SleepTimerManager() }
+    val lyricsManager = remember { LyricsManager(context) }
 
     var hasPermission by remember {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -130,13 +139,66 @@ fun AuraApp() {
     var isShuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.OFF) }
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
+    var playbackPitch by remember { mutableFloatStateOf(1.0f) }
     var favoritesTrigger by remember { mutableIntStateOf(0) }
 
     var showPlayerScreen by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
 
+    // Live Lyrics state
+    var lyrics by remember { mutableStateOf<SongLyrics?>(null) }
+    var isLoadingLyrics by remember { mutableStateOf(false) }
+
+    // Shake to Skip state & detector
+    var isShakeEnabled by remember { mutableStateOf(false) }
+    val vibrator = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+            vibratorManager?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        }
+    }
+
     var controller by remember { mutableStateOf<MediaController?>(null) }
+
+    val shakeDetector = remember {
+        ShakeDetector(context) {
+            controller?.seekToNextMediaItem()
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(50)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    DisposableEffect(isShakeEnabled) {
+        shakeDetector.isEnabled = isShakeEnabled
+        onDispose {
+            shakeDetector.stop()
+        }
+    }
+
+    // Auto-fetch lyrics whenever track changes
+    LaunchedEffect(currentMedia?.id) {
+        val song = currentMedia
+        if (song != null) {
+            isLoadingLyrics = true
+            lyrics = null
+            lyrics = lyricsManager.getLyrics(song)
+            isLoadingLyrics = false
+        } else {
+            lyrics = null
+        }
+    }
 
     // Scoped Storage Delete Activity Result Launcher
     var pendingSongToDelete by remember { mutableStateOf<MediaModel?>(null) }
@@ -406,6 +468,10 @@ fun AuraApp() {
             repeatMode = repeatMode,
             isFavorite = isFav,
             playbackSpeed = playbackSpeed,
+            playbackPitch = playbackPitch,
+            isShakeEnabled = isShakeEnabled,
+            lyrics = lyrics,
+            isLoadingLyrics = isLoadingLyrics,
             onPlayPauseClick = {
                 controller?.let {
                     if (it.isPlaying) it.pause() else it.play()
@@ -450,9 +516,15 @@ fun AuraApp() {
                     favoritesTrigger++
                 }
             },
-            onSpeedChange = { speed ->
+            onToggleShake = {
+                isShakeEnabled = !isShakeEnabled
+                val msg = if (isShakeEnabled) "Agitar para saltar canción: ACTIVADO" else "Agitar para saltar canción: DESACTIVADO"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            },
+            onAudioFxChange = { speed, pitch ->
                 playbackSpeed = speed
-                controller?.setPlaybackSpeed(speed)
+                playbackPitch = pitch
+                controller?.playbackParameters = PlaybackParameters(speed, pitch)
             },
             onOpenSleepTimer = { showSleepTimerDialog = true },
             onDeleteSong = { song ->
