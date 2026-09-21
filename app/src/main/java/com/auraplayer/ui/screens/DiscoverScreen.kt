@@ -83,7 +83,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun DiscoverScreen(
     onlineRepo: OnlineMusicRepository,
-    youTubeRepo: YouTubeMusicRepository,
+    liveRadioRepo: LiveRadioRepository,
     downloadEngine: DownloadEngine,
     onPreviewTrack: (OnlineTrack) -> Unit,
     onDownloadComplete: () -> Unit,
@@ -95,7 +95,7 @@ fun DiscoverScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedGenre by remember { mutableStateOf("Trending") }
-    var searchSource by remember { mutableIntStateOf(0) } // 0: Hi-Fi / Global, 1: YouTube Full-Length
+    var searchSource by remember { mutableIntStateOf(0) } // 0: Hi-Fi / Global, 1: Live Radio 24/7
     var trackList by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
@@ -118,7 +118,7 @@ fun DiscoverScreen(
         scope.launch {
             isLoading = true
             trackList = if (searchSource == 1) {
-                youTubeRepo.searchYouTube(searchQuery)
+                liveRadioRepo.searchStations(searchQuery)
             } else {
                 onlineRepo.searchTracks(searchQuery)
             }
@@ -126,12 +126,12 @@ fun DiscoverScreen(
         }
     }
 
-    // Load initial trending tracks
+    // Load initial trending tracks / radio stations
     LaunchedEffect(selectedGenre, searchSource) {
         if (searchQuery.isBlank()) {
             isLoading = true
             trackList = if (searchSource == 1) {
-                youTubeRepo.searchYouTube(if (selectedGenre == "Trending") "musica tendencias 2026" else "$selectedGenre canciones completas")
+                liveRadioRepo.getTopStations(selectedGenre)
             } else {
                 onlineRepo.getTrendingTracks(selectedGenre)
             }
@@ -171,7 +171,7 @@ fun DiscoverScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "Canciones completas y audio en alta fidelidad",
+                        text = "Canciones completas y radio en alta fidelidad",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -180,7 +180,7 @@ fun DiscoverScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Source Selector: Hi-Fi vs YouTube Full-Length
+            // Source Selector: Hi-Fi vs Live Radio 24/7
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -212,7 +212,7 @@ fun DiscoverScreen(
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(if (searchSource == 1) Color(0xFFEF4444) else Color.Transparent)
+                        .background(if (searchSource == 1) Color(0xFF10B981) else Color.Transparent)
                         .clickable {
                             searchSource = 1
                             if (searchQuery.isNotBlank()) executeSearch()
@@ -221,7 +221,7 @@ fun DiscoverScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "▶️ YouTube Largo",
+                        text = "📻 Radios en Vivo 24/7",
                         fontSize = 12.sp,
                         fontWeight = if (searchSource == 1) FontWeight.Bold else FontWeight.Medium,
                         color = if (searchSource == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant

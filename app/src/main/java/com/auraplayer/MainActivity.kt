@@ -75,8 +75,8 @@ import com.auraplayer.data.repository.LyricsManager
 import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.OnlineMusicRepository
 import com.auraplayer.data.repository.PlaylistManager
+import com.auraplayer.data.repository.LiveRadioRepository
 import com.auraplayer.data.repository.SongLyrics
-import com.auraplayer.data.repository.YouTubeMusicRepository
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
@@ -133,7 +133,7 @@ fun AuraApp(
     val lyricsManager = remember { LyricsManager(context) }
     val coverArtManager = remember { CoverArtManager(context) }
     val onlineRepo = remember { OnlineMusicRepository() }
-    val youTubeRepo = remember { YouTubeMusicRepository() }
+    val liveRadioRepo = remember { LiveRadioRepository() }
     val downloadEngine = remember { DownloadEngine(context, coverArtManager, lyricsManager) }
 
     var hasPermission by remember {
@@ -814,7 +814,7 @@ fun AuraApp(
             }
             1 -> DiscoverScreen(
                 onlineRepo = onlineRepo,
-                youTubeRepo = youTubeRepo,
+                liveRadioRepo = liveRadioRepo,
                 downloadEngine = downloadEngine,
                 onPreviewTrack = { onlineTrack ->
                     val previewItem = MediaItem.Builder()
