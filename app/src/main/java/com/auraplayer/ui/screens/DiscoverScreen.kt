@@ -387,3 +387,187 @@ fun DiscoverScreen(
         }
     }
 }
+
+@Composable
+fun OnlineTrackCard(
+    track: OnlineTrack,
+    status: DownloadStatus,
+    onPreview: () -> Unit,
+    onDownload: () -> Unit
+) {
+    val context = LocalContext.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Album Cover Art
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(track.coverUrl)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = track.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Info: Title, Artist, Badges
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Text(
+                text = "${track.artist} • ${track.durationFormatted}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text("HQ 320K", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFA78BFA))
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0xFF10B981).copy(alpha = 0.2f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                ) {
+                    Text(track.license, fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF34D399))
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Action Buttons
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Preview / Play Stream button
+            IconButton(
+                onClick = onPreview,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Escuchar",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Download Button with dynamic state
+            when (status) {
+                is DownloadStatus.Idle -> {
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = "Descargar",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                is DownloadStatus.Downloading -> {
+                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            progress = { status.progress / 100f },
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp),
+                            strokeWidth = 3.dp
+                        )
+                        Text(
+                            text = "${status.progress}%",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                is DownloadStatus.Tagging -> {
+                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            color = Color(0xFFEC4899),
+                            modifier = Modifier.size(28.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                    }
+                }
+                is DownloadStatus.Completed -> {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF10B981)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Descargado",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                is DownloadStatus.Error -> {
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = "Reintentar",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
