@@ -31,10 +31,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,11 +50,14 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.auraplayer.audio.SleepTimerManager
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.RepeatMode
+import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
+import com.auraplayer.ui.components.SleepTimerDialog
 import com.auraplayer.ui.screens.EqualizerScreen
 import com.auraplayer.ui.screens.MusicScreen
 import com.auraplayer.ui.screens.PlayerScreen
@@ -60,8 +65,11 @@ import com.auraplayer.ui.screens.VideoPlayerScreen
 import com.auraplayer.ui.screens.VideoScreen
 import com.auraplayer.ui.theme.AuraTheme
 import com.google.common.util.concurrent.MoreExecutors
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -82,7 +90,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AuraApp() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val mediaRepository = remember { MediaRepository(context) }
+    val favoritesManager = remember { FavoritesManager(context) }
+    val sleepTimerManager = remember { SleepTimerManager() }
 
     var hasPermission by remember {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -112,8 +123,11 @@ fun AuraApp() {
     var durationMs by remember { mutableLongStateOf(0L) }
     var isShuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.OFF) }
+    var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
+    var favoritesTrigger by remember { mutableIntStateOf(0) }
 
     var showPlayerScreen by remember { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
 
     var controller by remember { mutableStateOf<MediaController?>(null) }
@@ -170,7 +184,7 @@ fun AuraApp() {
             isLoading = false
 
             // Auto-fetch & save cover art in background for all downloaded tracks
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 var updated = false
                 songs.forEach { song ->
                     val savedCover = mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
@@ -226,8 +240,20 @@ fun AuraApp() {
         return
     }
 
+    // Sleep Timer Dialog
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            sleepTimerManager = sleepTimerManager,
+            onDismiss = { showSleepTimerDialog = false },
+            onFinish = {
+                controller?.pause()
+            }
+        )
+    }
+
     // Fullscreen Audio Player Screen
     if (showPlayerScreen && currentMedia != null) {
+        val isFav = favoritesTrigger.let { favoritesManager.isFavorite(currentMedia!!.id) }
         PlayerScreen(
             currentMedia = currentMedia,
             isPlaying = isPlaying,
@@ -235,6 +261,8 @@ fun AuraApp() {
             durationMs = durationMs,
             isShuffle = isShuffle,
             repeatMode = repeatMode,
+            isFavorite = isFav,
+            playbackSpeed = playbackSpeed,
             onPlayPauseClick = {
                 controller?.let {
                     if (it.isPlaying) it.pause() else it.play()
@@ -249,6 +277,13 @@ fun AuraApp() {
             onSeek = { targetMs ->
                 controller?.seekTo(targetMs)
                 currentPositionMs = targetMs
+            },
+            onSeekRelative = { deltaMs ->
+                controller?.let { c ->
+                    val target = (c.currentPosition + deltaMs).coerceIn(0L, durationMs)
+                    c.seekTo(target)
+                    currentPositionMs = target
+                }
             },
             onShuffleToggle = {
                 isShuffle = !isShuffle
@@ -266,6 +301,17 @@ fun AuraApp() {
                     RepeatMode.ONE -> Player.REPEAT_MODE_ONE
                 }
             },
+            onToggleFavorite = {
+                currentMedia?.let {
+                    favoritesManager.toggleFavorite(it.id)
+                    favoritesTrigger++
+                }
+            },
+            onSpeedChange = { speed ->
+                playbackSpeed = speed
+                controller?.setPlaybackSpeed(speed)
+            },
+            onOpenSleepTimer = { showSleepTimerDialog = true },
             onDismiss = { showPlayerScreen = false }
         )
         return
@@ -333,36 +379,65 @@ fun AuraApp() {
         }
     ) { innerPadding ->
         when (selectedNavTab) {
-            0 -> MusicScreen(
-                songs = songs,
-                isLoading = isLoading,
-                currentMedia = currentMedia,
-                onSongClick = { song ->
-                    currentMedia = song
-                    controller?.run {
-                        // Populate entire queue for continuous uninterrupted playback!
-                        val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-                        val mediaItemList = songs.map { s ->
-                            MediaItem.Builder()
-                                .setUri(s.uri)
-                                .setMediaId(s.id.toString())
-                                .setMediaMetadata(
-                                    MediaMetadata.Builder()
-                                        .setTitle(s.title)
-                                        .setArtist(s.artist)
-                                        .setAlbumTitle(s.album)
-                                        .setArtworkUri(s.artworkUri)
-                                        .build()
-                                )
-                                .build()
+            0 -> {
+                // Trigger recomposition when favorites change
+                favoritesTrigger.let { }
+                MusicScreen(
+                    songs = songs,
+                    isLoading = isLoading,
+                    currentMedia = currentMedia,
+                    favoritesManager = favoritesManager,
+                    onSongClick = { song ->
+                        currentMedia = song
+                        controller?.run {
+                            val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+                            val mediaItemList = songs.map { s ->
+                                MediaItem.Builder()
+                                    .setUri(s.uri)
+                                    .setMediaId(s.id.toString())
+                                    .setMediaMetadata(
+                                        MediaMetadata.Builder()
+                                            .setTitle(s.title)
+                                            .setArtist(s.artist)
+                                            .setAlbumTitle(s.album)
+                                            .setArtworkUri(s.artworkUri)
+                                            .build()
+                                    )
+                                    .build()
+                            }
+                            setMediaItems(mediaItemList, songIndex, 0L)
+                            prepare()
+                            play()
                         }
-                        setMediaItems(mediaItemList, songIndex, 0L)
-                        prepare()
-                        play()
-                    }
-                },
-                modifier = Modifier.padding(innerPadding)
-            )
+                    },
+                    onDeleteSong = { song ->
+                        val success = mediaRepository.deleteAudioFile(song)
+                        if (success) {
+                            songs = songs.filter { it.id != song.id }
+                            if (currentMedia?.id == song.id) {
+                                controller?.stop()
+                                currentMedia = null
+                            }
+                        }
+                    },
+                    onFetchCover = { song ->
+                        scope.launch(Dispatchers.IO) {
+                            mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
+                            val reloaded = mediaRepository.loadAudioFiles()
+                            withContext(Dispatchers.Main) {
+                                songs = reloaded
+                                if (currentMedia?.id == song.id) {
+                                    currentMedia = reloaded.find { it.id == song.id }
+                                }
+                            }
+                        }
+                    },
+                    onOpenSleepTimer = {
+                        showSleepTimerDialog = true
+                    },
+                    modifier = Modifier.padding(innerPadding)
+                )
+            }
             1 -> VideoScreen(
                 videos = videos,
                 isLoading = isLoading,

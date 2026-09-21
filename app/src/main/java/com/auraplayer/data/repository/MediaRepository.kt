@@ -156,4 +156,35 @@ class MediaRepository(private val context: Context) {
 
         videoList
     }
+
+    val favoritesManager = FavoritesManager(context)
+
+    suspend fun deleteAudioFile(song: MediaModel): Boolean = withContext(Dispatchers.IO) {
+        try {
+            var deleted = false
+            // 1. Try file deletion
+            if (song.path.isNotEmpty()) {
+                val file = File(song.path)
+                if (file.exists()) {
+                    deleted = file.delete()
+                }
+            }
+            // 2. Try MediaStore content resolver deletion
+            try {
+                val rows = context.contentResolver.delete(song.uri, null, null)
+                if (rows > 0) deleted = true
+            } catch (e: Exception) {
+                // If scoped storage requires RecoverableSecurityException or delete request
+            }
+            // 3. Remove cached artwork file
+            val coverById = File(context.filesDir, "covers/${song.id}.jpg")
+            if (coverById.exists()) coverById.delete()
+
+            deleted
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
 }
+
