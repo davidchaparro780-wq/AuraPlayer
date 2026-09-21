@@ -9,7 +9,7 @@ data class MediaModel(
     val album: String,
     val duration: Long,
     val uri: Uri,
-    val artworkUri: Uri?,
+    val artworkUri: Uri? = null,
     val isVideo: Boolean = false,
     val folderName: String = "",
     val path: String = "",

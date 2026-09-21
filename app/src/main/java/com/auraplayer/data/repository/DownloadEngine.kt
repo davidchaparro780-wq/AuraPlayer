@@ -99,6 +99,7 @@ class DownloadEngine(
                 album = track.album,
                 duration = track.durationSec * 1000L,
                 uri = android.net.Uri.fromFile(targetFile),
+                artworkUri = if (track.coverUrl.isNotBlank()) android.net.Uri.parse(track.coverUrl) else null,
                 path = targetFile.absolutePath,
                 size = targetFile.length()
             )
