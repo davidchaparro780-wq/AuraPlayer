@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
@@ -390,11 +391,15 @@ fun DiscoverScreen(
                                 onPreviewTrack(track)
                             },
                             onDownload = {
-                                Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
-                                scope.launch {
-                                    downloadEngine.downloadTrack(track) {
-                                        Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                        onDownloadComplete()
+                                if (!track.isDownloadable) {
+                                    Toast.makeText(context, "⚠️ Esta pista es una muestra de 30s. Filtra por Jamendo o Archive para canciones completas.", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Iniciando descarga completa: ${track.title}", Toast.LENGTH_SHORT).show()
+                                    scope.launch {
+                                        downloadEngine.downloadTrack(track) {
+                                            Toast.makeText(context, "✓ Canción completa guardada en tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
+                                            onDownloadComplete()
+                                        }
                                     }
                                 }
                             }
@@ -540,12 +545,15 @@ fun OnlineTrackCard(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(
+                                if (track.isDownloadable) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                            )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = "Descargar",
-                            tint = Color.White,
+                            imageVector = if (track.isDownloadable) Icons.Default.CloudDownload else Icons.Default.Info,
+                            contentDescription = if (track.isDownloadable) "Descargar Canción Completa" else "Muestra 30s",
+                            tint = if (track.isDownloadable) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
                     }

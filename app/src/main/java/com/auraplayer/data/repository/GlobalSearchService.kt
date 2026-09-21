@@ -3,7 +3,6 @@ package com.auraplayer.data.repository
 import com.auraplayer.data.model.OnlineTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -77,11 +76,11 @@ class GlobalSearchService {
                                     id = "tiktok_${System.currentTimeMillis()}",
                                     title = title.take(50),
                                     artist = author,
-                                    album = "TikTok Audio",
+                                    album = "TikTok Audio Completo",
                                     durationSec = duration,
                                     audioUrl = musicUrl,
                                     coverUrl = cover,
-                                    format = "MP3",
+                                    format = "MP3 Full",
                                     bitrateKbps = 192,
                                     license = "TikTok Audio",
                                     source = "TikTok",
@@ -108,7 +107,7 @@ class GlobalSearchService {
                     durationSec = 0,
                     audioUrl = urlStr,
                     coverUrl = "",
-                    format = "MP3 / Audio",
+                    format = "MP3 Completo",
                     bitrateKbps = 320,
                     license = "Web Direct",
                     source = "Enlace Web",
@@ -121,41 +120,48 @@ class GlobalSearchService {
     }
 
     /**
-     * Executes parallel queries against Jamendo, Internet Archive, and Deezer APIs
+     * Executes parallel queries against Jamendo, Internet Archive, and Deezer APIs.
+     * Prioritizes full-length downloadable tracks first!
      */
     private suspend fun searchFederated(query: String, selectedSource: String, isTrending: Boolean = false): List<OnlineTrack> = coroutineScope {
-        val results = mutableListOf<OnlineTrack>()
+        val fullSongs = mutableListOf<OnlineTrack>()
+        val previewSongs = mutableListOf<OnlineTrack>()
 
         val includeJamendo = selectedSource == "Todas" || selectedSource == "Jamendo"
         val includeDeezer = selectedSource == "Todas" || selectedSource == "Deezer"
         val includeArchive = selectedSource == "Todas" || selectedSource == "Archive"
 
         val jamendoDeferred = if (includeJamendo) async { queryJamendo(query, isTrending) } else null
-        val deezerDeferred = if (includeDeezer) async { queryDeezer(query, isTrending) } else null
         val archiveDeferred = if (includeArchive && query.isNotBlank() && !isTrending) async { queryArchive(query) } else null
+        val deezerDeferred = if (includeDeezer) async { queryDeezer(query, isTrending) } else null
 
-        jamendoDeferred?.await()?.let { results.addAll(it) }
-        deezerDeferred?.await()?.let { results.addAll(it) }
-        archiveDeferred?.await()?.let { results.addAll(it) }
+        jamendoDeferred?.await()?.let { fullSongs.addAll(it) }
+        archiveDeferred?.await()?.let { fullSongs.addAll(it) }
+        deezerDeferred?.await()?.let { previewSongs.addAll(it) }
 
-        results
+        // Full downloadable tracks appear first!
+        val combined = mutableListOf<OnlineTrack>()
+        combined.addAll(fullSongs)
+        combined.addAll(previewSongs)
+        combined
     }
 
     private fun queryJamendo(query: String, isTrending: Boolean): List<OnlineTrack> {
         val list = mutableListOf<OnlineTrack>()
         try {
             val urlStr = if (isTrending || query.isBlank()) {
-                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=25&order=popularity_week&audioformat=mp32&include=musicinfo"
+                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=30&order=popularity_week&audioformat=mp32&include=musicinfo"
             } else {
                 val encoded = URLEncoder.encode(query.trim(), "UTF-8")
-                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=25&namesearch=$encoded&order=popularity_total&audioformat=mp32&include=musicinfo"
+                // Use search= to search title, artist, album and tags all together!
+                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=30&search=$encoded&order=popularity_total&audioformat=mp32&include=musicinfo"
             }
 
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 8000
                 readTimeout = 8000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.4 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.7.5 (Android)")
             }
 
             if (conn.responseCode == 200) {
@@ -191,9 +197,9 @@ class GlobalSearchService {
                                     durationSec = duration,
                                     audioUrl = audioUrl,
                                     coverUrl = image,
-                                    format = "MP3 Full",
+                                    format = "MP3 Completo",
                                     bitrateKbps = 320,
-                                    license = "Libre / Descargable",
+                                    license = "Canción Completa",
                                     source = "Jamendo",
                                     isDownloadable = true
                                 )
@@ -212,17 +218,17 @@ class GlobalSearchService {
         val list = mutableListOf<OnlineTrack>()
         try {
             val urlStr = if (isTrending || query.isBlank()) {
-                "https://api.deezer.com/chart/0/tracks?limit=25"
+                "https://api.deezer.com/chart/0/tracks?limit=20"
             } else {
                 val encoded = URLEncoder.encode(query.trim(), "UTF-8")
-                "https://api.deezer.com/search?q=$encoded&limit=25"
+                "https://api.deezer.com/search?q=$encoded&limit=20"
             }
 
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 8000
                 readTimeout = 8000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.4 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.7.5 (Android)")
             }
 
             if (conn.responseCode == 200) {
@@ -236,7 +242,6 @@ class GlobalSearchService {
                         val title = item.optString("title", "Sin título")
                         val artist = item.optJSONObject("artist")?.optString("name") ?: "Artista"
                         val album = item.optJSONObject("album")?.optString("title") ?: "Álbum"
-                        val duration = item.optInt("duration", 0)
                         val audioUrl = item.optString("preview", "")
                         val cover = item.optJSONObject("album")?.optString("cover_big")
                             ?: item.optJSONObject("album")?.optString("cover_medium") ?: ""
@@ -248,14 +253,14 @@ class GlobalSearchService {
                                     title = title,
                                     artist = artist,
                                     album = album,
-                                    durationSec = duration,
+                                    durationSec = 30, // Preview stream is 30s!
                                     audioUrl = audioUrl,
                                     coverUrl = cover,
-                                    format = "HD Master",
-                                    bitrateKbps = 320,
-                                    license = "Metadatos Deezer",
+                                    format = "Muestra 30s",
+                                    bitrateKbps = 128,
+                                    license = "Preview Deezer",
                                     source = "Deezer",
-                                    isDownloadable = true
+                                    isDownloadable = false
                                 )
                             )
                         }
@@ -278,7 +283,7 @@ class GlobalSearchService {
                 connectTimeout = 8000
                 readTimeout = 8000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.4 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.7.5 (Android)")
             }
 
             if (conn.responseCode == 200) {
@@ -306,7 +311,7 @@ class GlobalSearchService {
                                     durationSec = 0,
                                     audioUrl = audioUrl,
                                     coverUrl = coverUrl,
-                                    format = "MP3 Archive",
+                                    format = "MP3 Completo",
                                     bitrateKbps = 192,
                                     license = "Dominio Público",
                                     source = "Archive",
