@@ -114,24 +114,22 @@ class YouTubeMusicRepository {
     suspend fun resolveAudioStream(videoId: String): String? = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) return@withContext null
 
-        // 1. Try InnerTube Android Client Player API (Fastest & Unthrottled Direct Stream)
         try {
             val url = URL("https://www.youtube.com/youtubei/v1/player")
             val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 5000
-                readTimeout = 5000
+                connectTimeout = 8000
+                readTimeout = 8000
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("User-Agent", "com.google.android.youtube/19.09.37 (Linux; U; Android 13) gzip")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                 doOutput = true
             }
 
             val payload = JSONObject().apply {
                 put("context", JSONObject().apply {
                     put("client", JSONObject().apply {
-                        put("clientName", "ANDROID")
-                        put("clientVersion", "19.09.37")
-                        put("androidSdkVersion", 30)
+                        put("clientName", "ANDROID_VR")
+                        put("clientVersion", "1.61.48")
                         put("hl", "es")
                         put("gl", "US")
                     })
@@ -146,7 +144,7 @@ class YouTubeMusicRepository {
                 val root = JSONObject(resp)
                 val formats = root.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
                 if (formats != null) {
-                    var bestAudioUrl: String? = null
+                    var bestUrl: String? = null
                     var highestBitrate = 0
                     for (i in 0 until formats.length()) {
                         val fmt = formats.getJSONObject(i)
@@ -156,131 +154,17 @@ class YouTubeMusicRepository {
                             val bitrate = fmt.optInt("bitrate", 0)
                             if (streamUrl.isNotBlank() && bitrate >= highestBitrate) {
                                 highestBitrate = bitrate
-                                bestAudioUrl = streamUrl
+                                bestUrl = streamUrl
                             }
                         }
                     }
-                    if (!bestAudioUrl.isNullOrBlank()) {
-                        return@withContext bestAudioUrl
+                    if (!bestUrl.isNullOrBlank()) {
+                        return@withContext bestUrl
                     }
                 }
             }
         } catch (e: Exception) {
             e.printStackTrace()
-        }
-
-        // 2. Try InnerTube iOS Client Player API
-        try {
-            val url = URL("https://www.youtube.com/youtubei/v1/player")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 5000
-                readTimeout = 5000
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("User-Agent", "com.google.ios.youtube/19.09.3 (iPhone14,5; U; CPU iOS 17_4 like Mac OS X)")
-                doOutput = true
-            }
-
-            val payload = JSONObject().apply {
-                put("context", JSONObject().apply {
-                    put("client", JSONObject().apply {
-                        put("clientName", "IOS")
-                        put("clientVersion", "19.09.3")
-                        put("hl", "es")
-                        put("gl", "US")
-                    })
-                })
-                put("videoId", videoId)
-            }
-
-            conn.outputStream.use { it.write(payload.toString().toByteArray()) }
-
-            if (conn.responseCode == 200) {
-                val resp = conn.inputStream.bufferedReader().use { it.readText() }
-                val root = JSONObject(resp)
-                val formats = root.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
-                if (formats != null) {
-                    for (i in 0 until formats.length()) {
-                        val fmt = formats.getJSONObject(i)
-                        val mime = fmt.optString("mimeType")
-                        if (mime.startsWith("audio/")) {
-                            val streamUrl = fmt.optString("url")
-                            if (streamUrl.isNotBlank()) {
-                                return@withContext streamUrl
-                            }
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // 3. Fallback: Piped API Mirrors
-        val pipedInstances = listOf(
-            "https://api.piped.privacydev.net",
-            "https://pipedapi.kavin.rocks",
-            "https://cf.piped.video",
-            "https://pipedapi.tokhmi.xyz"
-        )
-        for (instance in pipedInstances) {
-            try {
-                val conn = (URL("$instance/streams/$videoId").openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 4000
-                    readTimeout = 4000
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
-                }
-                if (conn.responseCode == 200) {
-                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
-                    val root = JSONObject(resp)
-                    val audioStreams = root.optJSONArray("audioStreams")
-                    if (audioStreams != null && audioStreams.length() > 0) {
-                        val firstStream = audioStreams.getJSONObject(0).optString("url")
-                        if (firstStream.isNotBlank()) {
-                            return@withContext firstStream
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Try next mirror
-            }
-        }
-
-        // 4. Fallback: Invidious API Mirrors
-        val invidiousInstances = listOf(
-            "https://invidious.privacydev.net",
-            "https://vid.puffyan.us",
-            "https://inv.tux.pizza"
-        )
-        for (instance in invidiousInstances) {
-            try {
-                val conn = (URL("$instance/api/v1/videos/$videoId").openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 4000
-                    readTimeout = 4000
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
-                }
-                if (conn.responseCode == 200) {
-                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
-                    val root = JSONObject(resp)
-                    val formats = root.optJSONArray("adaptiveFormats")
-                    if (formats != null) {
-                        for (i in 0 until formats.length()) {
-                            val fmt = formats.getJSONObject(i)
-                            val type = fmt.optString("type")
-                            if (type.startsWith("audio/")) {
-                                val streamUrl = fmt.optString("url")
-                                if (streamUrl.isNotBlank()) {
-                                    return@withContext streamUrl
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Try next mirror
-            }
         }
 
         null
