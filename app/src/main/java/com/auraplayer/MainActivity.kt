@@ -386,11 +386,28 @@ fun AuraApp(
                     val mediaId = item?.mediaId?.toLongOrNull()
                     if (mediaId != null) {
                         val found = songs.find { it.id == mediaId }
-                        currentMedia = found
                         if (found != null) {
+                            currentMedia = found
                             playlistManager.recordPlay(found.id)
                         }
+                    } else if (item != null) {
+                        val meta = item.mediaMetadata
+                        currentMedia = MediaModel(
+                            id = -1L,
+                            title = meta.title?.toString() ?: "Canción",
+                            artist = meta.artist?.toString() ?: "Artista",
+                            album = meta.albumTitle?.toString() ?: "Online",
+                            duration = 0L,
+                            uri = item.localConfiguration?.uri ?: Uri.EMPTY,
+                            path = item.localConfiguration?.uri?.toString() ?: "",
+                            artworkUri = meta.artworkUri
+                        )
                     }
+                }
+
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    error.printStackTrace()
+                    Toast.makeText(context, "Error de reproducción: ${error.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
             })
         }, MoreExecutors.directExecutor())

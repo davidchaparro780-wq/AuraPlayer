@@ -71,10 +71,15 @@ class YouTubeMusicRepository {
                             ?.optString("simpleText", "0:00") ?: "0:00"
 
                         val thumbArray = video.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
-                        val coverUrl = if (thumbArray != null && thumbArray.length() > 0) {
+                        val rawCover = if (thumbArray != null && thumbArray.length() > 0) {
                             thumbArray.optJSONObject(thumbArray.length() - 1)?.optString("url") ?: ""
                         } else {
-                            "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                            ""
+                        }
+                        val coverUrl = when {
+                            rawCover.startsWith("//") -> "https:$rawCover"
+                            rawCover.startsWith("http") -> rawCover
+                            else -> "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
                         }
 
                         // Parse duration mm:ss or hh:mm:ss to seconds
