@@ -161,13 +161,27 @@ fun AuraApp() {
         }
     }
 
-    // Load media files once permission is granted
+    // Load media files once permission is granted and auto-fetch cover art
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             isLoading = true
             songs = mediaRepository.loadAudioFiles()
             videos = mediaRepository.loadVideoFiles()
             isLoading = false
+
+            // Auto-fetch & save cover art in background for all downloaded tracks
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                var updated = false
+                songs.forEach { song ->
+                    val savedCover = mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
+                    if (savedCover != null && song.artworkUri != savedCover) {
+                        updated = true
+                    }
+                }
+                if (updated) {
+                    songs = mediaRepository.loadAudioFiles()
+                }
+            }
         }
     }
 

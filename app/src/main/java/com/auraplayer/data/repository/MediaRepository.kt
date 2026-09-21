@@ -12,6 +12,8 @@ import java.io.File
 
 class MediaRepository(private val context: Context) {
 
+    val coverArtManager = CoverArtManager(context)
+
     suspend fun loadAudioFiles(): List<MediaModel> = withContext(Dispatchers.IO) {
         val audioList = mutableListOf<MediaModel>()
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -46,15 +48,19 @@ class MediaRepository(private val context: Context) {
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
                     val title = cursor.getString(titleCol) ?: "Unknown Title"
-                    val artist = cursor.getString(artistCol) ?: "Unknown Artist"
-                    val album = cursor.getString(albumCol) ?: "Unknown Album"
+                    val rawArtist = cursor.getString(artistCol) ?: "Unknown Artist"
+                    val rawAlbum = cursor.getString(albumCol) ?: "Unknown Album"
                     val duration = cursor.getLong(durationCol)
                     val data = cursor.getString(dataCol) ?: ""
                     val size = cursor.getLong(sizeCol)
 
+                    val artist = if (rawArtist.equals("<unknown>", ignoreCase = true)) "Artista desconocido" else rawArtist
+                    val album = if (rawAlbum.equals("<unknown>", ignoreCase = true)) "Álbum desconocido" else rawAlbum
+
                     val contentUri = ContentUris.withAppendedId(collection, id)
-                    // High-compatibility modern artwork URI directly decodable by Coil
-                    val artworkUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                    // Check local saved persistent cover art first, then fallback to MediaStore
+                    val localCoverUri = coverArtManager.getLocalCoverUri(id, artist, title)
+                    val artworkUri = localCoverUri ?: ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
                     val folderName = try {
                         File(data).parentFile?.name ?: "Música"
@@ -62,21 +68,21 @@ class MediaRepository(private val context: Context) {
                         "Música"
                     }
 
-                    audioList.add(
-                        MediaModel(
-                            id = id,
-                            title = title,
-                            artist = if (artist.equals("<unknown>", ignoreCase = true)) "Artista desconocido" else artist,
-                            album = if (album.equals("<unknown>", ignoreCase = true)) "Álbum desconocido" else album,
-                            duration = duration,
-                            uri = contentUri,
-                            artworkUri = artworkUri,
-                            isVideo = false,
-                            folderName = folderName,
-                            path = data,
-                            size = size
-                        )
+                    val mediaModel = MediaModel(
+                        id = id,
+                        title = title,
+                        artist = artist,
+                        album = album,
+                        duration = duration,
+                        uri = contentUri,
+                        artworkUri = artworkUri,
+                        isVideo = false,
+                        folderName = folderName,
+                        path = data,
+                        size = size
                     )
+
+                    audioList.add(mediaModel)
                 }
             }
         } catch (e: Exception) {
