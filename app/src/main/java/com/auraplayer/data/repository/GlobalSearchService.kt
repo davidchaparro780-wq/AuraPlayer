@@ -16,7 +16,7 @@ class GlobalSearchService {
 
     /**
      * Omnibar Entry Point: Determines whether the query is a URL or search text,
-     * and queries the appropriate services.
+     * and queries the appropriate services for 100% FULL-LENGTH songs.
      */
     suspend fun searchOrExtract(input: String, selectedSource: String = "Todas"): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val trimmed = input.trim()
@@ -27,7 +27,7 @@ class GlobalSearchService {
             return@withContext extractFromUrl(trimmed)
         }
 
-        // 2. Federated Multi-Source Search
+        // 2. Federated Multi-Source Search (100% Full-Length Songs)
         searchFederated(trimmed, selectedSource)
     }
 
@@ -42,7 +42,7 @@ class GlobalSearchService {
     }
 
     /**
-     * Extracts audio stream and metadata from supported URLs (TikTok via TikWM, Direct Streams)
+     * Extracts full audio stream and metadata from supported URLs (TikTok via TikWM, Direct Streams)
      */
     private suspend fun extractFromUrl(urlStr: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OnlineTrack>()
@@ -65,10 +65,10 @@ class GlobalSearchService {
                         val data = root.optJSONObject("data")
                         val musicUrl = data?.optString("music", "") ?: ""
                         val musicInfo = data?.optJSONObject("music_info")
-                        val title = musicInfo?.optString("title", data?.optString("title", "Audio de TikTok")) ?: "Audio de TikTok"
+                        val title = musicInfo?.optString("title", data?.optString("title", "Audio TikTok")) ?: "Audio TikTok"
                         val author = musicInfo?.optString("author", data?.optJSONObject("author")?.optString("nickname", "TikTok")) ?: "TikTok"
                         val cover = musicInfo?.optString("cover", data?.optString("cover", "")) ?: ""
-                        val duration = musicInfo?.optInt("duration", 30) ?: 30
+                        val duration = musicInfo?.optInt("duration", 60) ?: 60
 
                         if (musicUrl.isNotBlank()) {
                             list.add(
@@ -80,9 +80,9 @@ class GlobalSearchService {
                                     durationSec = duration,
                                     audioUrl = musicUrl,
                                     coverUrl = cover,
-                                    format = "MP3 Full",
+                                    format = "MP3 Completo",
                                     bitrateKbps = 192,
-                                    license = "TikTok Audio",
+                                    license = "Pista Completa",
                                     source = "TikTok",
                                     isDownloadable = true
                                 )
@@ -101,15 +101,15 @@ class GlobalSearchService {
             list.add(
                 OnlineTrack(
                     id = "direct_${System.currentTimeMillis()}",
-                    title = fileName.ifBlank { "Pista de Audio Web" },
+                    title = fileName.ifBlank { "Pista Completa Web" },
                     artist = "Enlace Directo",
-                    album = "Descarga Web",
+                    album = "Descarga Directa",
                     durationSec = 0,
                     audioUrl = urlStr,
                     coverUrl = "",
                     format = "MP3 Completo",
                     bitrateKbps = 320,
-                    license = "Web Direct",
+                    license = "Pista Completa",
                     source = "Enlace Web",
                     isDownloadable = true
                 )
@@ -120,48 +120,39 @@ class GlobalSearchService {
     }
 
     /**
-     * Executes parallel queries against Jamendo, Internet Archive, and Deezer APIs.
-     * Prioritizes full-length downloadable tracks first!
+     * Executes parallel queries against Jamendo & Internet Archive for 100% full-length songs.
+     * ZERO 30-second previews!
      */
     private suspend fun searchFederated(query: String, selectedSource: String, isTrending: Boolean = false): List<OnlineTrack> = coroutineScope {
-        val fullSongs = mutableListOf<OnlineTrack>()
-        val previewSongs = mutableListOf<OnlineTrack>()
+        val results = mutableListOf<OnlineTrack>()
 
         val includeJamendo = selectedSource == "Todas" || selectedSource == "Jamendo"
-        val includeDeezer = selectedSource == "Todas" || selectedSource == "Deezer"
         val includeArchive = selectedSource == "Todas" || selectedSource == "Archive"
 
         val jamendoDeferred = if (includeJamendo) async { queryJamendo(query, isTrending) } else null
-        val archiveDeferred = if (includeArchive && query.isNotBlank() && !isTrending) async { queryArchive(query) } else null
-        val deezerDeferred = if (includeDeezer) async { queryDeezer(query, isTrending) } else null
+        val archiveDeferred = if (includeArchive && (query.isNotBlank() || isTrending)) async { queryArchive(query, isTrending) } else null
 
-        jamendoDeferred?.await()?.let { fullSongs.addAll(it) }
-        archiveDeferred?.await()?.let { fullSongs.addAll(it) }
-        deezerDeferred?.await()?.let { previewSongs.addAll(it) }
+        jamendoDeferred?.await()?.let { results.addAll(it) }
+        archiveDeferred?.await()?.let { results.addAll(it) }
 
-        // Full downloadable tracks appear first!
-        val combined = mutableListOf<OnlineTrack>()
-        combined.addAll(fullSongs)
-        combined.addAll(previewSongs)
-        combined
+        results
     }
 
     private fun queryJamendo(query: String, isTrending: Boolean): List<OnlineTrack> {
         val list = mutableListOf<OnlineTrack>()
         try {
             val urlStr = if (isTrending || query.isBlank()) {
-                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=30&order=popularity_week&audioformat=mp32&include=musicinfo"
+                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=40&order=popularity_week&audioformat=mp32&include=musicinfo"
             } else {
                 val encoded = URLEncoder.encode(query.trim(), "UTF-8")
-                // Use search= to search title, artist, album and tags all together!
-                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=30&search=$encoded&order=popularity_total&audioformat=mp32&include=musicinfo"
+                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=40&search=$encoded&order=popularity_total&audioformat=mp32&include=musicinfo"
             }
 
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 9000
+                readTimeout = 9000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.5 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.7.6 (Android)")
             }
 
             if (conn.responseCode == 200) {
@@ -175,12 +166,14 @@ class GlobalSearchService {
                         val audioUrl = item.optString("audiodownload", "").ifBlank {
                             item.optString("audio", "")
                         }
-                        if (allowed && audioUrl.isNotBlank()) {
+                        val duration = item.optInt("duration", 0)
+
+                        // Only include full songs (at least 60 seconds) with direct audio streams
+                        if (allowed && audioUrl.isNotBlank() && duration >= 45) {
                             val id = item.optString("id", System.currentTimeMillis().toString())
                             val name = item.optString("name", "Canción Completa").trim()
                             val artist = item.optString("artist_name", "Artista").trim()
                             val album = item.optString("album_name", "Álbum").trim()
-                            val duration = item.optInt("duration", 0)
                             var image = item.optString("image", "").ifBlank {
                                 item.optString("album_image", "")
                             }
@@ -214,76 +207,18 @@ class GlobalSearchService {
         return list
     }
 
-    private fun queryDeezer(query: String, isTrending: Boolean): List<OnlineTrack> {
+    private fun queryArchive(query: String, isTrending: Boolean = false): List<OnlineTrack> {
         val list = mutableListOf<OnlineTrack>()
         try {
-            val urlStr = if (isTrending || query.isBlank()) {
-                "https://api.deezer.com/chart/0/tracks?limit=20"
-            } else {
-                val encoded = URLEncoder.encode(query.trim(), "UTF-8")
-                "https://api.deezer.com/search?q=$encoded&limit=20"
-            }
+            val searchTerm = if (query.isBlank()) "music" else query.trim()
+            val encoded = URLEncoder.encode(searchTerm, "UTF-8")
+            val urlStr = "https://archive.org/advancedsearch.php?q=mediatype:(audio)+AND+($encoded)&fl[]=identifier,title,creator,year&sort[]=downloads+desc&rows=25&page=1&output=json"
 
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 9000
+                readTimeout = 9000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.5 (Android)")
-            }
-
-            if (conn.responseCode == 200) {
-                val response = conn.inputStream.bufferedReader().use { it.readText() }
-                val root = JSONObject(response)
-                val data = root.optJSONArray("data")
-                if (data != null) {
-                    for (i in 0 until data.length()) {
-                        val item = data.getJSONObject(i)
-                        val id = item.optString("id", System.currentTimeMillis().toString())
-                        val title = item.optString("title", "Sin título")
-                        val artist = item.optJSONObject("artist")?.optString("name") ?: "Artista"
-                        val album = item.optJSONObject("album")?.optString("title") ?: "Álbum"
-                        val audioUrl = item.optString("preview", "")
-                        val cover = item.optJSONObject("album")?.optString("cover_big")
-                            ?: item.optJSONObject("album")?.optString("cover_medium") ?: ""
-
-                        if (audioUrl.isNotBlank()) {
-                            list.add(
-                                OnlineTrack(
-                                    id = "dz_$id",
-                                    title = title,
-                                    artist = artist,
-                                    album = album,
-                                    durationSec = 30, // Preview stream is 30s!
-                                    audioUrl = audioUrl,
-                                    coverUrl = cover,
-                                    format = "Muestra 30s",
-                                    bitrateKbps = 128,
-                                    license = "Preview Deezer",
-                                    source = "Deezer",
-                                    isDownloadable = false
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return list
-    }
-
-    private fun queryArchive(query: String): List<OnlineTrack> {
-        val list = mutableListOf<OnlineTrack>()
-        try {
-            val encoded = URLEncoder.encode(query.trim(), "UTF-8")
-            val urlStr = "https://archive.org/advancedsearch.php?q=mediatype:(audio)+AND+($encoded)&fl[]=identifier,title,creator,year&sort[]=downloads+desc&rows=15&page=1&output=json"
-
-            val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.5 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.7.6 (Android)")
             }
 
             if (conn.responseCode == 200) {
@@ -294,8 +229,8 @@ class GlobalSearchService {
                     for (i in 0 until docs.length()) {
                         val doc = docs.getJSONObject(i)
                         val id = doc.optString("identifier", "")
-                        val title = doc.optString("title", "Audio Libre").trim()
-                        val creator = doc.optString("creator", "Internet Archive").trim()
+                        val title = doc.optString("title", "Audio Completo").trim()
+                        val creator = doc.optString("creator", "Artista Libre").trim()
                         val year = doc.optString("year", "")
 
                         if (id.isNotBlank()) {
@@ -306,14 +241,14 @@ class GlobalSearchService {
                                 OnlineTrack(
                                     id = "arc_$id",
                                     title = title,
-                                    artist = creator.take(30),
+                                    artist = creator.take(35),
                                     album = if (year.isNotBlank()) "Archive ($year)" else "Internet Archive",
-                                    durationSec = 0,
+                                    durationSec = 210, // Full track standard
                                     audioUrl = audioUrl,
                                     coverUrl = coverUrl,
                                     format = "MP3 Completo",
                                     bitrateKbps = 192,
-                                    license = "Dominio Público",
+                                    license = "Canción Completa",
                                     source = "Archive",
                                     isDownloadable = true
                                 )

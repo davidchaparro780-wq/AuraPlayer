@@ -101,10 +101,9 @@ fun DiscoverScreen(
     val downloadStates by downloadEngine.downloadStates.collectAsState()
 
     val sourceFilters = listOf(
-        "Todas" to "🌐 Todas",
+        "Todas" to "🌐 Todas (Completas)",
         "Jamendo" to "⚡ Jamendo (Full)",
-        "Deezer" to "💎 Deezer (Metadatos)",
-        "Archive" to "🏛️ Archive"
+        "Archive" to "🏛️ Internet Archive"
     )
 
     val genres = listOf(
