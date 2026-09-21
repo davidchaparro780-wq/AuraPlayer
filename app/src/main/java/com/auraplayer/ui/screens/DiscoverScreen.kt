@@ -75,8 +75,8 @@ import coil.request.ImageRequest
 import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.repository.DownloadEngine
 import com.auraplayer.data.repository.DownloadStatus
+import com.auraplayer.data.repository.LiveRadioRepository
 import com.auraplayer.data.repository.OnlineMusicRepository
-import com.auraplayer.data.repository.YouTubeMusicRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -371,43 +371,16 @@ fun DiscoverScreen(
                             track = track,
                             status = status,
                             onPreview = {
-                                scope.launch {
-                                    val playableTrack = if (track.id.startsWith("yt_")) {
-                                        Toast.makeText(context, "Conectando stream de YouTube...", Toast.LENGTH_SHORT).show()
-                                        val streamUrl = youTubeRepo.resolveAudioStream(track.id.removePrefix("yt_"))
-                                        if (!streamUrl.isNullOrBlank()) {
-                                            track.copy(audioUrl = streamUrl)
-                                        } else {
-                                            Toast.makeText(context, "No se pudo obtener el audio de este video", Toast.LENGTH_SHORT).show()
-                                            null
-                                        }
-                                    } else {
-                                        track
-                                    }
-                                    if (playableTrack != null) {
-                                        onPreviewTrack(playableTrack)
-                                    }
-                                }
+                                onPreviewTrack(track)
                             },
                             onDownload = {
-                                scope.launch {
-                                    Toast.makeText(context, "Preparando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
-                                    val downloadableTrack = if (track.id.startsWith("yt_")) {
-                                        val streamUrl = youTubeRepo.resolveAudioStream(track.id.removePrefix("yt_"))
-                                        if (!streamUrl.isNullOrBlank()) {
-                                            track.copy(audioUrl = streamUrl)
-                                        } else {
-                                            Toast.makeText(context, "Error al preparar enlace de descarga", Toast.LENGTH_SHORT).show()
-                                            null
-                                        }
-                                    } else {
-                                        track
-                                    }
-                                    if (downloadableTrack != null) {
-                                        downloadEngine.downloadTrack(downloadableTrack) {
-                                            Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                            onDownloadComplete()
-                                        }
+                                if (track.id.startsWith("radio_")) {
+                                    Toast.makeText(context, "📻 La radio en vivo es una transmisión continua y no requiere descarga", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
+                                    downloadEngine.downloadTrack(track) {
+                                        Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
+                                        onDownloadComplete()
                                     }
                                 }
                             }
