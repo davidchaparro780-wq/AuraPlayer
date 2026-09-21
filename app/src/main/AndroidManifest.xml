@@ -8,6 +8,14 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"
+        tools:ignore="ScopedStorage" />
+    <!-- Full storage management permission (allows physical file deletion on Android 11+) -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <!-- Internet for Auto Cover Art Fetching & Album Artwork Download -->
     <uses-permission android:name="android.permission.INTERNET" />

@@ -39,7 +39,10 @@ import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -92,12 +95,14 @@ fun PlayerScreen(
     onToggleFavorite: () -> Unit,
     onSpeedChange: (Float) -> Unit,
     onOpenSleepTimer: () -> Unit,
+    onDeleteSong: (MediaModel) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (currentMedia == null) return
 
     var showSpeedDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     val infiniteTransition = rememberInfiniteTransition(label = "vinyl")
     val rotation by infiniteTransition.animateFloat(
@@ -178,6 +183,14 @@ fun PlayerScreen(
                             imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                             contentDescription = "Favorito",
                             tint = if (isFavorite) Color(0xFFEC4899) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    IconButton(onClick = { showDeleteConfirmDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = "Eliminar",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -533,6 +546,45 @@ fun PlayerScreen(
                     Text("Cerrar", color = MaterialTheme.colorScheme.primary)
                 }
             }
+        )
+    }
+
+    // Delete Confirmation Dialog
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = {
+                Text(
+                    text = "¿Eliminar canción?",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            },
+            text = {
+                Text(
+                    text = "Se eliminará permanentemente '${currentMedia.title}' del almacenamiento de tu teléfono.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeleteSong(currentMedia)
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Cancelar")
+                }
+            },
+            containerColor = Color(0xFF101422),
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }
