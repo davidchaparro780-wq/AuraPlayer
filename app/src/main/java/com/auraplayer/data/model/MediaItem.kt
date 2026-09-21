@@ -1,4 +1,4 @@
-package com.novaplayer.data.model
+package com.auraplayer.data.model
 
 import android.net.Uri
 
@@ -17,7 +17,7 @@ data class MediaModel(
 ) {
     val formattedDuration: String
         get() {
-            val totalSeconds = duration / 1000
+            val totalSeconds = (duration / 1000).coerceAtLeast(0)
             val minutes = totalSeconds / 60
             val seconds = totalSeconds % 60
             val hours = minutes / 60

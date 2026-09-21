@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.novaplayer"
+    namespace = "com.auraplayer"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.novaplayer"
+        applicationId = "com.auraplayer"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.novaplayer.ui.theme
+package com.auraplayer.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -11,40 +11,41 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF818CF8), // Indigo
-    secondary = Color(0xFFC084FC), // Purple
-    tertiary = Color(0xFF38BDF8), // Sky blue
-    background = Color(0xFF0F172A), // Dark slate
-    surface = Color(0xFF1E293B),
+// Aesthetic Velvet & Neon Glow Palette
+private val AuraDarkPalette = darkColorScheme(
+    primary = Color(0xFFA855F7),        // Electric Violet
+    secondary = Color(0xFFEC4899),      // Neon Rose
+    tertiary = Color(0xFF06B6D4),       // Cyan Glow
+    background = Color(0xFF07090E),     // Deep Abyss Black
+    surface = Color(0xFF101422),        // Midnight Velvet
+    surfaceVariant = Color(0xFF1B2236), // Deep Slate Translucent
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFFF8FAFC),
-    onSurface = Color(0xFFF8FAFC),
-    surfaceVariant = Color(0xFF334155),
+    onBackground = Color(0xFFF1F5F9),
+    onSurface = Color(0xFFF1F5F9),
     onSurfaceVariant = Color(0xFF94A3B8)
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF4F46E5),
-    secondary = Color(0xFF9333EA),
-    tertiary = Color(0xFF0284C7),
+private val AuraLightPalette = lightColorScheme(
+    primary = Color(0xFF7C3AED),        // Deep Violet
+    secondary = Color(0xFFDB2777),      // Magenta
+    tertiary = Color(0xFF0891B2),       // Teal
     background = Color(0xFFF8FAFC),
     surface = Color.White,
+    surfaceVariant = Color(0xFFE2E8F0),
     onPrimary = Color.White,
     onSecondary = Color.White,
     onTertiary = Color.White,
     onBackground = Color(0xFF0F172A),
     onSurface = Color(0xFF0F172A),
-    surfaceVariant = Color(0xFFE2E8F0),
     onSurfaceVariant = Color(0xFF475569)
 )
 
 @Composable
-fun NovaPlayerTheme(
+fun AuraTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false, // Default to curated aesthetic palette
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -52,8 +53,8 @@ fun NovaPlayerTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> AuraDarkPalette
+        else -> AuraDarkPalette // Aesthetic dark first
     }
 
     MaterialTheme(

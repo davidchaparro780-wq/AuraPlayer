@@ -1,4 +1,4 @@
-package com.novaplayer.ui.screens
+package com.auraplayer.ui.screens
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode as AnimRepeatMode
@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,8 +53,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.novaplayer.data.model.MediaModel
-import com.novaplayer.data.model.RepeatMode
+import com.auraplayer.data.model.MediaModel
+import com.auraplayer.data.model.RepeatMode
 
 @Composable
 fun PlayerScreen(
@@ -79,7 +80,7 @@ fun PlayerScreen(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(20000, easing = LinearEasing),
+            animation = tween(24000, easing = LinearEasing),
             repeatMode = AnimRepeatMode.Restart
         ),
         label = "rotation"
@@ -106,29 +107,47 @@ fun PlayerScreen(
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "Minimizar",
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(32.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 Text(
-                    text = "REPRODUCIENDO",
+                    text = "AURA SOUND",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = androidx.compose.ui.unit.sp(2)
                 )
                 Spacer(modifier = Modifier.size(32.dp))
             }
 
-            // Vinyl / Album Art Disc
+            // Glowing Ambient Aura Disc
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(0.75f)
+                    .fillMaxWidth(0.8f)
                     .aspectRatio(1f)
-                    .shadow(16.dp, CircleShape)
+                    .shadow(32.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary)
                     .clip(CircleShape)
                     .background(
                         Brush.radialGradient(
-                            listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                Color(0xFF101422),
+                                Color(0xFF07090E)
+                            )
                         )
+                    )
+                    .border(
+                        2.dp,
+                        Brush.sweepGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary,
+                                MaterialTheme.colorScheme.tertiary,
+                                MaterialTheme.colorScheme.primary
+                            )
+                        ),
+                        CircleShape
                     )
                     .rotate(if (isPlaying) rotation else 0f),
                 contentAlignment = Alignment.Center
@@ -139,14 +158,14 @@ fun PlayerScreen(
                         contentDescription = "Carátula",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .fillMaxSize(0.7f)
+                            .fillMaxSize(0.68f)
                             .clip(CircleShape)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.Default.MusicNote,
                         contentDescription = null,
-                        modifier = Modifier.size(72.dp),
+                        modifier = Modifier.size(80.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -157,6 +176,7 @@ fun PlayerScreen(
                         .size(24.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.background)
+                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
                 )
             }
 
@@ -173,7 +193,7 @@ fun PlayerScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = currentMedia.artist,
                     style = MaterialTheme.typography.titleMedium,
@@ -239,23 +259,32 @@ fun PlayerScreen(
                     Icon(
                         imageVector = Icons.Default.SkipPrevious,
                         contentDescription = "Anterior",
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                // Big Play / Pause
+                // Aesthetic Glowing Play / Pause
                 IconButton(
                     onClick = onPlayPauseClick,
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(74.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.secondary
+                                )
+                            )
+                        )
+                        .shadow(16.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                         contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(40.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(42.dp)
                     )
                 }
 
@@ -267,7 +296,8 @@ fun PlayerScreen(
                     Icon(
                         imageVector = Icons.Default.SkipNext,
                         contentDescription = "Siguiente",
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
 

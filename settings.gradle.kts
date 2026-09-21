@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NovaPlayer"
+rootProject.name = "AuraPlayer"
 include(":app")

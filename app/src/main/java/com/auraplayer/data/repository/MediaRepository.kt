@@ -1,11 +1,11 @@
-package com.novaplayer.data.repository
+package com.auraplayer.data.repository
 
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import com.novaplayer.data.model.MediaModel
+import com.auraplayer.data.model.MediaModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -26,7 +26,6 @@ class MediaRepository(private val context: Context) {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.SIZE
         )
@@ -36,43 +35,39 @@ class MediaRepository(private val context: Context) {
 
         try {
             context.contentResolver.query(collection, projection, selection, null, sortOrder)?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val albumColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                val albumIdColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
 
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idColumn)
-                    val title = cursor.getString(titleColumn) ?: "Unknown Title"
-                    val artist = cursor.getString(artistColumn) ?: "Unknown Artist"
-                    val album = cursor.getString(albumColumn) ?: "Unknown Album"
-                    val duration = cursor.getLong(durationColumn)
-                    val albumId = cursor.getLong(albumIdColumn)
-                    val data = cursor.getString(dataColumn) ?: ""
-                    val size = cursor.getLong(sizeColumn)
+                    val id = cursor.getLong(idCol)
+                    val title = cursor.getString(titleCol) ?: "Unknown Title"
+                    val artist = cursor.getString(artistCol) ?: "Unknown Artist"
+                    val album = cursor.getString(albumCol) ?: "Unknown Album"
+                    val duration = cursor.getLong(durationCol)
+                    val data = cursor.getString(dataCol) ?: ""
+                    val size = cursor.getLong(sizeCol)
 
                     val contentUri = ContentUris.withAppendedId(collection, id)
-                    val artworkUri = ContentUris.withAppendedId(
-                        Uri.parse("content://media/external/audio/albumart"),
-                        albumId
-                    )
+                    // High-compatibility modern artwork URI directly decodable by Coil
+                    val artworkUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
                     val folderName = try {
-                        File(data).parentFile?.name ?: ""
+                        File(data).parentFile?.name ?: "Música"
                     } catch (e: Exception) {
-                        ""
+                        "Música"
                     }
 
                     audioList.add(
                         MediaModel(
                             id = id,
                             title = title,
-                            artist = if (artist == "<unknown>") "Unknown Artist" else artist,
-                            album = if (album == "<unknown>") "Unknown Album" else album,
+                            artist = if (artist.equals("<unknown>", ignoreCase = true)) "Artista desconocido" else artist,
+                            album = if (album.equals("<unknown>", ignoreCase = true)) "Álbum desconocido" else album,
                             duration = duration,
                             uri = contentUri,
                             artworkUri = artworkUri,
@@ -111,25 +106,25 @@ class MediaRepository(private val context: Context) {
 
         try {
             context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
-                val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val titleColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-                val durationColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-                val dataColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-                val sizeColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
 
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idColumn)
-                    val title = cursor.getString(titleColumn) ?: "Video"
-                    val duration = cursor.getLong(durationColumn)
-                    val data = cursor.getString(dataColumn) ?: ""
-                    val size = cursor.getLong(sizeColumn)
+                    val id = cursor.getLong(idCol)
+                    val title = cursor.getString(titleCol) ?: "Video"
+                    val duration = cursor.getLong(durationCol)
+                    val data = cursor.getString(dataCol) ?: ""
+                    val size = cursor.getLong(sizeCol)
 
                     val contentUri = ContentUris.withAppendedId(collection, id)
 
                     val folderName = try {
-                        File(data).parentFile?.name ?: ""
+                        File(data).parentFile?.name ?: "Videos"
                     } catch (e: Exception) {
-                        ""
+                        "Videos"
                     }
 
                     videoList.add(
@@ -140,7 +135,7 @@ class MediaRepository(private val context: Context) {
                             album = "Videos",
                             duration = duration,
                             uri = contentUri,
-                            artworkUri = contentUri, // ContentResolver extracts video thumbnail
+                            artworkUri = contentUri,
                             isVideo = true,
                             folderName = folderName,
                             path = data,

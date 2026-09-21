@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">NovaPlayer</string>
+    <string name="app_name">Aura</string>
     <string name="tab_songs">Canciones</string>
     <string name="tab_albums">Álbumes</string>
     <string name="tab_artists">Artistas</string>
@@ -7,9 +7,9 @@
     <string name="nav_music">Música</string>
     <string name="nav_videos">Videos</string>
     <string name="nav_equalizer">Ecualizador</string>
-    <string name="search_hint">Buscar canciones, videos, artistas…</string>
-    <string name="permission_required">Se requieren permisos para escanear y reproducir la música y videos de tu dispositivo.</string>
-    <string name="grant_permission">Conceder Permisos</string>
+    <string name="search_hint">Buscar en Aura…</string>
+    <string name="permission_required">Se requieren permisos para explorar tu biblioteca de música y videos.</string>
+    <string name="grant_permission">Permitir Acceso</string>
     <string name="no_media_found">No se encontraron archivos multimedia.</string>
     <string name="unknown_artist">Artista desconocido</string>
     <string name="unknown_album">Álbum desconocido</string>

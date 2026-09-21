@@ -1,5 +1,7 @@
-package com.novaplayer.ui.screens
+package com.auraplayer.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,9 +18,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,8 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun EqualizerScreen(
@@ -38,101 +46,120 @@ fun EqualizerScreen(
 ) {
     var isEqEnabled by remember { mutableStateOf(true) }
     var selectedPreset by remember { mutableIntStateOf(0) }
-    val presets = listOf("Normal", "Rock", "Pop", "Jazz", "Graves +", "Vocal", "Clásica")
-    
-    // Default 5-band EQ levels (-10dB to +10dB)
+    val presets = listOf("Aura Flat", "Cyber Bass", "Vocal Glow", "Neon Pop", "Rock Velvet", "Lo-Fi Lounge")
+
     val bandFrequencies = listOf("60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz")
     val bandLevels = remember { mutableStateListOf(0f, 2f, -1f, 3f, 1f) }
-    var bassBoost by remember { mutableStateOf(40f) }
+    var bassBoost by remember { mutableStateOf(50f) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         // Master Toggle Card
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    1.dp,
+                    Brush.horizontalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                            Color.Transparent
+                        )
+                    ),
+                    RoundedCornerShape(20.dp)
+                ),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(20.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
-                        text = "Ecualizador y Efectos",
+                        text = "Aura Studio Effects",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isEqEnabled) "Efectos activos" else "Desactivado",
+                        text = if (isEqEnabled) "DSP activo • 32-bit Float" else "Procesamiento desactivado",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isEqEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
                     checked = isEqEnabled,
-                    onCheckedChange = { isEqEnabled = it }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Presets Chips
-        Text(
-            text = "PRESETS",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            itemsIndexed(presets) { index, preset ->
-                FilterChip(
-                    selected = selectedPreset == index,
-                    onClick = {
-                        selectedPreset = index
-                        // Update band levels based on preset
-                        when (index) {
-                            0 -> for (i in bandLevels.indices) bandLevels[i] = 0f
-                            1 -> { bandLevels[0] = 5f; bandLevels[1] = 3f; bandLevels[2] = -1f; bandLevels[3] = 3f; bandLevels[4] = 5f }
-                            2 -> { bandLevels[0] = -1f; bandLevels[1] = 2f; bandLevels[2] = 5f; bandLevels[3] = 1f; bandLevels[4] = -2f }
-                            3 -> { bandLevels[0] = 4f; bandLevels[1] = 2f; bandLevels[2] = -2f; bandLevels[3] = 2f; bandLevels[4] = 4f }
-                            4 -> { bandLevels[0] = 8f; bandLevels[1] = 6f; bandLevels[2] = 2f; bandLevels[3] = 0f; bandLevels[4] = 0f }
-                            5 -> { bandLevels[0] = -2f; bandLevels[1] = 0f; bandLevels[2] = 6f; bandLevels[3] = 2f; bandLevels[4] = -1f }
-                            6 -> { bandLevels[0] = 4f; bandLevels[1] = 3f; bandLevels[2] = -2f; bandLevels[3] = 4f; bandLevels[4] = 3f }
-                        }
-                    },
-                    label = { Text(preset) },
-                    enabled = isEqEnabled
+                    onCheckedChange = { isEqEnabled = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Bands Sliders
+        // Presets Chips
         Text(
-            text = "BANDAS DE FRECUENCIA",
+            text = "PRESETS",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = 1.5.sp
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            itemsIndexed(presets) { index, preset ->
+                FilterChip(
+                    selected = selectedPreset == index,
+                    onClick = {
+                        selectedPreset = index
+                        when (index) {
+                            0 -> for (i in bandLevels.indices) bandLevels[i] = 0f
+                            1 -> { bandLevels[0] = 7f; bandLevels[1] = 5f; bandLevels[2] = 1f; bandLevels[3] = 2f; bandLevels[4] = 3f; bassBoost = 80f }
+                            2 -> { bandLevels[0] = -1f; bandLevels[1] = 1f; bandLevels[2] = 6f; bandLevels[3] = 4f; bandLevels[4] = 1f; bassBoost = 30f }
+                            3 -> { bandLevels[0] = 3f; bandLevels[1] = 2f; bandLevels[2] = 4f; bandLevels[3] = 5f; bandLevels[4] = 4f; bassBoost = 50f }
+                            4 -> { bandLevels[0] = 6f; bandLevels[1] = 3f; bandLevels[2] = -2f; bandLevels[3] = 4f; bandLevels[4] = 6f; bassBoost = 60f }
+                            5 -> { bandLevels[0] = 4f; bandLevels[1] = 3f; bandLevels[2] = 0f; bandLevels[3] = -2f; bandLevels[4] = -4f; bassBoost = 40f }
+                        }
+                    },
+                    label = { Text(preset) },
+                    enabled = isEqEnabled,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // Bands Sliders
+        Text(
+            text = "ECUALIZADOR GRÁFICO (5 BANDAS)",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = 1.5.sp
         )
         Spacer(modifier = Modifier.height(12.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 bandFrequencies.forEachIndexed { index, freq ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -150,13 +177,18 @@ fun EqualizerScreen(
                             onValueChange = { bandLevels[index] = it },
                             valueRange = -10f..10f,
                             enabled = isEqEnabled,
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary
+                            ),
                             modifier = Modifier.weight(3f)
                         )
                         Text(
-                            text = "${bandLevels[index].toInt()} dB",
+                            text = "${if (bandLevels[index] > 0) "+" else ""}${bandLevels[index].toInt()} dB",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.weight(1f),
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                     }
                 }
@@ -168,17 +200,17 @@ fun EqualizerScreen(
         // Bass Boost Card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Refuerzo de Graves (Bass Boost)",
+                        text = "Refuerzo Dinámico de Graves",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -186,7 +218,7 @@ fun EqualizerScreen(
                         text = "${bassBoost.toInt()}%",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -194,7 +226,11 @@ fun EqualizerScreen(
                     value = bassBoost,
                     onValueChange = { bassBoost = it },
                     valueRange = 0f..100f,
-                    enabled = isEqEnabled
+                    enabled = isEqEnabled,
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.secondary,
+                        activeTrackColor = MaterialTheme.colorScheme.secondary
+                    )
                 )
             }
         }

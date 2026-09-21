@@ -1,4 +1,4 @@
-package com.novaplayer.ui.screens
+package com.auraplayer.ui.screens
 
 import android.app.Activity
 import android.app.PictureInPictureParams
@@ -34,7 +34,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.novaplayer.data.model.MediaModel
+import com.auraplayer.data.model.MediaModel
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -54,6 +54,7 @@ fun VideoPlayerScreen(
 
     DisposableEffect(Unit) {
         onDispose {
+            exoPlayer.stop()
             exoPlayer.release()
         }
     }

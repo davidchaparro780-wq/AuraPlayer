@@ -1,4 +1,4 @@
-package com.novaplayer
+package com.auraplayer
 
 import android.Manifest
 import android.content.ComponentName
@@ -19,10 +19,12 @@ import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,37 +35,35 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.auraplayer.data.model.MediaModel
+import com.auraplayer.data.model.RepeatMode
+import com.auraplayer.data.repository.MediaRepository
+import com.auraplayer.service.PlaybackService
+import com.auraplayer.ui.components.MiniPlayer
+import com.auraplayer.ui.screens.EqualizerScreen
+import com.auraplayer.ui.screens.MusicScreen
+import com.auraplayer.ui.screens.PlayerScreen
+import com.auraplayer.ui.screens.VideoPlayerScreen
+import com.auraplayer.ui.screens.VideoScreen
+import com.auraplayer.ui.theme.AuraTheme
 import com.google.common.util.concurrent.MoreExecutors
-import com.novaplayer.data.model.MediaModel
-import com.novaplayer.data.model.RepeatMode
-import com.novaplayer.data.repository.MediaRepository
-import com.novaplayer.service.PlaybackService
-import com.novaplayer.ui.components.MiniPlayer
-import com.novaplayer.ui.screens.EqualizerScreen
-import com.novaplayer.ui.screens.MusicScreen
-import com.novaplayer.ui.screens.PlayerScreen
-import com.novaplayer.ui.screens.VideoPlayerScreen
-import com.novaplayer.ui.screens.VideoScreen
-import com.novaplayer.ui.theme.NovaPlayerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-
-    private var mediaController: MediaController? = null
 
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,8 +71,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            NovaPlayerTheme {
-                MainApp()
+            AuraTheme {
+                AuraApp()
             }
         }
     }
@@ -80,9 +80,8 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(UnstableApi::class)
 @Composable
-fun MainApp() {
+fun AuraApp() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val mediaRepository = remember { MediaRepository(context) }
 
     var hasPermission by remember {
@@ -158,7 +157,7 @@ fun MainApp() {
                 currentPositionMs = it.currentPosition
                 durationMs = it.duration.coerceAtLeast(0L)
             }
-            delay(500)
+            delay(400)
         }
     }
 
@@ -176,23 +175,26 @@ fun MainApp() {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Se requieren permisos para escanear tu música y videos.",
+                    text = "Aura necesita permisos para explorar tu música y videos.",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(24.dp)
                 )
-                Button(onClick = {
-                    val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        arrayOf(
-                            Manifest.permission.READ_MEDIA_AUDIO,
-                            Manifest.permission.READ_MEDIA_VIDEO,
-                            Manifest.permission.POST_NOTIFICATIONS
-                        )
-                    } else {
-                        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    }
-                    permissionLauncher.launch(perms)
-                }) {
-                    Text("Conceder Permisos")
+                Button(
+                    onClick = {
+                        val perms = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            arrayOf(
+                                Manifest.permission.READ_MEDIA_AUDIO,
+                                Manifest.permission.READ_MEDIA_VIDEO,
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        } else {
+                            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+                        }
+                        permissionLauncher.launch(perms)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Conceder Acceso", color = Color.White)
                 }
             }
         }
@@ -201,6 +203,8 @@ fun MainApp() {
 
     // Fullscreen Video Player
     if (activeVideo != null) {
+        // Automatically pause music when opening a video
+        controller?.pause()
         VideoPlayerScreen(
             video = activeVideo!!,
             onBack = { activeVideo = null }
@@ -230,6 +234,7 @@ fun MainApp() {
             },
             onSeek = { targetMs ->
                 controller?.seekTo(targetMs)
+                currentPositionMs = targetMs
             },
             onShuffleToggle = {
                 isShuffle = !isShuffle
@@ -275,25 +280,39 @@ fun MainApp() {
                     }
                 )
 
-                // Navigation Bar
-                NavigationBar {
+                // Aesthetic Navigation Bar
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ) {
                     NavigationBarItem(
                         selected = selectedNavTab == 0,
                         onClick = { selectedNavTab = 0 },
                         icon = { Icon(Icons.Default.MusicNote, contentDescription = null) },
-                        label = { Text("Música") }
+                        label = { Text("Música") },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
                     )
                     NavigationBarItem(
                         selected = selectedNavTab == 1,
                         onClick = { selectedNavTab = 1 },
                         icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) },
-                        label = { Text("Videos") }
+                        label = { Text("Videos") },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
                     )
                     NavigationBarItem(
                         selected = selectedNavTab == 2,
                         onClick = { selectedNavTab = 2 },
                         icon = { Icon(Icons.Default.Equalizer, contentDescription = null) },
-                        label = { Text("Ecualizador") }
+                        label = { Text("Ecualizador") },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
                     )
                 }
             }
@@ -307,12 +326,23 @@ fun MainApp() {
                 onSongClick = { song ->
                     currentMedia = song
                     controller?.run {
-                        setMediaItem(
+                        // Populate entire queue for continuous uninterrupted playback!
+                        val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+                        val mediaItemList = songs.map { s ->
                             MediaItem.Builder()
-                                .setUri(song.uri)
-                                .setMediaId(song.id.toString())
+                                .setUri(s.uri)
+                                .setMediaId(s.id.toString())
+                                .setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(s.title)
+                                        .setArtist(s.artist)
+                                        .setAlbumTitle(s.album)
+                                        .setArtworkUri(s.artworkUri)
+                                        .build()
+                                )
                                 .build()
-                        )
+                        }
+                        setMediaItems(mediaItemList, songIndex, 0L)
                         prepare()
                         play()
                     }

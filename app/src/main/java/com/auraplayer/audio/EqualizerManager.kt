@@ -1,4 +1,4 @@
-package com.novaplayer.audio
+package com.auraplayer.audio
 
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
@@ -11,11 +11,11 @@ class EqualizerManager {
     var isEnabled: Boolean = true
         private set
 
-    var bassStrength: Short = 0
+    var bassStrength: Short = 400
         private set
 
     fun attachToAudioSession(audioSessionId: Int) {
-        if (audioSessionId == 0) return
+        if (audioSessionId <= 0) return
         release()
 
         try {
