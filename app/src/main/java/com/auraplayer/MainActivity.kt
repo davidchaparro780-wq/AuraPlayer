@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.Button
@@ -61,18 +62,24 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import android.net.Uri
 import com.auraplayer.audio.ShakeDetector
 import com.auraplayer.audio.SleepTimerManager
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.model.RepeatMode
+import com.auraplayer.data.repository.CoverArtManager
+import com.auraplayer.data.repository.DownloadEngine
 import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.data.repository.LyricsManager
 import com.auraplayer.data.repository.MediaRepository
+import com.auraplayer.data.repository.OnlineMusicRepository
 import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
+import com.auraplayer.ui.screens.DiscoverScreen
 import com.auraplayer.ui.screens.EqualizerScreen
 import com.auraplayer.ui.screens.MusicScreen
 import com.auraplayer.ui.screens.PlayerScreen
@@ -122,6 +129,9 @@ fun AuraApp(
     val favoritesManager = remember { FavoritesManager(context) }
     val sleepTimerManager = remember { SleepTimerManager() }
     val lyricsManager = remember { LyricsManager(context) }
+    val coverArtManager = remember { CoverArtManager(context) }
+    val onlineRepo = remember { OnlineMusicRepository() }
+    val downloadEngine = remember { DownloadEngine(context, coverArtManager, lyricsManager) }
 
     var hasPermission by remember {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -617,8 +627,8 @@ fun AuraApp(
                     NavigationBarItem(
                         selected = selectedNavTab == 1,
                         onClick = { selectedNavTab = 1 },
-                        icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) },
-                        label = { Text("Videos") },
+                        icon = { Icon(Icons.Default.Explore, contentDescription = null) },
+                        label = { Text("Explorar") },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = MaterialTheme.colorScheme.primary,
                             indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
@@ -627,6 +637,16 @@ fun AuraApp(
                     NavigationBarItem(
                         selected = selectedNavTab == 2,
                         onClick = { selectedNavTab = 2 },
+                        icon = { Icon(Icons.Default.VideoLibrary, contentDescription = null) },
+                        label = { Text("Videos") },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                        )
+                    )
+                    NavigationBarItem(
+                        selected = selectedNavTab == 3,
+                        onClick = { selectedNavTab = 3 },
                         icon = { Icon(Icons.Default.Equalizer, contentDescription = null) },
                         label = { Text("Ecualizador") },
                         colors = NavigationBarItemDefaults.colors(
@@ -747,7 +767,55 @@ fun AuraApp(
                     modifier = Modifier.padding(innerPadding)
                 )
             }
-            1 -> VideoScreen(
+            1 -> DiscoverScreen(
+                onlineRepo = onlineRepo,
+                downloadEngine = downloadEngine,
+                onPreviewTrack = { onlineTrack ->
+                    val previewItem = MediaItem.Builder()
+                        .setUri(onlineTrack.audioUrl)
+                        .setMediaId("online_${onlineTrack.id}")
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle(onlineTrack.title)
+                                .setArtist(onlineTrack.artist)
+                                .setAlbumTitle(onlineTrack.album)
+                                .setArtworkUri(if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null)
+                                .build()
+                        )
+                        .build()
+                    controller?.run {
+                        setMediaItem(previewItem)
+                        prepare()
+                        play()
+                    }
+                    currentMedia = MediaModel(
+                        id = -1L,
+                        title = onlineTrack.title,
+                        artist = onlineTrack.artist,
+                        album = onlineTrack.album,
+                        duration = onlineTrack.durationSec * 1000L,
+                        uri = Uri.parse(onlineTrack.audioUrl),
+                        path = onlineTrack.audioUrl,
+                        artworkUri = if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null
+                    )
+                },
+                onDownloadComplete = {
+                    scope.launch(Dispatchers.IO) {
+                        kotlinx.coroutines.delay(600)
+                        val reloaded = mediaRepository.loadAudioFiles()
+                        val updatedSongs = reloaded.map { s ->
+                            val override = playlistManager.getTagOverride(s.id)
+                            if (override != null) {
+                                s.copy(title = override.title, artist = override.artist, album = override.album)
+                            } else s
+                        }
+                        withContext(Dispatchers.Main) {
+                            songs = updatedSongs
+                        }
+                    }
+                }
+            )
+            2 -> VideoScreen(
                 videos = videos,
                 isLoading = isLoading,
                 onVideoClick = { video ->
@@ -755,7 +823,7 @@ fun AuraApp(
                 },
                 modifier = Modifier.padding(innerPadding)
             )
-            2 -> EqualizerScreen(
+            3 -> EqualizerScreen(
                 playlistManager = playlistManager,
                 currentAccent = currentAccent,
                 onAccentChange = onAccentChange,
