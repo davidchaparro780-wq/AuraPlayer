@@ -466,7 +466,7 @@ fun PlayerScreen(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                            } else if (lyrics == null || (lyrics.syncedLyrics.isEmpty() && lyrics.plainLyrics.isNullOrBlank())) {
+                            } else if (lyrics == null || (lyrics.lines.isEmpty() && lyrics.plainLyrics.isNullOrBlank())) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     Icon(
                                         imageVector = Icons.Default.Mic,
@@ -491,7 +491,7 @@ fun PlayerScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = if (lyrics.syncedLyrics.isNotEmpty()) "✨ Sincronizado en Vivo" else "📄 Texto Completo",
+                                            text = if (lyrics.lines.isNotEmpty()) "✨ Sincronizado en Vivo" else "📄 Texto Completo",
                                             style = MaterialTheme.typography.labelSmall,
                                             color = Color(0xFFEC4899),
                                             fontWeight = FontWeight.Bold
@@ -512,7 +512,7 @@ fun PlayerScreen(
                                             }
                                             IconButton(
                                                 onClick = {
-                                                    val textToCopy = lyrics.plainLyrics ?: lyrics.syncedLyrics.joinToString("\n") { it.text }
+                                                    val textToCopy = lyrics.plainLyrics ?: lyrics.lines.joinToString("\n") { it.text }
                                                     clipboardManager.setText(AnnotatedString(textToCopy))
                                                     Toast.makeText(context, "Letras copiadas al portapapeles", Toast.LENGTH_SHORT).show()
                                                 },
@@ -523,10 +523,10 @@ fun PlayerScreen(
                                         }
                                     }
 
-                                    if (lyrics.syncedLyrics.isNotEmpty()) {
+                                    if (lyrics.lines.isNotEmpty()) {
                                         val listState = rememberLazyListState()
-                                        val activeIndex = remember(currentPositionMs, lyrics.syncedLyrics) {
-                                            val idx = lyrics.syncedLyrics.indexOfLast { currentPositionMs >= it.timeMs }
+                                        val activeIndex = remember(currentPositionMs, lyrics.lines) {
+                                            val idx = lyrics.lines.indexOfLast { currentPositionMs >= it.timeMs }
                                             if (idx >= 0) idx else 0
                                         }
 
@@ -541,7 +541,7 @@ fun PlayerScreen(
                                             modifier = Modifier.fillMaxSize(),
                                             verticalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            itemsIndexed(lyrics.syncedLyrics) { index, line ->
+                                            itemsIndexed(lyrics.lines) { index, line ->
                                                 val isActive = index == activeIndex
                                                 Text(
                                                     text = line.text,
@@ -1008,7 +1008,7 @@ fun PlayerScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         listOf(-3 to "-3♭", -2 to "-2♭", -1 to "-1♭", 0 to "0", 1 to "+1♯", 2 to "+2♯", 3 to "+3♯").forEach { (semi, lbl) ->
-                            val pitchVal = kotlin.math.pow(2.0, semi / 12.0).toFloat()
+                            val pitchVal = Math.pow(2.0, semi.toDouble() / 12.0).toFloat()
                             val isSelected = kotlin.math.abs(tempPitch - pitchVal) < 0.03f
                             Box(
                                 modifier = Modifier
