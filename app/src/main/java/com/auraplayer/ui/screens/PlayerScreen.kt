@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
@@ -55,16 +56,19 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -95,6 +99,7 @@ import com.auraplayer.data.model.RepeatMode
 import com.auraplayer.data.repository.SongLyrics
 import kotlin.math.sin
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     currentMedia: MediaModel?,
@@ -109,6 +114,8 @@ fun PlayerScreen(
     isShakeEnabled: Boolean,
     lyrics: SongLyrics?,
     isLoadingLyrics: Boolean,
+    queueSongs: List<MediaModel> = emptyList(),
+    onQueueSongClick: (MediaModel) -> Unit = {},
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onPreviousClick: () -> Unit,
@@ -129,7 +136,22 @@ fun PlayerScreen(
     var showFxDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showLyricsView by remember { mutableStateOf(false) }
+    var showQueueSheet by remember { mutableStateOf(false) }
     var visualizerMode by remember { mutableIntStateOf(0) } // 0: Spectrum bars, 1: Neon wave
+
+    val audioBadgeText = remember(currentMedia.path) {
+        val ext = java.io.File(currentMedia.path).extension.lowercase()
+        when (ext) {
+            "flac" -> "FLAC • 24-BIT / 96kHz LOSSLESS"
+            "wav" -> "WAV • 1411 KBPS LOSSLESS"
+            "ape" -> "APE • MONKEY'S AUDIO"
+            "dsf", "dff" -> "DSD • DIRECT STREAM DIGITAL"
+            "m4a", "alac" -> "ALAC / M4A • LOSSLESS"
+            "aac" -> "AAC • 256 KBPS VBR"
+            "ogg", "opus" -> "OPUS • HI-RES STEREO"
+            else -> "MP3 • 320 KBPS HQ AUDIO"
+        }
+    }
 
     val infiniteTransition = rememberInfiniteTransition(label = "vinyl")
     val rotation by infiniteTransition.animateFloat(
@@ -199,15 +221,25 @@ fun PlayerScreen(
                         letterSpacing = 2.sp
                     )
                     Text(
-                        text = if (showLyricsView) "KARAOKE SYNC LYRICS" else "HI-RES AUDIO • 320 KBPS",
+                        text = if (showLyricsView) "KARAOKE SYNC LYRICS" else audioBadgeText,
                         style = MaterialTheme.typography.labelSmall,
                         fontSize = 9.sp,
-                        color = if (showLyricsView) Color(0xFFEC4899) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        color = if (showLyricsView) Color(0xFFEC4899) else if (audioBadgeText.contains("LOSSLESS")) Color(0xFF06B6D4) else MaterialTheme.colorScheme.primary,
                         letterSpacing = 1.sp
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Queue Button (Musicolet Style)
+                    IconButton(onClick = { showQueueSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.QueueMusic,
+                            contentDescription = "Cola de Reproducción",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
                     // Shake to Skip Toggle
                     IconButton(onClick = onToggleShake) {
                         Icon(
@@ -813,6 +845,109 @@ fun PlayerScreen(
                 }
             }
         )
+    }
+
+    // Musicolet Queue Sheet Modal
+    if (showQueueSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showQueueSheet = false },
+            sheetState = rememberModalBottomSheetState(),
+            containerColor = Color(0xFF101422)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.QueueMusic,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Cola de Reproducción",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                    Text(
+                        text = "${queueSongs.size} pistas",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                if (queueSongs.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text("La cola de reproducción está vacía", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().height(380.dp)) {
+                        itemsIndexed(queueSongs, key = { _, song -> song.id }) { index, song ->
+                            val isCurrent = song.id == currentMedia.id
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(
+                                        if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                        else Color.Transparent
+                                    )
+                                    .clickable {
+                                        onQueueSongClick(song)
+                                        showQueueSheet = false
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                    modifier = Modifier.width(28.dp)
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = song.title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = song.artist,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Text(
+                                    text = song.formattedDuration,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
     }
 
     // Delete Confirmation Dialog

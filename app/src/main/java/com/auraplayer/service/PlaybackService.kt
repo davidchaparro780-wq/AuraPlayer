@@ -40,6 +40,9 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
+        EqualizerManager.instance.initPrefs(this)
+        EqualizerManager.instance.attachToAudioSession(player.audioSessionId)
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }

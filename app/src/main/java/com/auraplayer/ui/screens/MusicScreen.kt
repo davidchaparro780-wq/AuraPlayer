@@ -1,10 +1,11 @@
 package com.auraplayer.ui.screens
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,25 +21,37 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +84,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.repository.FavoritesManager
+import com.auraplayer.data.repository.Playlist
+import com.auraplayer.data.repository.PlaylistManager
+import com.auraplayer.ui.components.TagEditorDialog
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,7 +96,11 @@ fun MusicScreen(
     isLoading: Boolean,
     currentMedia: MediaModel?,
     favoritesManager: FavoritesManager,
+    playlistManager: PlaylistManager,
     onSongClick: (MediaModel) -> Unit,
+    onPlayNext: (MediaModel) -> Unit,
+    onAddToQueue: (MediaModel) -> Unit,
+    onSaveTags: (song: MediaModel, title: String, artist: String, album: String) -> Unit,
     onDeleteSong: (MediaModel) -> Unit,
     onFetchCover: (MediaModel) -> Unit,
     onOpenSleepTimer: () -> Unit,
@@ -89,11 +109,19 @@ fun MusicScreen(
     val context = LocalContext.current
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Canciones", "Favoritos ❤️", "Carpetas", "Artistas")
+    val tabs = listOf("Canciones", "Playlists 📂", "Favoritos ❤️", "Carpetas", "Artistas")
 
     var selectedSongForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var songToDelete by remember { mutableStateOf<MediaModel?>(null) }
     var songForDetails by remember { mutableStateOf<MediaModel?>(null) }
+    var selectedSongForTagEdit by remember { mutableStateOf<MediaModel?>(null) }
+    var songToAddToPlaylist by remember { mutableStateOf<MediaModel?>(null) }
+
+    // Custom Playlist view / create state
+    var selectedPlaylistForView by remember { mutableStateOf<Playlist?>(null) }
+    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var newPlaylistName by remember { mutableStateOf("") }
+    var playlistSubCategory by remember { mutableIntStateOf(0) } // 0: Mis Playlists, 1: Top Escuchadas, 2: Historial
 
     val filteredSongs = remember(songs, searchQuery) {
         if (searchQuery.isBlank()) songs
@@ -168,7 +196,10 @@ fun MusicScreen(
             tabs.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedTab == index,
-                    onClick = { selectedTab = index },
+                    onClick = {
+                        selectedTab = index
+                        selectedPlaylistForView = null
+                    },
                     text = {
                         Text(
                             text = title,
@@ -205,16 +236,219 @@ fun MusicScreen(
                         }
                     }
                 }
-                1 -> { // Favoritos
+                1 -> { // Playlists 📂 (Smart Playlists & Custom)
+                    if (selectedPlaylistForView != null) {
+                        // Inside a specific playlist
+                        val pl = selectedPlaylistForView!!
+                        val plSongs = remember(pl, songs) {
+                            songs.filter { pl.songIds.contains(it.id) }
+                        }
+
+                        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(onClick = { selectedPlaylistForView = null }) {
+                                    Icon(Icons.Default.ArrowBack, contentDescription = "Atrás", tint = Color.White)
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = pl.name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                                    Text(text = "${plSongs.size} canciones", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                if (plSongs.isNotEmpty()) {
+                                    Button(
+                                        onClick = { onSongClick(plSongs.first()) },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Reproducir", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            if (plSongs.isEmpty()) {
+                                EmptyListMessage("Esta playlist está vacía.\nAñade canciones desde el menú de 3 puntos de cualquier pista.")
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(plSongs, key = { it.id }) { song ->
+                                        SongListItem(
+                                            song = song,
+                                            isSelected = currentMedia?.id == song.id,
+                                            isFavorite = favoritesManager.isFavorite(song.id),
+                                            onClick = { onSongClick(song) },
+                                            onLongClick = { selectedSongForMenu = song },
+                                            onOptionsClick = { selectedSongForMenu = song }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // Playlists Hub
+                        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                            // Sub-chips (Mis Playlists, Más Escuchadas, Historial)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = playlistSubCategory == 0,
+                                    onClick = { playlistSubCategory = 0 },
+                                    label = { Text("Mis Playlists") },
+                                    leadingIcon = { Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
+                                )
+                                FilterChip(
+                                    selected = playlistSubCategory == 1,
+                                    onClick = { playlistSubCategory = 1 },
+                                    label = { Text("🔥 Top") },
+                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
+                                )
+                                FilterChip(
+                                    selected = playlistSubCategory == 2,
+                                    onClick = { playlistSubCategory = 2 },
+                                    label = { Text("🕒 Historial") },
+                                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = MaterialTheme.colorScheme.primary, selectedLabelColor = Color.White)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            when (playlistSubCategory) {
+                                0 -> {
+                                    // Custom user playlists
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = "Colecciones Personalizadas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                        Button(
+                                            onClick = { showCreatePlaylistDialog = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("Nueva", fontSize = 13.sp)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    val playlists = playlistManager.getPlaylists()
+                                    if (playlists.isEmpty()) {
+                                        EmptyListMessage("No has creado playlists aún.\nToca '+ Nueva' para organizar tu música.")
+                                    } else {
+                                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                            items(playlists, key = { it.id }) { pl ->
+                                                Card(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 6.dp)
+                                                        .clickable { selectedPlaylistForView = pl },
+                                                    shape = RoundedCornerShape(16.dp),
+                                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                                ) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.SpaceBetween
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(46.dp)
+                                                                    .clip(RoundedCornerShape(12.dp))
+                                                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                Icon(Icons.Default.QueueMusic, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                            }
+                                                            Spacer(modifier = Modifier.width(14.dp))
+                                                            Column {
+                                                                Text(text = pl.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                                                Text(text = "${pl.songIds.size} canciones", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                                            }
+                                                        }
+
+                                                        IconButton(onClick = { playlistManager.deletePlaylist(pl.id); selectedPlaylistForView = null }) {
+                                                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                1 -> {
+                                    // Top Played (AIMP / Pulsar Smart Playlist)
+                                    val topSongs = remember(songs, playlistManager) {
+                                        songs.filter { playlistManager.getPlayCount(it.id) > 0 }
+                                            .sortedByDescending { playlistManager.getPlayCount(it.id) }
+                                    }
+
+                                    if (topSongs.isEmpty()) {
+                                        EmptyListMessage("Escucha tus canciones para que aparezcan aquí ordenadas por las más reproducidas.")
+                                    } else {
+                                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                            items(topSongs, key = { it.id }) { song ->
+                                                val count = playlistManager.getPlayCount(song.id)
+                                                SongListItem(
+                                                    song = song,
+                                                    extraBadge = "🔥 $count plays",
+                                                    isSelected = currentMedia?.id == song.id,
+                                                    isFavorite = favoritesManager.isFavorite(song.id),
+                                                    onClick = { onSongClick(song) },
+                                                    onLongClick = { selectedSongForMenu = song },
+                                                    onOptionsClick = { selectedSongForMenu = song }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                2 -> {
+                                    // Recently Played History
+                                    val recentIds = playlistManager.getRecentlyPlayedIds()
+                                    val recentSongs = remember(recentIds, songs) {
+                                        recentIds.mapNotNull { id -> songs.find { it.id == id } }
+                                    }
+
+                                    if (recentSongs.isEmpty()) {
+                                        EmptyListMessage("Tu historial de reproducción está vacío.")
+                                    } else {
+                                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                            items(recentSongs, key = { it.id }) { song ->
+                                                SongListItem(
+                                                    song = song,
+                                                    extraBadge = "🕒 Reciente",
+                                                    isSelected = currentMedia?.id == song.id,
+                                                    isFavorite = favoritesManager.isFavorite(song.id),
+                                                    onClick = { onSongClick(song) },
+                                                    onLongClick = { selectedSongForMenu = song },
+                                                    onOptionsClick = { selectedSongForMenu = song }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                2 -> { // Favoritos
                     if (favoriteSongs.isEmpty()) {
-                        EmptyListMessage("Aún no tienes canciones favoritas.\nMantén presionada cualquier canción para añadirla a favoritos.")
+                        EmptyListMessage("Aún no tienes canciones favoritas.\nToca el corazón o mantén presionada cualquier canción.")
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(favoriteSongs, key = { it.id }) { song ->
-                                val isSelected = currentMedia?.id == song.id
                                 SongListItem(
                                     song = song,
-                                    isSelected = isSelected,
+                                    isSelected = currentMedia?.id == song.id,
                                     isFavorite = true,
                                     onClick = { onSongClick(song) },
                                     onLongClick = { selectedSongForMenu = song },
@@ -224,7 +458,7 @@ fun MusicScreen(
                         }
                     }
                 }
-                2 -> { // Carpetas
+                3 -> { // Carpetas
                     val folderGroups = remember(filteredSongs) {
                         filteredSongs.groupBy { it.folderName.ifEmpty { "Música" } }
                     }
@@ -269,7 +503,7 @@ fun MusicScreen(
                         }
                     }
                 }
-                3 -> { // Artistas
+                4 -> { // Artistas
                     val artistGroups = remember(filteredSongs) {
                         filteredSongs.groupBy { it.artist }
                     }
@@ -318,7 +552,108 @@ fun MusicScreen(
         }
     }
 
-    // Song Options BottomSheet Modal
+    // Create Playlist Dialog
+    if (showCreatePlaylistDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreatePlaylistDialog = false },
+            title = { Text("Nueva Playlist", fontWeight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = newPlaylistName,
+                    onValueChange = { newPlaylistName = it },
+                    label = { Text("Nombre de la lista") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val clean = newPlaylistName.trim()
+                        if (clean.isNotEmpty()) {
+                            playlistManager.createPlaylist(clean)
+                            newPlaylistName = ""
+                            showCreatePlaylistDialog = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Crear", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreatePlaylistDialog = false }) {
+                    Text("Cancelar")
+                }
+            },
+            containerColor = Color(0xFF101422),
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // Add to Playlist Selection Dialog
+    if (songToAddToPlaylist != null) {
+        val song = songToAddToPlaylist!!
+        val playlists = playlistManager.getPlaylists()
+        AlertDialog(
+            onDismissRequest = { songToAddToPlaylist = null },
+            title = { Text("Añadir a Playlist", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    if (playlists.isEmpty()) {
+                        Text("No tienes playlists aún. Crea una primero.")
+                    } else {
+                        playlists.forEach { pl ->
+                            TextButton(
+                                onClick = {
+                                    val added = playlistManager.addSongToPlaylist(pl.id, song.id)
+                                    if (added) {
+                                        Toast.makeText(context, "Añadida a '${pl.name}'", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Ya estaba en '${pl.name}'", Toast.LENGTH_SHORT).show()
+                                    }
+                                    songToAddToPlaylist = null
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(text = "📂 ${pl.name} (${pl.songIds.size} pistas)", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    songToAddToPlaylist = null
+                    showCreatePlaylistDialog = true
+                }) {
+                    Text("+ Crear Nueva", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { songToAddToPlaylist = null }) {
+                    Text("Cerrar")
+                }
+            },
+            containerColor = Color(0xFF101422),
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // ID3 Tag Editor Dialog (Pulsar / Musicolet Style)
+    if (selectedSongForTagEdit != null) {
+        TagEditorDialog(
+            song = selectedSongForTagEdit!!,
+            onDismiss = { selectedSongForTagEdit = null },
+            onSave = { newTitle, newArtist, newAlbum ->
+                onSaveTags(selectedSongForTagEdit!!, newTitle, newArtist, newAlbum)
+                selectedSongForTagEdit = null
+            }
+        )
+    }
+
+    // Song Options BottomSheet Modal (Musicolet Style Queuing & Tags)
     if (selectedSongForMenu != null) {
         val song = selectedSongForMenu!!
         val isFav = favoritesManager.isFavorite(song.id)
@@ -376,9 +711,51 @@ fun MusicScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Action Options
+                // Musicolet Queue Options
+                MenuOptionItem(
+                    icon = Icons.Default.SkipNext,
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    title = "Reproducir Siguiente (Play Next)",
+                    onClick = {
+                        selectedSongForMenu = null
+                        onPlayNext(song)
+                    }
+                )
+
+                MenuOptionItem(
+                    icon = Icons.Default.PlaylistAdd,
+                    iconColor = Color(0xFF06B6D4),
+                    title = "Añadir a la Cola (Queue)",
+                    onClick = {
+                        selectedSongForMenu = null
+                        onAddToQueue(song)
+                    }
+                )
+
+                MenuOptionItem(
+                    icon = Icons.Default.QueueMusic,
+                    iconColor = MaterialTheme.colorScheme.secondary,
+                    title = "Añadir a una Playlist...",
+                    onClick = {
+                        val target = song
+                        selectedSongForMenu = null
+                        songToAddToPlaylist = target
+                    }
+                )
+
+                MenuOptionItem(
+                    icon = Icons.Default.Edit,
+                    iconColor = Color(0xFFF59E0B),
+                    title = "Editar Etiquetas (ID3 Tag Editor)",
+                    onClick = {
+                        val target = song
+                        selectedSongForMenu = null
+                        selectedSongForTagEdit = target
+                    }
+                )
+
                 MenuOptionItem(
                     icon = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     iconColor = if (isFav) Color(0xFFEC4899) else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -548,7 +925,7 @@ private fun MenuOptionItem(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() }
-            .padding(vertical = 12.dp, horizontal = 8.dp),
+            .padding(vertical = 11.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(24.dp))
@@ -563,6 +940,7 @@ fun SongListItem(
     song: MediaModel,
     isSelected: Boolean,
     isFavorite: Boolean,
+    extraBadge: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onOptionsClick: () -> Unit
@@ -643,13 +1021,25 @@ fun SongListItem(
                     )
                 }
             }
-            Text(
-                text = "${song.artist} • ${song.formattedDuration}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${song.artist} • ${song.formattedDuration}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (extraBadge != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = extraBadge,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
         }
 
         IconButton(onClick = onOptionsClick) {

@@ -68,6 +68,7 @@ import com.auraplayer.data.model.RepeatMode
 import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.data.repository.LyricsManager
 import com.auraplayer.data.repository.MediaRepository
+import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
@@ -93,8 +94,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            AuraTheme {
-                AuraApp()
+            val context = LocalContext.current
+            val playlistManager = remember { PlaylistManager(context) }
+            var currentAccent by remember { mutableStateOf(playlistManager.getThemeAccent()) }
+
+            AuraTheme(accent = currentAccent) {
+                AuraApp(
+                    playlistManager = playlistManager,
+                    currentAccent = currentAccent,
+                    onAccentChange = { currentAccent = it }
+                )
             }
         }
     }
@@ -102,7 +111,11 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(UnstableApi::class)
 @Composable
-fun AuraApp() {
+fun AuraApp(
+    playlistManager: PlaylistManager,
+    currentAccent: String,
+    onAccentChange: (String) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val mediaRepository = remember { MediaRepository(context) }
@@ -358,7 +371,11 @@ fun AuraApp() {
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
                     val mediaId = item?.mediaId?.toLongOrNull()
                     if (mediaId != null) {
-                        currentMedia = songs.find { it.id == mediaId }
+                        val found = songs.find { it.id == mediaId }
+                        currentMedia = found
+                        if (found != null) {
+                            playlistManager.recordPlay(found.id)
+                        }
                     }
                 }
             })
@@ -384,7 +401,13 @@ fun AuraApp() {
     LaunchedEffect(hasPermission) {
         if (hasPermission) {
             isLoading = true
-            songs = mediaRepository.loadAudioFiles()
+            val rawSongs = mediaRepository.loadAudioFiles()
+            songs = rawSongs.map { s ->
+                val override = playlistManager.getTagOverride(s.id)
+                if (override != null) {
+                    s.copy(title = override.title, artist = override.artist, album = override.album)
+                } else s
+            }
             videos = mediaRepository.loadVideoFiles()
             isLoading = false
 
@@ -398,7 +421,13 @@ fun AuraApp() {
                     }
                 }
                 if (updated) {
-                    songs = mediaRepository.loadAudioFiles()
+                    val reloaded = mediaRepository.loadAudioFiles()
+                    songs = reloaded.map { s ->
+                        val override = playlistManager.getTagOverride(s.id)
+                        if (override != null) {
+                            s.copy(title = override.title, artist = override.artist, album = override.album)
+                        } else s
+                    }
                 }
             }
         }
@@ -472,6 +501,16 @@ fun AuraApp() {
             isShakeEnabled = isShakeEnabled,
             lyrics = lyrics,
             isLoadingLyrics = isLoadingLyrics,
+            queueSongs = songs,
+            onQueueSongClick = { song ->
+                currentMedia = song
+                playlistManager.recordPlay(song.id)
+                controller?.run {
+                    val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+                    seekToDefaultPosition(songIndex)
+                    play()
+                }
+            },
             onPlayPauseClick = {
                 controller?.let {
                     if (it.isPlaying) it.pause() else it.play()
@@ -605,8 +644,10 @@ fun AuraApp() {
                     isLoading = isLoading,
                     currentMedia = currentMedia,
                     favoritesManager = favoritesManager,
+                    playlistManager = playlistManager,
                     onSongClick = { song ->
                         currentMedia = song
+                        playlistManager.recordPlay(song.id)
                         controller?.run {
                             val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
                             val mediaItemList = songs.map { s ->
@@ -628,6 +669,54 @@ fun AuraApp() {
                             play()
                         }
                     },
+                    onPlayNext = { song ->
+                        controller?.let { ctrl ->
+                            val item = MediaItem.Builder()
+                                .setUri(song.uri)
+                                .setMediaId(song.id.toString())
+                                .setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(song.title)
+                                        .setArtist(song.artist)
+                                        .setAlbumTitle(song.album)
+                                        .setArtworkUri(song.artworkUri)
+                                        .build()
+                                )
+                                .build()
+                            val nextIndex = (ctrl.currentMediaItemIndex + 1).coerceAtMost(ctrl.mediaItemCount)
+                            ctrl.addMediaItem(nextIndex, item)
+                            Toast.makeText(context, "'${song.title}' se reproducirá a continuación", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onAddToQueue = { song ->
+                        controller?.let { ctrl ->
+                            val item = MediaItem.Builder()
+                                .setUri(song.uri)
+                                .setMediaId(song.id.toString())
+                                .setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(song.title)
+                                        .setArtist(song.artist)
+                                        .setAlbumTitle(song.album)
+                                        .setArtworkUri(song.artworkUri)
+                                        .build()
+                                )
+                                .build()
+                            ctrl.addMediaItem(item)
+                            Toast.makeText(context, "'${song.title}' añadida a la cola", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onSaveTags = { song, newTitle, newArtist, newAlbum ->
+                        playlistManager.saveTagOverride(song.id, newTitle, newArtist, newAlbum)
+                        songs = songs.map {
+                            if (it.id == song.id) it.copy(title = newTitle, artist = newArtist, album = newAlbum)
+                            else it
+                        }
+                        if (currentMedia?.id == song.id) {
+                            currentMedia = currentMedia?.copy(title = newTitle, artist = newArtist, album = newAlbum)
+                        }
+                        Toast.makeText(context, "Etiquetas guardadas", Toast.LENGTH_SHORT).show()
+                    },
                     onDeleteSong = { song ->
                         handleDeleteSong(song)
                     },
@@ -635,10 +724,16 @@ fun AuraApp() {
                         scope.launch(Dispatchers.IO) {
                             mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
                             val reloaded = mediaRepository.loadAudioFiles()
+                            val updatedSongs = reloaded.map { s ->
+                                val override = playlistManager.getTagOverride(s.id)
+                                if (override != null) {
+                                    s.copy(title = override.title, artist = override.artist, album = override.album)
+                                } else s
+                            }
                             withContext(Dispatchers.Main) {
-                                songs = reloaded
+                                songs = updatedSongs
                                 if (currentMedia?.id == song.id) {
-                                    currentMedia = reloaded.find { it.id == song.id }
+                                    currentMedia = updatedSongs.find { it.id == song.id }
                                 }
                             }
                         }
@@ -658,6 +753,9 @@ fun AuraApp() {
                 modifier = Modifier.padding(innerPadding)
             )
             2 -> EqualizerScreen(
+                playlistManager = playlistManager,
+                currentAccent = currentAccent,
+                onAccentChange = onAccentChange,
                 modifier = Modifier.padding(innerPadding)
             )
         }

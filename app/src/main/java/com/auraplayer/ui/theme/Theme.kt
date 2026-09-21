@@ -6,46 +6,41 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-// Aesthetic Velvet & Neon Glow Palette
-private val AuraDarkPalette = darkColorScheme(
-    primary = Color(0xFFA855F7),        // Electric Violet
-    secondary = Color(0xFFEC4899),      // Neon Rose
-    tertiary = Color(0xFF06B6D4),       // Cyan Glow
-    background = Color(0xFF07090E),     // Deep Abyss Black
-    surface = Color(0xFF101422),        // Midnight Velvet
-    surfaceVariant = Color(0xFF1B2236), // Deep Slate Translucent
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFFF1F5F9),
-    onSurface = Color(0xFFF1F5F9),
-    onSurfaceVariant = Color(0xFF94A3B8)
-)
+// Cyberpunk Accent Palettes
+fun getAuraDarkPalette(accent: String): androidx.compose.material3.ColorScheme {
+    val (primary, secondary, tertiary) = when (accent.uppercase()) {
+        "CYAN" -> Triple(Color(0xFF06B6D4), Color(0xFF3B82F6), Color(0xFFA855F7))
+        "MAGENTA" -> Triple(Color(0xFFF43F5E), Color(0xFFA855F7), Color(0xFF06B6D4))
+        "GREEN" -> Triple(Color(0xFF10B981), Color(0xFF06B6D4), Color(0xFFF59E0B))
+        "GOLD" -> Triple(Color(0xFFF59E0B), Color(0xFFEF4444), Color(0xFFA855F7))
+        else -> Triple(Color(0xFFA855F7), Color(0xFFEC4899), Color(0xFF06B6D4)) // Velvet Purple default
+    }
 
-private val AuraLightPalette = lightColorScheme(
-    primary = Color(0xFF7C3AED),        // Deep Violet
-    secondary = Color(0xFFDB2777),      // Magenta
-    tertiary = Color(0xFF0891B2),       // Teal
-    background = Color(0xFFF8FAFC),
-    surface = Color.White,
-    surfaceVariant = Color(0xFFE2E8F0),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF0F172A),
-    onSurface = Color(0xFF0F172A),
-    onSurfaceVariant = Color(0xFF475569)
-)
+    return darkColorScheme(
+        primary = primary,
+        secondary = secondary,
+        tertiary = tertiary,
+        background = Color(0xFF07090E),     // Deep Abyss Black
+        surface = Color(0xFF101422),        // Midnight Velvet
+        surfaceVariant = Color(0xFF1B2236), // Deep Slate Translucent
+        onPrimary = Color.White,
+        onSecondary = Color.White,
+        onTertiary = Color.White,
+        onBackground = Color(0xFFF1F5F9),
+        onSurface = Color(0xFFF1F5F9),
+        onSurfaceVariant = Color(0xFF94A3B8)
+    )
+}
 
 @Composable
 fun AuraTheme(
+    accent: String = "PURPLE",
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false, // Default to curated aesthetic palette
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -53,8 +48,7 @@ fun AuraTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> AuraDarkPalette
-        else -> AuraDarkPalette // Aesthetic dark first
+        else -> getAuraDarkPalette(accent)
     }
 
     MaterialTheme(
