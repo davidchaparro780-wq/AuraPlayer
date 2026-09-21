@@ -14,6 +14,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.auraplayer.MainActivity
+import com.auraplayer.audio.EqualizerManager
 
 class PlaybackService : MediaSessionService() {
 
