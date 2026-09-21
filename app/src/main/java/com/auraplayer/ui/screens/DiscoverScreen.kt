@@ -378,9 +378,11 @@ fun DiscoverScreen(
                                     Toast.makeText(context, "📻 La radio en vivo es una transmisión continua y no requiere descarga", Toast.LENGTH_SHORT).show()
                                 } else {
                                     Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
-                                    downloadEngine.downloadTrack(track) {
-                                        Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                        onDownloadComplete()
+                                    scope.launch {
+                                        downloadEngine.downloadTrack(track) {
+                                            Toast.makeText(context, "✓ Descargada y añadida a tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
+                                            onDownloadComplete()
+                                        }
                                     }
                                 }
                             }
