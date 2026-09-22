@@ -1024,7 +1024,7 @@ fun AuraApp(
                 },
                 onDownloadComplete = {
                     scope.launch(Dispatchers.IO) {
-                        kotlinx.coroutines.delay(600)
+                        kotlinx.coroutines.delay(400)
                         val reloaded = mediaRepository.loadAudioFiles()
                         val updatedSongs = reloaded.map { s ->
                             val override = playlistManager.getTagOverride(s.id)
@@ -1034,6 +1034,18 @@ fun AuraApp(
                         }
                         withContext(Dispatchers.Main) {
                             songs = updatedSongs
+                        }
+
+                        // Secondary refresh after MediaScanner finishes background indexing
+                        kotlinx.coroutines.delay(1200)
+                        val secondReload = mediaRepository.loadAudioFiles().map { s ->
+                            val override = playlistManager.getTagOverride(s.id)
+                            if (override != null) {
+                                s.copy(title = override.title, artist = override.artist, album = override.album)
+                            } else s
+                        }
+                        withContext(Dispatchers.Main) {
+                            songs = secondReload
                         }
                     }
                 },

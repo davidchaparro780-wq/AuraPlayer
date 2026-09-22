@@ -65,15 +65,27 @@ class MediaRepository(private val context: Context) {
                         finalTitle = rawTitle.substringAfter(" - ").trim()
                     }
 
+                    // Also check if filename has "Artist - Title" (common for downloaded songs)
+                    if (data.isNotBlank()) {
+                        val file = File(data)
+                        val fileNameNoExt = file.nameWithoutExtension
+                        if ((finalArtist == "Artista desconocido" || finalArtist.isBlank()) && fileNameNoExt.contains(" - ")) {
+                            finalArtist = fileNameNoExt.substringBefore(" - ").replace("_", " ").trim()
+                            if (finalTitle.isBlank() || finalTitle == rawTitle || finalTitle.contains("_")) {
+                                finalTitle = fileNameNoExt.substringAfter(" - ").replace("_", " ").trim()
+                            }
+                        }
+                    }
+
                     val album = if (rawAlbum.equals("<unknown>", ignoreCase = true) || rawAlbum.equals("Unknown Album", ignoreCase = true) || rawAlbum.isBlank()) {
                         "Álbum desconocido"
                     } else rawAlbum
 
                     val contentUri = ContentUris.withAppendedId(collection, id)
                     
-                    // Check local saved persistent cover art first (by ID, parsed artist/title, raw title, etc.)
-                    val localCoverUri = coverArtManager.getLocalCoverUri(id, finalArtist, finalTitle)
-                        ?: coverArtManager.getLocalCoverUri(id, rawArtist, rawTitle)
+                    // Check local saved persistent cover art first (by ID, parsed artist/title, raw title, path, etc.)
+                    val localCoverUri = coverArtManager.getLocalCoverUri(id, finalArtist, finalTitle, data)
+                        ?: coverArtManager.getLocalCoverUri(id, rawArtist, rawTitle, data)
 
                     val folderName = try {
                         File(data).parentFile?.name ?: "Música"

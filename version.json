@@ -1,7 +1,7 @@
 {
-  "versionCode": 37,
-  "versionName": "2.0.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.1/app-debug.apk",
-  "changelog": "⚡ Descarga de álbumes y listas completas en 1 toque, extractor universal de playlists de YouTube/Deezer y máxima velocidad de descarga.",
+  "versionCode": 38,
+  "versionName": "2.0.2",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.2/app-debug.apk",
+  "changelog": "⚡ DaVE v2.0.2: Portadas de música descargada garantizadas, descarga acelerada (buffer 64KB), reproducción instantánea a 500ms, títulos limpios en reproductor de video y notch arreglado.",
   "fileSizeMb": 23.2
 }

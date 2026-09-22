@@ -427,19 +427,25 @@ class DownloadEngine(
         contentLength: Int,
         trackId: String
     ) {
-        val buffer = ByteArray(8192)
+        val bufferedIn = if (inputStream is java.io.BufferedInputStream) inputStream else java.io.BufferedInputStream(inputStream, 65536)
+        val bufferedOut = if (outputStream is java.io.BufferedOutputStream) outputStream else java.io.BufferedOutputStream(outputStream, 65536)
+        val buffer = ByteArray(65536) // 64KB high-speed download buffer
         var bytesRead: Int
         var totalBytesRead = 0L
+        var lastReportedProgress = -1
 
-        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-            outputStream.write(buffer, 0, bytesRead)
+        while (bufferedIn.read(buffer).also { bytesRead = it } != -1) {
+            bufferedOut.write(buffer, 0, bytesRead)
             totalBytesRead += bytesRead
             if (contentLength > 0) {
                 val progress = ((totalBytesRead * 100) / contentLength).toInt().coerceIn(0, 99)
-                updateState(trackId, DownloadStatus.Downloading(progress))
+                if (progress != lastReportedProgress) {
+                    lastReportedProgress = progress
+                    updateState(trackId, DownloadStatus.Downloading(progress))
+                }
             }
         }
-        outputStream.flush()
+        bufferedOut.flush()
     }
 
     private fun downloadCoverArt(artist: String, title: String, coverUrl: String, mediaStoreId: Long? = null, safeFileName: String? = null) {
@@ -468,7 +474,18 @@ class DownloadEngine(
                         val safeNameNoExt = safeFileName.substringBeforeLast(".")
                         val safeFile = File(coversDir, "${sanitize(safeNameNoExt)}.jpg")
                         FileOutputStream(safeFile).use { it.write(bytes) }
+
+                        val directFile = File(coversDir, "$safeNameNoExt.jpg")
+                        FileOutputStream(directFile).use { it.write(bytes) }
                     }
+
+                    // Register persistently in CoverArtManager
+                    CoverArtManager(context).registerCover(
+                        title = title,
+                        artist = artist,
+                        fileName = safeFileName ?: "",
+                        coverBytes = bytes
+                    )
                 }
             }
         } catch (e: Exception) {
