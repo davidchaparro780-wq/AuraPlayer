@@ -158,9 +158,8 @@ class YouTubeMusicRepository {
             if (!audioStreams.isNullOrEmpty()) {
                 // Prioritize AAC / M4A if available (superior compatibility with Android MediaStore)
                 val aacStream = audioStreams.filter { stream ->
-                    val fmtName = try { stream.format?.name ?: "" } catch (_: Exception) { "" }
-                    val mime = try { stream.mimeType ?: "" } catch (_: Exception) { "" }
-                    fmtName.contains("M4A", ignoreCase = true) || mime.contains("mp4", ignoreCase = true)
+                    val fmtName = stream.format?.name ?: ""
+                    fmtName.contains("M4A", ignoreCase = true)
                 }.maxByOrNull { it.averageBitrate }
 
                 val chosenStream = aacStream ?: audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.first()
