@@ -31,6 +31,7 @@ local.properties
 # Keystore files
 *.jks
 *.keystore
+!app/dave.keystore
 
 # Google Services keys
 google-services.json

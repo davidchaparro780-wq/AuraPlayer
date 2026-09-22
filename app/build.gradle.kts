@@ -12,15 +12,38 @@ android {
         applicationId = "com.auraplayer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 33
-        versionName = "1.9.7"
+        versionCode = 34
+        versionName = "1.9.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("daveConfig") {
+            val keystoreFile = file("dave.keystore")
+            if (keystoreFile.exists()) {
+                val detectedAlias = try {
+                    val ks = java.security.KeyStore.getInstance("PKCS12")
+                    keystoreFile.inputStream().use { ks.load(it, "daveplayer".toCharArray()) }
+                    ks.aliases().toList().firstOrNull() ?: "davekey"
+                } catch (_: Exception) {
+                    "davekey"
+                }
+                storeFile = keystoreFile
+                storePassword = "daveplayer"
+                keyAlias = detectedAlias
+                keyPassword = "daveplayer"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            val daveSign = signingConfigs.getByName("daveConfig")
+            if (daveSign.storeFile != null) {
+                signingConfig = daveSign
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -29,6 +52,10 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            val daveSign = signingConfigs.getByName("daveConfig")
+            if (daveSign.storeFile != null) {
+                signingConfig = daveSign
+            }
         }
     }
     compileOptions {

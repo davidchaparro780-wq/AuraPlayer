@@ -1,7 +1,7 @@
 {
-  "versionCode": 33,
-  "versionName": "1.9.7",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.7/app-debug.apk",
-  "changelog": "⚡ Instalador In-App 100% automático, solución al bloqueo en 100%, detección instantánea de APK descargado y ultra fluidez 90 FPS.",
+  "versionCode": 34,
+  "versionName": "1.9.8",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.8/app-debug.apk",
+  "changelog": "⚡ Firma permanente unificada: Sustitución automática in-place sin duplicar la app, actualización con 1 toque y ultra fluidez 90 FPS.",
   "fileSizeMb": 23.0
 }
