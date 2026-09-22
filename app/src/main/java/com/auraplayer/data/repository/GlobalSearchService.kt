@@ -3,6 +3,7 @@ package com.auraplayer.data.repository
 import com.auraplayer.data.model.OnlineTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -10,7 +11,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-class GlobalSearchService {
+class GlobalSearchService(
+    private val spotifyService: SpotifyMetadataService = SpotifyMetadataService()
+) {
 
     private val jamendoClientId = "3dce8b55"
 
@@ -120,7 +123,8 @@ class GlobalSearchService {
     }
 
     /**
-     * Executes parallel queries against Jamendo & Internet Archive for 100% full-length songs.
+     * Executes parallel queries against Jamendo & Internet Archive for 100% full-length songs,
+     * then enriches each result with Spotify HD cover art + canonical album name.
      * ZERO 30-second previews!
      */
     private suspend fun searchFederated(query: String, selectedSource: String, isTrending: Boolean = false): List<OnlineTrack> = coroutineScope {
@@ -135,7 +139,22 @@ class GlobalSearchService {
         jamendoDeferred?.await()?.let { results.addAll(it) }
         archiveDeferred?.await()?.let { results.addAll(it) }
 
-        results
+        // Enrich each track with Spotify HD metadata in parallel (best-effort, silent on failure)
+        val enriched = results.map { track ->
+            async(Dispatchers.IO) {
+                val meta = try { spotifyService.fetchMeta(track.title, track.artist) } catch (_: Exception) { null }
+                if (meta != null && meta.coverUrl.isNotBlank()) {
+                    track.copy(
+                        coverUrl = meta.coverUrl,           // 640x640 HD from Spotify CDN
+                        album = meta.albumName.ifBlank { track.album }
+                    )
+                } else {
+                    track  // keep original if Spotify returns nothing
+                }
+            }
+        }.awaitAll()
+
+        enriched
     }
 
     private fun queryJamendo(query: String, isTrending: Boolean): List<OnlineTrack> {

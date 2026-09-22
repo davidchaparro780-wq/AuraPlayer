@@ -76,6 +76,7 @@ import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.OnlineMusicRepository
 import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.data.repository.GlobalSearchService
+import com.auraplayer.data.repository.SpotifyMetadataService
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
@@ -132,7 +133,14 @@ fun AuraApp(
     val sleepTimerManager = remember { SleepTimerManager() }
     val lyricsManager = remember { LyricsManager(context) }
     val coverArtManager = remember { CoverArtManager(context) }
-    val searchService = remember { GlobalSearchService() }
+    val searchService = remember {
+        GlobalSearchService(
+            spotifyService = SpotifyMetadataService(
+                clientId = "TU_CLIENT_ID_AQUI",       // ← pega tu Spotify Client ID aquí
+                clientSecret = "TU_CLIENT_SECRET_AQUI" // ← pega tu Spotify Client Secret aquí
+            )
+        )
+    }
     val downloadEngine = remember { DownloadEngine(context, coverArtManager, lyricsManager) }
 
     var hasPermission by remember {
