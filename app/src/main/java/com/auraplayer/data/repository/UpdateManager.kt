@@ -8,7 +8,6 @@ import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.auraplayer.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -29,6 +28,14 @@ class UpdateManager(private val context: Context) {
     private val repoReleasesApi = "https://api.github.com/repos/davidchaparro780-wq/AuraPlayer/releases/latest"
     private val tag = "UpdateManager"
 
+    private val currentVersionName: String
+        get() = try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            pInfo.versionName ?: "1.8.4"
+        } catch (_: Exception) {
+            "1.8.4"
+        }
+
     /**
      * Checks GitHub Releases for a newer version of DaVE.
      * Returns UpdateInfo if an update is available, or null if already on the latest version.
@@ -40,7 +47,7 @@ class UpdateManager(private val context: Context) {
                 connectTimeout = 8000
                 readTimeout = 8000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "DaVE-App/${BuildConfig.VERSION_NAME}")
+                setRequestProperty("User-Agent", "DaVE-App/$currentVersionName")
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
             }
 
@@ -54,7 +61,7 @@ class UpdateManager(private val context: Context) {
 
             val rawTagName = root.optString("tag_name", "")
             val remoteVersion = rawTagName.removePrefix("v").trim()
-            val currentVersion = BuildConfig.VERSION_NAME.removePrefix("v").trim()
+            val currentVersion = currentVersionName.removePrefix("v").trim()
             val body = root.optString("body", "Mejoras de rendimiento y nuevas funciones.")
 
             Log.d(tag, "Remote version: $remoteVersion vs Current: $currentVersion")
