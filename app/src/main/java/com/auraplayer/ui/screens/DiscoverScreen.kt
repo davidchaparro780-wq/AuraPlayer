@@ -451,18 +451,39 @@ fun OnlineTrackCard(
         Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xFF8B5CF6).copy(alpha = 0.25f),
+                            Color(0xFF38BDF8).copy(alpha = 0.2f)
+                        )
+                    )
+                )
+                .border(
+                    1.dp,
+                    Color(0xFF8B5CF6).copy(alpha = 0.3f),
+                    RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(track.coverUrl)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = track.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                contentDescription = null,
+                tint = Color(0xFF8B5CF6).copy(alpha = 0.7f),
+                modifier = Modifier.size(26.dp)
             )
+            if (track.coverUrl.isNotBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(track.coverUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = track.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))

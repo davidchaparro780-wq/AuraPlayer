@@ -1170,33 +1170,38 @@ fun SongListItem(
                     if (isSelected) {
                         Brush.linearGradient(
                             listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
+                                Color(0xFF8B5CF6).copy(alpha = 0.35f),
+                                Color(0xFF38BDF8).copy(alpha = 0.35f)
                             )
                         )
                     } else {
                         Brush.linearGradient(
                             listOf(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.colorScheme.surfaceVariant
+                                Color(0xFF13182E),
+                                Color(0xFF0F172A)
                             )
                         )
                     }
+                )
+                .border(
+                    1.dp,
+                    if (isSelected) Color(0xFF38BDF8).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.2f),
+                    RoundedCornerShape(14.dp)
                 ),
             contentAlignment = Alignment.Center
         ) {
+            Icon(
+                imageVector = Icons.Default.MusicNote,
+                contentDescription = null,
+                tint = if (isSelected) Color(0xFF38BDF8) else Color(0xFF8B5CF6).copy(alpha = 0.6f),
+                modifier = Modifier.size(24.dp)
+            )
             if (song.artworkUri != null) {
                 AsyncImage(
                     model = song.artworkUri,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(52.dp)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
