@@ -550,18 +550,20 @@ fun EqualizerScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 val accents = listOf(
-                    Triple("PURPLE", "Velvet Purple", Color(0xFFA855F7)),
-                    Triple("CYAN", "Matrix Cyan", Color(0xFF06B6D4)),
-                    Triple("MAGENTA", "Neon Magenta", Color(0xFFF43F5E)),
-                    Triple("GREEN", "Toxic Green", Color(0xFF10B981)),
-                    Triple("GOLD", "Solar Gold", Color(0xFFF59E0B))
+                    Triple("AMOLED", "AMOLED 🖤", Color(0xFF38BDF8)),
+                    Triple("CYBERPUNK", "Cyberpunk ⚡", Color(0xFF00F0FF)),
+                    Triple("SUNSET_GOLD", "Sunset Gold 👑", Color(0xFFFFD700)),
+                    Triple("PURPLE", "Velvet 💜", Color(0xFFA855F7)),
+                    Triple("CYAN", "Matrix 💎", Color(0xFF06B6D4)),
+                    Triple("MAGENTA", "Magenta 🌸", Color(0xFFF43F5E)),
+                    Triple("GREEN", "Emerald 🌲", Color(0xFF10B981))
                 )
 
-                Row(
+                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    accents.forEach { (key, label, color) ->
+                    itemsIndexed(accents) { _, (key, label, color) ->
                         val isSelected = currentAccent.equals(key, ignoreCase = true)
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -575,20 +577,30 @@ fun EqualizerScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(38.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
                                     .background(color)
                                     .border(
                                         width = if (isSelected) 3.dp else 1.dp,
                                         color = if (isSelected) Color.White else Color.Transparent,
                                         shape = CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (key == "AMOLED") {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black)
                                     )
-                            )
+                                }
+                            }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = key,
+                                text = label,
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 9.sp,
+                                fontSize = 10.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
                             )

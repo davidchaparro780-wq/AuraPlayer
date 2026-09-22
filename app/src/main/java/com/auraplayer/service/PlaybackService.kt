@@ -15,9 +15,17 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.auraplayer.MainActivity
 import com.auraplayer.audio.EqualizerManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 class PlaybackService : MediaSessionService() {
 
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var mediaSession: MediaSession? = null
     lateinit var player: ExoPlayer
 
@@ -66,6 +74,43 @@ class PlaybackService : MediaSessionService() {
         EqualizerManager.instance.initPrefs(this)
         EqualizerManager.instance.attachToAudioSession(player.audioSessionId)
 
+        val playlistManager = com.auraplayer.data.repository.PlaylistManager(this)
+        EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
+
+        player.addListener(object : androidx.media3.common.Player.Listener {
+            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
+            }
+        })
+
+        // DJ Crossfade Real-time Volume Engine (Poweramp Style)
+        serviceScope.launch {
+            while (isActive) {
+                val crossfadeSec = playlistManager.getCrossfadeSeconds()
+                if (crossfadeSec > 0 && player.isPlaying && player.duration > 0L) {
+                    val fadeWindowMs = crossfadeSec * 1000L
+                    val pos = player.currentPosition
+                    val dur = player.duration
+                    val rem = dur - pos
+
+                    if (rem in 0L..fadeWindowMs) {
+                        // Fade out towards track end
+                        val factor = (rem.toFloat() / fadeWindowMs.toFloat()).coerceIn(0.08f, 1.0f)
+                        player.volume = factor
+                    } else if (pos in 0L..(fadeWindowMs / 2)) {
+                        // Fade in at track beginning
+                        val factor = (pos.toFloat() / (fadeWindowMs / 2).toFloat()).coerceIn(0.15f, 1.0f)
+                        player.volume = factor
+                    } else if (player.volume < 1.0f) {
+                        player.volume = 1.0f
+                    }
+                } else if (player.volume < 1.0f) {
+                    player.volume = 1.0f
+                }
+                delay(150)
+            }
+        }
+
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -101,6 +146,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        serviceScope.cancel()
         mediaSession?.run {
             player.release()
             release()

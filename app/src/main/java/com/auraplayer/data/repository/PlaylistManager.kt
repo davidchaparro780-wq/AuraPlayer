@@ -217,4 +217,14 @@ class PlaylistManager(context: Context) {
     fun setAutoplayEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("audio_autoplay_radio", enabled).apply()
     }
+
+    // --- DOWNLOAD QUALITY SETTING (320 kbps Hi-Fi vs 160 kbps Fast) ---
+
+    fun getDownloadQuality(): String {
+        return prefs.getString("download_quality", "320") ?: "320"
+    }
+
+    fun setDownloadQuality(quality: String) {
+        prefs.edit().putString("download_quality", quality).apply()
+    }
 }

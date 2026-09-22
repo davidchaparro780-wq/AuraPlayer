@@ -2,7 +2,9 @@ package com.auraplayer.ui.screens
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.media.AudioManager
+import android.os.Build
 import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
@@ -43,8 +45,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.PictureInPictureAlt
+import androidx.compose.material.icons.filled.Share
+import com.auraplayer.ui.components.AudioCutterDialog
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -163,6 +169,7 @@ fun PlayerScreen(
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
     var showFxDialog by remember { mutableStateOf(false) }
+    var showCutterDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showLyricsView by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
@@ -170,8 +177,37 @@ fun PlayerScreen(
     var visualizerMode by remember { mutableIntStateOf(0) } // 0: Spectrum bars, 1: Neon wave, 2: Radial pulse, 3: Starfield
     var lyricsFontSizeMultiplier by remember { mutableFloatStateOf(1.0f) }
 
+    fun triggerPiP() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val act = context as? Activity
+                val params = android.app.PictureInPictureParams.Builder().build()
+                act?.enterPictureInPictureMode(params)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Ventana flotante: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Ventana flotante requiere Android 8+", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun shareSong() {
+        try {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "audio/*"
+                putExtra(Intent.EXTRA_STREAM, currentMedia.uri)
+                putExtra(Intent.EXTRA_TEXT, "Escuchando '${currentMedia.title}' de ${currentMedia.artist} en DaVE Player")
+            }
+            context.startActivity(Intent.createChooser(shareIntent, "Compartir música"))
+        } catch (e: Exception) {
+            Toast.makeText(context, "No se pudo compartir: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     BackHandler {
-        if (showQueueSheet) {
+        if (showCutterDialog) {
+            showCutterDialog = false
+        } else if (showQueueSheet) {
             showQueueSheet = false
         } else if (showAudioSpecSheet) {
             showAudioSpecSheet = false
@@ -816,7 +852,7 @@ fun PlayerScreen(
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
                             .clickable { showFxDialog = true }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -825,39 +861,79 @@ fun PlayerScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = fxLabel,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 11.sp
                             )
                         }
+                    }
+
+                    // Ringtone Cutter Tool
+                    IconButton(
+                        onClick = { showCutterDialog = true },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCut,
+                            contentDescription = "Cortar Audio / Ringtone",
+                            tint = Color(0xFFF59E0B),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Floating Lyrics / PiP Mode
+                    IconButton(
+                        onClick = { triggerPiP() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PictureInPictureAlt,
+                            contentDescription = "Letras Flotantes PiP",
+                            tint = Color(0xFF06B6D4),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Native Share
+                    IconButton(
+                        onClick = { shareSong() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Compartir",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
 
                     // Rewind 10s
                     IconButton(
                         onClick = { onSeekRelative(-10000L) },
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FastRewind,
                             contentDescription = "Retroceder 10s",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
                     // Forward 10s
                     IconButton(
                         onClick = { onSeekRelative(10000L) },
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FastForward,
                             contentDescription = "Avanzar 10s",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -1283,6 +1359,14 @@ fun PlayerScreen(
             },
             containerColor = Color(0xFF101422),
             shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // Audio Cutter & Ringtone Maker Dialog
+    if (showCutterDialog && currentMedia != null) {
+        AudioCutterDialog(
+            song = currentMedia,
+            onDismiss = { showCutterDialog = false }
         )
     }
 }

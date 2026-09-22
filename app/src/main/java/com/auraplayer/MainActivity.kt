@@ -26,11 +26,14 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -717,32 +720,10 @@ fun AuraApp(
         return
     }
 
-    // Fullscreen Private Safe Vault Screen
-    if (showVaultScreen) {
-        VaultScreen(
-            vaultManager = vaultManager,
-            onBack = {
-                showVaultScreen = false
-                scope.launch {
-                    videos = mediaRepository.loadVideoFiles()
-                }
-            },
-            onPlayHiddenVideo = { hiddenVideo ->
-                activeVideo = hiddenVideo
-            }
-        )
-        return
-    }
-
-    // Fullscreen Video Player
-    if (activeVideo != null) {
-        // Automatically pause music when opening a video
-        controller?.pause()
-        VideoPlayerScreen(
-            video = activeVideo!!,
-            onBack = { activeVideo = null }
-        )
-        return
+    LaunchedEffect(activeVideo) {
+        if (activeVideo != null) {
+            controller?.pause()
+        }
     }
 
     // Sleep Timer Dialog
@@ -754,29 +735,6 @@ fun AuraApp(
                 controller?.pause()
             }
         )
-    }
-
-    // Car Mode Fullscreen Screen
-    if (showCarModeScreen && currentMedia != null) {
-        CarModeScreen(
-            currentMedia = currentMedia,
-            isPlaying = isPlaying,
-            onPlayPause = {
-                controller?.let {
-                    if (it.isPlaying) it.pause() else it.play()
-                }
-            },
-            onNext = {
-                controller?.seekToNextMediaItem()
-            },
-            onPrevious = {
-                controller?.seekToPreviousMediaItem()
-            },
-            onClose = {
-                showCarModeScreen = false
-            }
-        )
-        return
     }
 
     // Main Container with Animated Fullscreen Player & Update Dialog
@@ -855,10 +813,33 @@ fun AuraApp(
             }
         }
     ) { innerPadding ->
-        Crossfade(
+        AnimatedContent(
             targetState = selectedNavTab,
-            animationSpec = tween(70),
-            label = "NavTransition"
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInHorizontally(
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        initialOffsetX = { fullWidth -> fullWidth / 3 }
+                    ) + fadeIn(animationSpec = tween(200))) togetherWith (
+                        slideOutHorizontally(
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            targetOffsetX = { fullWidth -> -fullWidth / 3 }
+                        ) + fadeOut(animationSpec = tween(180))
+                    )
+                } else {
+                    (slideInHorizontally(
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        initialOffsetX = { fullWidth -> -fullWidth / 3 }
+                    ) + fadeIn(animationSpec = tween(200))) togetherWith (
+                        slideOutHorizontally(
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            targetOffsetX = { fullWidth -> fullWidth / 3 }
+                        ) + fadeOut(animationSpec = tween(180))
+                    )
+                }
+            },
+            label = "MainTabNavTransition",
+            modifier = Modifier.padding(innerPadding)
         ) { targetTab ->
             when (targetTab) {
             0 -> {
@@ -978,7 +959,7 @@ fun AuraApp(
                             }
                         }
                     },
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
             1 -> DiscoverScreen(
@@ -1049,7 +1030,7 @@ fun AuraApp(
                         }
                     }
                 },
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.fillMaxSize()
             )
             2 -> VideoScreen(
                 videos = videos,
@@ -1110,13 +1091,13 @@ fun AuraApp(
                         }
                     }
                 },
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.fillMaxSize()
             )
             3 -> EqualizerScreen(
                 playlistManager = playlistManager,
                 currentAccent = currentAccent,
                 onAccentChange = onAccentChange,
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
@@ -1220,6 +1201,75 @@ fun AuraApp(
                     handleDeleteSong(song)
                 },
                 onDismiss = { showPlayerScreen = false }
+            )
+        }
+    }
+
+    // Animated Fullscreen Car Mode Screen (Spring slide up)
+    AnimatedVisibility(
+        visible = showCarModeScreen && currentMedia != null,
+        enter = slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        ) + fadeIn(animationSpec = tween(220)),
+        exit = slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(220)
+        ) + fadeOut(animationSpec = tween(180))
+    ) {
+        CarModeScreen(
+            currentMedia = currentMedia,
+            isPlaying = isPlaying,
+            onPlayPause = {
+                controller?.let {
+                    if (it.isPlaying) it.pause() else it.play()
+                }
+            },
+            onNext = {
+                controller?.seekToNextMediaItem()
+            },
+            onPrevious = {
+                controller?.seekToPreviousMediaItem()
+            },
+            onClose = {
+                showCarModeScreen = false
+            }
+        )
+    }
+
+    // Animated Fullscreen Private Safe Vault Screen (Smooth Scale & Fade)
+    AnimatedVisibility(
+        visible = showVaultScreen,
+        enter = scaleIn(initialScale = 0.93f, animationSpec = tween(220)) + fadeIn(animationSpec = tween(200)),
+        exit = scaleOut(targetScale = 0.93f, animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
+    ) {
+        VaultScreen(
+            vaultManager = vaultManager,
+            onBack = {
+                showVaultScreen = false
+                scope.launch {
+                    videos = mediaRepository.loadVideoFiles()
+                }
+            },
+            onPlayHiddenVideo = { hiddenVideo ->
+                activeVideo = hiddenVideo
+            }
+        )
+    }
+
+    // Animated Fullscreen Video Player Screen (Smooth Scale & Fade)
+    AnimatedVisibility(
+        visible = activeVideo != null,
+        enter = scaleIn(initialScale = 0.95f, animationSpec = tween(220)) + fadeIn(animationSpec = tween(200)),
+        exit = scaleOut(targetScale = 0.95f, animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
+    ) {
+        activeVideo?.let { video ->
+            VideoPlayerScreen(
+                video = video,
+                onBack = { activeVideo = null }
             )
         }
     }

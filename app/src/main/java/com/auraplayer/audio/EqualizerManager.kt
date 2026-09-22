@@ -117,6 +117,19 @@ class EqualizerManager private constructor() {
         persistSettings()
     }
 
+    fun setReplayGainEnabled(enabled: Boolean) {
+        try {
+            if (enabled) {
+                val target = if (loudnessGain > 0) loudnessGain else 300
+                loudnessEnhancer?.setTargetGain(target)
+                loudnessEnhancer?.enabled = isEnabled
+            } else {
+                loudnessEnhancer?.setTargetGain(loudnessGain)
+                loudnessEnhancer?.enabled = loudnessGain > 0 && isEnabled
+            }
+        } catch (_: Exception) {}
+    }
+
     fun setBandLevel(bandIndex: Int, levelDb: Float) {
         if (bandIndex in 0 until 10) {
             bandLevels[bandIndex] = levelDb.coerceIn(-12f, 12f)

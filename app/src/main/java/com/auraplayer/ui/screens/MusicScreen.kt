@@ -3,6 +3,14 @@ package com.auraplayer.ui.screens
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -32,7 +40,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
+import com.auraplayer.ui.components.AudioCutterDialog
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -145,6 +155,7 @@ fun MusicScreen(
     var songForDetails by remember { mutableStateOf<MediaModel?>(null) }
     var selectedSongForTagEdit by remember { mutableStateOf<MediaModel?>(null) }
     var songToAddToPlaylist by remember { mutableStateOf<MediaModel?>(null) }
+    var songToCut by remember { mutableStateOf<MediaModel?>(null) }
 
     // Custom Playlist view / create state
     var selectedPlaylistForView by remember { mutableStateOf<Playlist?>(null) }
@@ -453,8 +464,36 @@ fun MusicScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
-            when (selectedTab) {
-                0 -> { // Canciones
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInHorizontally(
+                            animationSpec = tween(180, easing = FastOutSlowInEasing),
+                            initialOffsetX = { fullWidth -> fullWidth / 4 }
+                        ) + fadeIn(tween(160))) togetherWith (
+                            slideOutHorizontally(
+                                animationSpec = tween(160, easing = FastOutSlowInEasing),
+                                targetOffsetX = { fullWidth -> -fullWidth / 4 }
+                            ) + fadeOut(tween(140))
+                        )
+                    } else {
+                        (slideInHorizontally(
+                            animationSpec = tween(180, easing = FastOutSlowInEasing),
+                            initialOffsetX = { fullWidth -> -fullWidth / 4 }
+                        ) + fadeIn(tween(160))) togetherWith (
+                            slideOutHorizontally(
+                                animationSpec = tween(160, easing = FastOutSlowInEasing),
+                                targetOffsetX = { fullWidth -> fullWidth / 4 }
+                            ) + fadeOut(tween(140))
+                        )
+                    }
+                },
+                label = "MusicTabTransition",
+                modifier = Modifier.fillMaxSize()
+            ) { currentTab ->
+                when (currentTab) {
+                    0 -> { // Canciones
                     if (filteredSongs.isEmpty()) {
                         EmptyListMessage(if (searchQuery.isEmpty()) "No se encontraron canciones en el dispositivo." else "Sin resultados")
                     } else {
@@ -809,6 +848,7 @@ fun MusicScreen(
             }
         }
     }
+}
 
     // Create Playlist Dialog
     if (showCreatePlaylistDialog) {
@@ -1060,9 +1100,20 @@ fun MusicScreen(
                 )
 
                 MenuOptionItem(
-                    icon = Icons.Default.NotificationsActive,
+                    icon = Icons.Default.ContentCut,
                     iconColor = Color(0xFFF59E0B),
-                    title = "Establecer como Tono de Llamada",
+                    title = "Cortar Audio / Crear Tono & Alarma",
+                    onClick = {
+                        val target = song
+                        selectedSongForMenu = null
+                        songToCut = target
+                    }
+                )
+
+                MenuOptionItem(
+                    icon = Icons.Default.NotificationsActive,
+                    iconColor = MaterialTheme.colorScheme.primary,
+                    title = "Establecer como Tono Directo",
                     onClick = {
                         selectedSongForMenu = null
                         setAsRingtone(context, song)
@@ -1158,6 +1209,14 @@ fun MusicScreen(
             },
             containerColor = Color(0xFF101422),
             shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // Audio Cutter & Ringtone Maker Dialog
+    if (songToCut != null) {
+        AudioCutterDialog(
+            song = songToCut!!,
+            onDismiss = { songToCut = null }
         )
     }
 }

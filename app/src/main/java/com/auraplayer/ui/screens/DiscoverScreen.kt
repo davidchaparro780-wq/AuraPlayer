@@ -111,6 +111,9 @@ fun DiscoverScreen(
     var batchCurrentTitle by remember { mutableStateOf("") }
     var showBatchConfirmDialog by remember { mutableStateOf(false) }
 
+    val appPrefs = remember { context.getSharedPreferences("dave_app_prefs", Context.MODE_PRIVATE) }
+    var downloadQuality by remember { mutableStateOf(appPrefs.getString("download_quality", "320") ?: "320") }
+
     // When searching or viewing specific genre, BackHandler resets to Trending
     BackHandler(enabled = searchQuery.isNotBlank() || selectedGenre != "Trending") {
         if (searchQuery.isNotBlank()) {
@@ -360,6 +363,55 @@ fun DiscoverScreen(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            // Download Quality Selector Bar (320 kbps Hi-Fi vs 160 kbps Fast)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Calidad de Descarga:",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    val is320 = downloadQuality == "320"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (is320) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF13182E))
+                            .border(1.dp, if (is320) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                downloadQuality = "320"
+                                appPrefs.edit().putString("download_quality", "320").apply()
+                                Toast.makeText(context, "Calidad: 320 kbps (Hi-Fi)", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("💎 320k Hi-Fi", fontSize = 11.sp, fontWeight = if (is320) FontWeight.Bold else FontWeight.Normal, color = if (is320) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8))
+                    }
+                    val is160 = downloadQuality == "160"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (is160) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF13182E))
+                            .border(1.dp, if (is160) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                downloadQuality = "160"
+                                appPrefs.edit().putString("download_quality", "160").apply()
+                                Toast.makeText(context, "Calidad: 160 kbps (Rápido)", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("⚡ 160k Rápido", fontSize = 11.sp, fontWeight = if (is160) FontWeight.Bold else FontWeight.Normal, color = if (is160) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             // Batch Download Card & Results Header
             if (!isLoading && trackList.isNotEmpty()) {
