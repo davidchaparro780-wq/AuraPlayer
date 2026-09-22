@@ -1,5 +1,6 @@
 package com.auraplayer.data.repository
 
+import android.util.Log
 import com.auraplayer.data.model.OnlineTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -16,21 +17,12 @@ class GlobalSearchService(
 ) {
 
     private val jamendoClientId = "3dce8b55"
+    private val tag = "GlobalSearch"
 
-    /**
-     * Omnibar Entry Point: Determines whether the query is a URL or search text,
-     * and queries the appropriate services for 100% FULL-LENGTH songs.
-     */
     suspend fun searchOrExtract(input: String, selectedSource: String = "Todas"): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val trimmed = input.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
-
-        // 1. URL Detection
-        if (isUrl(trimmed)) {
-            return@withContext extractFromUrl(trimmed)
-        }
-
-        // 2. Federated Search (100% Full-Length Songs with HD Artwork Enrichment)
+        if (isUrl(trimmed)) return@withContext extractFromUrl(trimmed)
         searchFederated(trimmed, selectedSource)
     }
 
@@ -44,9 +36,6 @@ class GlobalSearchService(
                text.contains("tiktok.com", ignoreCase = true)
     }
 
-    /**
-     * Extracts full audio stream and metadata from supported URLs (TikTok via TikWM, Direct Streams)
-     */
     private suspend fun extractFromUrl(urlStr: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OnlineTrack>()
 
@@ -60,31 +49,44 @@ class GlobalSearchService(
                     requestMethod = "GET"
                     setRequestProperty("User-Agent", "Mozilla/5.0")
                 }
-
                 if (conn.responseCode == 200) {
-                    val response = conn.inputStream.bufferedReader().use { it.readText() }
-                    val root = JSONObject(response)
+                    val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
                     if (root.optInt("code", -1) == 0) {
                         val data = root.optJSONObject("data")
-                        val musicUrl = data?.optString("music", "") ?: ""
                         val musicInfo = data?.optJSONObject("music_info")
                         val title = musicInfo?.optString("title", data?.optString("title", "Audio TikTok")) ?: "Audio TikTok"
-                        val author = musicInfo?.optString("author", data?.optJSONObject("author")?.optString("nickname", "TikTok")) ?: "TikTok"
+                        val author = musicInfo?.optString("author", data?.optJSONObject("author")?.optString("nickname", "TikTok") ?: "TikTok") ?: "TikTok"
                         val cover = musicInfo?.optString("cover", data?.optString("cover", "")) ?: ""
-                        val duration = musicInfo?.optInt("duration", 60) ?: 60
 
-                        if (musicUrl.isNotBlank()) {
+                        val videoDuration = data?.optInt("duration", 0) ?: 0
+                        val musicDuration = musicInfo?.optInt("duration", 0) ?: 0
+                        val realDuration = if (videoDuration > 0) videoDuration else if (musicDuration > 0) musicDuration else 60
+
+                        val musicUrl = data?.optString("music", "") ?: ""
+                        val playUrl = data?.optString("play", "") ?: ""
+
+                        // Priority: In TikTok, 'music' catalog is limited to 60s snippet.
+                        // 'play' is the full video containing the complete 4+ minute soundtrack without limits.
+                        val audioUrl = if (videoDuration > musicDuration && playUrl.isNotBlank()) {
+                            playUrl
+                        } else if (musicUrl.isNotBlank()) {
+                            musicUrl
+                        } else {
+                            playUrl
+                        }
+
+                        if (audioUrl.isNotBlank()) {
                             list.add(
                                 OnlineTrack(
                                     id = "tiktok_${System.currentTimeMillis()}",
                                     title = title.take(50),
                                     artist = author,
                                     album = "TikTok Audio Completo",
-                                    durationSec = duration,
-                                    audioUrl = musicUrl,
+                                    durationSec = realDuration,
+                                    audioUrl = audioUrl,
                                     coverUrl = cover,
-                                    format = "MP3 Completo",
-                                    bitrateKbps = 192,
+                                    format = if (audioUrl == playUrl) "Audio HD Completo" else "MP3 Completo",
+                                    bitrateKbps = 320,
                                     license = "Pista Completa",
                                     source = "TikTok",
                                     isDownloadable = true
@@ -93,46 +95,33 @@ class GlobalSearchService(
                         }
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        } else if (urlStr.endsWith(".mp3", ignoreCase = true) ||
-                   urlStr.endsWith(".m4a", ignoreCase = true) ||
-                   urlStr.endsWith(".aac", ignoreCase = true) ||
-                   urlStr.endsWith(".ogg", ignoreCase = true)) {
+            } catch (e: Exception) { e.printStackTrace() }
+        } else if (urlStr.endsWith(".mp3", true) || urlStr.endsWith(".m4a", true) ||
+                   urlStr.endsWith(".aac", true) || urlStr.endsWith(".ogg", true)) {
             val fileName = urlStr.substringAfterLast("/").substringBefore("?")
-            list.add(
-                OnlineTrack(
-                    id = "direct_${System.currentTimeMillis()}",
-                    title = fileName.ifBlank { "Pista Completa Web" },
-                    artist = "Enlace Directo",
-                    album = "Descarga Directa",
-                    durationSec = 0,
-                    audioUrl = urlStr,
-                    coverUrl = "",
-                    format = "MP3 Completo",
-                    bitrateKbps = 320,
-                    license = "Pista Completa",
-                    source = "Enlace Web",
-                    isDownloadable = true
-                )
-            )
+            list.add(OnlineTrack(
+                id = "direct_${System.currentTimeMillis()}",
+                title = fileName.ifBlank { "Pista Completa Web" },
+                artist = "Enlace Directo",
+                album = "Descarga Directa",
+                durationSec = 0,
+                audioUrl = urlStr,
+                coverUrl = "",
+                format = "MP3 Completo",
+                bitrateKbps = 320,
+                license = "Pista Completa",
+                source = "Enlace Web",
+                isDownloadable = true
+            ))
         }
-
         list
     }
 
-    /**
-     * Executes queries against Jamendo for 100% full-length songs with direct, working audio URLs,
-     * then enriches each result with Spotify / Deezer / iTunes HD cover art (up to 1000x1000)
-     * and canonical album name in parallel.
-     * ZERO broken links, ZERO 30-second previews!
-     */
     private suspend fun searchFederated(query: String, selectedSource: String, isTrending: Boolean = false): List<OnlineTrack> = coroutineScope {
         val rawResults = queryJamendo(query, isTrending)
 
-        // Enrich each track with Spotify / Deezer / iTunes HD metadata in parallel
-        val enriched = rawResults.map { track ->
+        // Enrich each track with HD artwork in parallel (Spotify → Deezer → iTunes fallback)
+        rawResults.map { track ->
             async(Dispatchers.IO) {
                 val meta = try { spotifyService.fetchMeta(track.title, track.artist) } catch (_: Exception) { null }
                 if (meta != null && meta.coverUrl.isNotBlank()) {
@@ -145,75 +134,128 @@ class GlobalSearchService(
                 }
             }
         }.awaitAll()
+    }
 
-        enriched
+    /**
+     * Resolves the final direct CDN URL by following all HTTP redirects from a Jamendo
+     * audiodownload URL. This bypasses Jamendo's 1-minute streaming restriction.
+     * Returns the original URL if resolution fails.
+     */
+    private fun resolveFullUrl(originalUrl: String): String {
+        return try {
+            var currentUrl = originalUrl
+            var hops = 0
+            while (hops < 6) {
+                val conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                    instanceFollowRedirects = false
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 AuraPlayer/1.8.3")
+                    setRequestProperty("Accept", "audio/mpeg,audio/*,*/*")
+                }
+                val code = conn.responseCode
+                Log.d(tag, "resolveFullUrl hop $hops: $currentUrl → $code")
+                when (code) {
+                    in 300..308 -> {
+                        val location = conn.getHeaderField("Location")
+                        conn.disconnect()
+                        if (location.isNullOrBlank()) break
+                        // Resolve relative URLs
+                        currentUrl = if (location.startsWith("http")) location
+                                     else URL(URL(currentUrl), location).toString()
+                        hops++
+                    }
+                    200 -> {
+                        conn.disconnect()
+                        Log.d(tag, "resolveFullUrl final URL: $currentUrl")
+                        return currentUrl
+                    }
+                    else -> {
+                        conn.disconnect()
+                        break
+                    }
+                }
+            }
+            originalUrl // fallback
+        } catch (e: Exception) {
+            Log.e(tag, "resolveFullUrl error for $originalUrl: ${e.message}")
+            originalUrl // fallback
+        }
     }
 
     private fun queryJamendo(query: String, isTrending: Boolean): List<OnlineTrack> {
         val list = mutableListOf<OnlineTrack>()
         try {
             val urlStr = if (isTrending || query.isBlank()) {
-                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=40&order=popularity_week&audioformat=mp32&include=musicinfo"
+                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=30&order=popularity_week&audioformat=mp32&include=musicinfo"
             } else {
                 val encoded = URLEncoder.encode(query.trim(), "UTF-8")
-                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=40&search=$encoded&order=popularity_total&audioformat=mp32&include=musicinfo"
+                "https://api.jamendo.com/v3.0/tracks/?client_id=$jamendoClientId&format=json&limit=30&search=$encoded&order=popularity_total&audioformat=mp32&include=musicinfo"
             }
 
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 9000
                 readTimeout = 9000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.8.1 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.8.3 (Android)")
             }
 
-            if (conn.responseCode == 200) {
-                val json = conn.inputStream.bufferedReader().use { it.readText() }
-                val root = JSONObject(json)
-                val results = root.optJSONArray("results")
-                if (results != null) {
-                    for (i in 0 until results.length()) {
-                        val item = results.getJSONObject(i)
-                        val allowed = item.optBoolean("audiodownload_allowed", true)
+            if (conn.responseCode != 200) return list
 
-                        // IMPORTANT: 'audiodownload' = full song direct URL (ALWAYS USE THIS FIRST)
-                        // 'audio' = Jamendo streaming endpoint, may be capped at ~1 min for some keys
-                        val downloadAudioUrl = item.optString("audiodownload", "")
-                        val streamAudioUrl = item.optString("audio", "")
-                        val audioUrl = downloadAudioUrl.ifBlank { streamAudioUrl }
-                        val duration = item.optInt("duration", 0)
+            val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+            val results = root.optJSONArray("results") ?: return list
 
-                        // Only include full songs (at least 45 seconds) with direct audio streams
-                        if (allowed && audioUrl.isNotBlank() && duration >= 45) {
-                            val id = item.optString("id", System.currentTimeMillis().toString())
-                            val name = item.optString("name", "Canción Completa").trim()
-                            val artist = item.optString("artist_name", "Artista").trim()
-                            val album = item.optString("album_name", "Álbum").trim()
-                            var image = item.optString("image", "").ifBlank {
-                                item.optString("album_image", "")
-                            }
-                            if (image.contains("width=300")) {
-                                image = image.replace("width=300", "width=500")
-                            }
+            for (i in 0 until results.length()) {
+                val item = results.getJSONObject(i)
+                val allowed = item.optBoolean("audiodownload_allowed", true)
+                val duration = item.optInt("duration", 0)
 
-                            list.add(
-                                OnlineTrack(
-                                    id = "jam_$id",
-                                    title = name,
-                                    artist = artist,
-                                    album = album,
-                                    durationSec = duration,
-                                    audioUrl = audioUrl,
-                                    coverUrl = image,
-                                    format = "MP3 Completo",
-                                    bitrateKbps = 320,
-                                    license = "Canción Completa",
-                                    source = "Jamendo",
-                                    isDownloadable = true
-                                )
-                            )
-                        }
-                    }
+                if (!allowed || duration < 45) continue
+
+                val trackId = item.optString("id", "")
+                val name = item.optString("name", "Canción").trim()
+                val artist = item.optString("artist_name", "Artista").trim()
+                val album = item.optString("album_name", "Álbum").trim()
+
+                // ──────────────────────────────────────────────────────────────────────
+                // AUDIO URL STRATEGY (from most reliable to least):
+                //
+                // 1. audiodownload → redirect chain → final CDN URL (full file, no limits)
+                // 2. audio field   → signed streaming URL (full song but expires faster)
+                // 3. Constructed   → direct storage URL by track ID (no expiry)
+                // ──────────────────────────────────────────────────────────────────────
+
+                val downloadEndpoint = item.optString("audiodownload", "")
+                val streamEndpoint   = item.optString("audio", "")
+
+                // Resolve audiodownload redirects to get the real CDN URL (full song, unlimited)
+                val resolvedUrl = if (downloadEndpoint.isNotBlank()) {
+                    resolveFullUrl(downloadEndpoint)
+                } else if (streamEndpoint.isNotBlank()) {
+                    resolveFullUrl(streamEndpoint)
+                } else {
+                    // Fallback: construct direct storage URL
+                    "https://prod-1.storage.jamendo.com/download/track/$trackId/mp32/"
                 }
+
+                var image = item.optString("image", "").ifBlank { item.optString("album_image", "") }
+                if (image.contains("width=300")) image = image.replace("width=300", "width=500")
+
+                list.add(OnlineTrack(
+                    id = "jam_$trackId",
+                    title = name,
+                    artist = artist,
+                    album = album,
+                    durationSec = duration,
+                    audioUrl = resolvedUrl,
+                    coverUrl = image,
+                    format = "MP3 Completo",
+                    bitrateKbps = 320,
+                    license = "Canción Completa",
+                    source = "Jamendo",
+                    isDownloadable = true
+                ))
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -50,7 +50,6 @@ class DownloadEngine(
         try {
             val safeArtist = sanitize(track.artist).ifBlank { "Aura Artist" }
             val safeTitle = sanitize(track.title).ifBlank { "Aura Song" }
-            val safeFileName = "$safeArtist - $safeTitle.mp3"
 
             // 1. Establish HTTP connection with multi-redirect support (CDNs, Storage)
             var currentUrl = track.audioUrl
@@ -82,6 +81,15 @@ class DownloadEngine(
                 throw IllegalStateException("Servidor respondió con código ${connection.responseCode}")
             }
 
+            val contentType = connection.contentType?.lowercase() ?: ""
+            val isMp4 = track.audioUrl.contains("video_mp4", true) ||
+                        track.audioUrl.contains(".mp4", true) ||
+                        contentType.contains("mp4") ||
+                        contentType.contains("video/")
+            val extension = if (isMp4) ".m4a" else ".mp3"
+            val mimeType = if (isMp4) "audio/mp4" else "audio/mpeg"
+            val safeFileName = "$safeArtist - $safeTitle$extension"
+
             val contentLength = connection.contentLength
             val inputStream = connection.inputStream
 
@@ -95,7 +103,7 @@ class DownloadEngine(
                     put(MediaStore.Audio.Media.TITLE, track.title)
                     put(MediaStore.Audio.Media.ARTIST, track.artist)
                     put(MediaStore.Audio.Media.ALBUM, track.album)
-                    put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+                    put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
                     put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/AuraPlayer")
                     put(MediaStore.Audio.Media.IS_PENDING, 1)
                 }
@@ -132,7 +140,7 @@ class DownloadEngine(
                 MediaScannerConnection.scanFile(
                     context,
                     arrayOf(targetFile.absolutePath),
-                    arrayOf("audio/mpeg"),
+                    arrayOf(mimeType),
                     null
                 )
             }
