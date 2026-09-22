@@ -169,8 +169,6 @@ class VaultManager(private val context: Context) {
         prefs.edit().remove(pinKey).apply()
     }
 
-    private val hiddenPathsKey = "hidden_media_paths"
-
     fun markPathAsHidden(path: String?) {
         if (path.isNullOrBlank()) return
         val current = prefs.getStringSet(hiddenPathsKey, emptySet())?.toMutableSet() ?: mutableSetOf()
