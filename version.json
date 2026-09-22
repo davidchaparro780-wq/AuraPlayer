@@ -1,7 +1,7 @@
 {
-  "versionCode": 32,
-  "versionName": "1.9.6",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.6/app-debug.apk",
-  "changelog": "⚡ Ultra Rendimiento 90 FPS / 120 FPS: Desbloqueo de hardware a 90Hz, renderizado de ecualizador acelerado por GPU (Hardware Canvas), rotación de vinilo con cero sobrecarga en RenderThread y navegación instantánea.",
+  "versionCode": 33,
+  "versionName": "1.9.7",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.7/app-debug.apk",
+  "changelog": "⚡ Instalador In-App 100% automático, solución al bloqueo en 100%, detección instantánea de APK descargado y ultra fluidez 90 FPS.",
   "fileSizeMb": 23.0
 }

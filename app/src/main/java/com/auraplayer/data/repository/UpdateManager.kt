@@ -130,6 +130,10 @@ class UpdateManager(private val context: Context) {
         }
         null
     }
+    fun getDownloadedApkFile(updateInfo: UpdateInfo): File {
+        val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
+        return File(downloadDir, "DaVE-update-${updateInfo.versionName}.apk")
+    }
 
     /**
      * Downloads the APK file showing progress percentage (0-100), then triggers installation.
@@ -137,9 +141,23 @@ class UpdateManager(private val context: Context) {
     suspend fun downloadAndInstall(
         updateInfo: UpdateInfo,
         onProgress: (Int) -> Unit,
+        onSuccess: () -> Unit = {},
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
         try {
+            val targetFile = getDownloadedApkFile(updateInfo)
+
+            // If already fully downloaded (> 15MB), directly launch installer without redownloading
+            if (targetFile.exists() && targetFile.length() > 15_000_000L) {
+                targetFile.setReadable(true, false)
+                withContext(Dispatchers.Main) {
+                    onProgress(100)
+                    installApk(targetFile)
+                    onSuccess()
+                }
+                return@withContext
+            }
+
             var currentUrl = updateInfo.downloadUrl
             var conn: HttpURLConnection
             var redirects = 0
@@ -173,12 +191,10 @@ class UpdateManager(private val context: Context) {
             }
 
             val totalLength = conn.contentLength
-            val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
-            val targetFile = File(downloadDir, "DaVE-update-${updateInfo.versionName}.apk")
 
             conn.inputStream.use { input ->
                 FileOutputStream(targetFile).use { output ->
-                    val buffer = ByteArray(8 * 1024)
+                    val buffer = ByteArray(16 * 1024)
                     var bytesRead: Int
                     var totalDownloaded = 0L
 
@@ -196,9 +212,13 @@ class UpdateManager(private val context: Context) {
                 }
             }
 
+            targetFile.setReadable(true, false)
+
             // Launch package installer on Main thread
             withContext(Dispatchers.Main) {
+                onProgress(100)
                 installApk(targetFile)
+                onSuccess()
             }
 
         } catch (e: Exception) {
@@ -216,17 +236,26 @@ class UpdateManager(private val context: Context) {
         try {
             if (!apkFile.exists()) {
                 Log.e(tag, "APK file does not exist at ${apkFile.absolutePath}")
+                android.widget.Toast.makeText(context, "El archivo descargado no existe", android.widget.Toast.LENGTH_SHORT).show()
                 return
             }
+
+            apkFile.setReadable(true, false)
 
             // Android 8.0+ unknown sources permission check
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!context.packageManager.canRequestPackageInstalls()) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Por favor activa 'Permitir desde esta fuente' para instalar DaVE",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
                     val manageIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                         data = Uri.parse("package:${context.packageName}")
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     context.startActivity(manageIntent)
+                    return
                 }
             }
 
@@ -242,9 +271,23 @@ class UpdateManager(private val context: Context) {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
 
+            val resInfoList = context.packageManager.queryIntentActivities(
+                installIntent,
+                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+            )
+            for (resolveInfo in resInfoList) {
+                val pkgName = resolveInfo.activityInfo.packageName
+                context.grantUriPermission(pkgName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            Log.e(tag, "Error triggering install: ${e.message}")
+            Log.e(tag, "Error triggering install: ${e.message}", e)
+            android.widget.Toast.makeText(
+                context,
+                "Error al abrir instalador: ${e.localizedMessage}",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
 

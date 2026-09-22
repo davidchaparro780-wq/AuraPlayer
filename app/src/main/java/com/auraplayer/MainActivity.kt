@@ -1232,23 +1232,35 @@ fun AuraApp(
             },
             confirmButton = {
                 if (!isDownloadingUpdate) {
+                    val downloadedApk = updateInfo?.let { updateManager.getDownloadedApkFile(it) }
+                    val alreadyDownloaded = downloadedApk != null && downloadedApk.exists() && downloadedApk.length() > 15_000_000L
+
                     Button(
                         onClick = {
-                            isDownloadingUpdate = true
-                            scope.launch {
-                                updateManager.downloadAndInstall(
-                                    updateInfo!!,
-                                    onProgress = { updateProgress = it },
-                                    onError = { err ->
-                                        isDownloadingUpdate = false
-                                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                    }
-                                )
+                            if (alreadyDownloaded) {
+                                updateManager.installApk(downloadedApk!!)
+                                showUpdateDialog = false
+                            } else {
+                                isDownloadingUpdate = true
+                                scope.launch {
+                                    updateManager.downloadAndInstall(
+                                        updateInfo = updateInfo!!,
+                                        onProgress = { updateProgress = it },
+                                        onSuccess = {
+                                            isDownloadingUpdate = false
+                                            showUpdateDialog = false
+                                        },
+                                        onError = { err ->
+                                            isDownloadingUpdate = false
+                                            Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                        }
+                                    )
+                                }
                             }
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Actualizar Ahora")
+                        Text(if (alreadyDownloaded) "Instalar APK" else "Actualizar Ahora")
                     }
                 }
             },
