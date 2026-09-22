@@ -219,6 +219,7 @@ fun PlayerScreen(
     )
 
     // Visualizer wave phase animation
+    val infiniteTransition = rememberInfiniteTransition(label = "player_infinite")
     val visualizerPhase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * Math.PI).toFloat(),

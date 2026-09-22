@@ -337,6 +337,8 @@ fun MusicScreen(
                     imageVector = Icons.Default.Timer,
                     contentDescription = "Temporizador",
                     tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(22.dp)
+                )
             }
 
             Spacer(modifier = Modifier.width(8.dp))
