@@ -1,3 +1,5 @@
+import java.security.KeyStore
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -23,7 +25,7 @@ android {
             val keystoreFile = file("dave.keystore")
             if (keystoreFile.exists()) {
                 val detectedAlias = try {
-                    val ks = java.security.KeyStore.getInstance("PKCS12")
+                    val ks = KeyStore.getInstance("PKCS12")
                     keystoreFile.inputStream().use { ks.load(it, "daveplayer".toCharArray()) }
                     ks.aliases().toList().firstOrNull() ?: "davekey"
                 } catch (_: Exception) {
