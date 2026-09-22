@@ -111,17 +111,26 @@ class GlobalSearchService(
     }
 
     suspend fun resolveValidAudioUrl(track: OnlineTrack): String = withContext(Dispatchers.IO) {
-        if (track.source == "YouTube" || track.id.startsWith("yt_") || track.license == "YouTube" || track.audioUrl.contains("youtube.com")) {
+        // If already a direct audio stream URL, return immediately
+        if (track.audioUrl.contains("googlevideo.com", ignoreCase = true)) {
+            Log.d(tag, "resolveValidAudioUrl: Already a direct googlevideo stream")
+            return@withContext track.audioUrl
+        }
+
+        if (track.source == "YouTube" || track.id.startsWith("yt_") || track.license == "YouTube" || track.audioUrl.contains("youtube.com/watch")) {
             val videoId = when {
                 track.id.startsWith("yt_") -> track.id.removePrefix("yt_")
                 track.audioUrl.contains("v=") -> track.audioUrl.substringAfter("v=").substringBefore("&")
                 else -> ""
             }
             if (videoId.isNotBlank()) {
+                Log.d(tag, "resolveValidAudioUrl: Resolving YouTube stream for videoId=$videoId")
                 val streamUrl = youtubeRepo.resolveAudioStream(videoId)
                 if (!streamUrl.isNullOrBlank()) {
+                    Log.d(tag, "resolveValidAudioUrl: Got direct stream URL (${streamUrl.take(60)}...)")
                     return@withContext streamUrl
                 }
+                Log.w(tag, "resolveValidAudioUrl: YouTube resolution failed for videoId=$videoId")
             }
         }
         if (track.audioUrl.contains("hdnea=") || track.audioUrl.contains("jamendo") || track.audioUrl.contains("tikwm") || track.audioUrl.contains("radio-browser") || track.audioUrl.contains("googlevideo.com")) {
@@ -129,6 +138,7 @@ class GlobalSearchService(
         }
         val fresh = fetchFreshDeezerPreview(track.artist, track.title)
         if (!fresh.isNullOrBlank()) {
+            Log.d(tag, "resolveValidAudioUrl: Using Deezer preview fallback")
             return@withContext fresh
         }
         track.audioUrl
