@@ -147,12 +147,166 @@ class GlobalSearchService(
     private fun isUrl(text: String): Boolean {
         return text.startsWith("http://", ignoreCase = true) ||
                text.startsWith("https://", ignoreCase = true) ||
-               text.contains("tiktok.com", ignoreCase = true)
+               text.contains("tiktok.com", ignoreCase = true) ||
+               text.contains("youtube.com", ignoreCase = true) ||
+               text.contains("youtu.be", ignoreCase = true) ||
+               text.contains("deezer.com", ignoreCase = true) ||
+               text.contains("spotify.com", ignoreCase = true)
     }
 
     private suspend fun extractFromUrl(urlStr: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OnlineTrack>()
 
+        // 1. YouTube (Playlists, Albums, Videos, Shorts)
+        if (urlStr.contains("youtube.com", ignoreCase = true) || urlStr.contains("youtu.be", ignoreCase = true)) {
+            // Check if it's a playlist or album
+            if (urlStr.contains("list=", ignoreCase = true)) {
+                val playlistId = urlStr.substringAfter("list=").substringBefore("&").substringBefore("#")
+                if (playlistId.isNotBlank()) {
+                    val plTracks = youtubeRepo.extractPlaylist(playlistId)
+                    if (plTracks.isNotEmpty()) {
+                        return@withContext plTracks
+                    }
+                }
+            }
+
+            // Check if it's a single video
+            val videoId = when {
+                urlStr.contains("v=") -> urlStr.substringAfter("v=").substringBefore("&").substringBefore("#")
+                urlStr.contains("youtu.be/") -> urlStr.substringAfter("youtu.be/").substringBefore("?").substringBefore("#").substringBefore("/")
+                urlStr.contains("/shorts/") -> urlStr.substringAfter("/shorts/").substringBefore("?").substringBefore("#").substringBefore("/")
+                urlStr.contains("/embed/") -> urlStr.substringAfter("/embed/").substringBefore("?").substringBefore("#").substringBefore("/")
+                else -> ""
+            }
+            if (videoId.isNotBlank()) {
+                val track = youtubeRepo.extractSingleVideo(videoId)
+                if (track != null) {
+                    list.add(track)
+                    return@withContext list
+                }
+            }
+        }
+
+        // 2. Deezer (Albums, Playlists, Tracks)
+        if (urlStr.contains("deezer.com", ignoreCase = true)) {
+            try {
+                if (urlStr.contains("/album/")) {
+                    val albumId = urlStr.substringAfter("/album/").substringBefore("?").substringBefore("/")
+                    val apiUrl = "https://api.deezer.com/album/$albumId"
+                    val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 4000
+                        readTimeout = 4000
+                        requestMethod = "GET"
+                        setRequestProperty("User-Agent", "Mozilla/5.0")
+                    }
+                    if (conn.responseCode == 200) {
+                        val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                        val albumTitle = root.optString("title", "Álbum")
+                        val artistName = root.optJSONObject("artist")?.optString("name", "Artista") ?: "Artista"
+                        val cover = root.optString("cover_xl", root.optString("cover_big", ""))
+                        val tracksData = root.optJSONObject("tracks")?.optJSONArray("data")
+                        if (tracksData != null) {
+                            for (i in 0 until tracksData.length()) {
+                                val t = tracksData.getJSONObject(i)
+                                val tid = t.optLong("id")
+                                val tTitle = t.optString("title", "Pista")
+                                val tArtist = t.optJSONObject("artist")?.optString("name", artistName) ?: artistName
+                                val dur = t.optInt("duration", 0)
+                                val preview = t.optString("preview", "")
+                                list.add(
+                                    OnlineTrack(
+                                        id = "dz_$tid",
+                                        title = tTitle,
+                                        artist = tArtist,
+                                        album = albumTitle,
+                                        durationSec = dur,
+                                        audioUrl = preview,
+                                        coverUrl = cover,
+                                        format = "MP3 HD",
+                                        bitrateKbps = 320,
+                                        license = "Pista Oficial",
+                                        source = "Deezer",
+                                        isDownloadable = true
+                                    )
+                                )
+                            }
+                            if (list.isNotEmpty()) return@withContext list
+                        }
+                    }
+                } else if (urlStr.contains("/playlist/")) {
+                    val playlistId = urlStr.substringAfter("/playlist/").substringBefore("?").substringBefore("/")
+                    val apiUrl = "https://api.deezer.com/playlist/$playlistId"
+                    val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 4000
+                        readTimeout = 4000
+                        requestMethod = "GET"
+                        setRequestProperty("User-Agent", "Mozilla/5.0")
+                    }
+                    if (conn.responseCode == 200) {
+                        val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                        val plTitle = root.optString("title", "Lista de Reproducción")
+                        val plCover = root.optString("picture_xl", root.optString("picture_big", ""))
+                        val tracksData = root.optJSONObject("tracks")?.optJSONArray("data")
+                        if (tracksData != null) {
+                            for (i in 0 until tracksData.length()) {
+                                val t = tracksData.getJSONObject(i)
+                                val tid = t.optLong("id")
+                                val tTitle = t.optString("title", "Pista")
+                                val tArtist = t.optJSONObject("artist")?.optString("name", "Artista") ?: "Artista"
+                                val tCover = t.optJSONObject("album")?.optString("cover_big", plCover) ?: plCover
+                                val dur = t.optInt("duration", 0)
+                                val preview = t.optString("preview", "")
+                                list.add(
+                                    OnlineTrack(
+                                        id = "dz_$tid",
+                                        title = tTitle,
+                                        artist = tArtist,
+                                        album = plTitle,
+                                        durationSec = dur,
+                                        audioUrl = preview,
+                                        coverUrl = tCover,
+                                        format = "MP3 HD",
+                                        bitrateKbps = 320,
+                                        license = "Pista Oficial",
+                                        source = "Deezer",
+                                        isDownloadable = true
+                                    )
+                                )
+                            }
+                            if (list.isNotEmpty()) return@withContext list
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // 3. Spotify (Resolve title via oEmbed and Search)
+        if (urlStr.contains("spotify.com", ignoreCase = true)) {
+            try {
+                val encoded = URLEncoder.encode(urlStr, "UTF-8")
+                val oembedUrl = "https://open.spotify.com/oembed?url=$encoded"
+                val conn = (URL(oembedUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                }
+                if (conn.responseCode == 200) {
+                    val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                    val title = root.optString("title", "")
+                    if (title.isNotBlank()) {
+                        val searchResults = searchFederated(title, "Todas")
+                        if (searchResults.isNotEmpty()) return@withContext searchResults
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // 4. TikTok Video / Audio
         if (urlStr.contains("tiktok.com", ignoreCase = true)) {
             try {
                 val encodedUrl = URLEncoder.encode(urlStr, "UTF-8")

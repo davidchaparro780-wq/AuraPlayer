@@ -41,21 +41,25 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -99,6 +103,13 @@ fun DiscoverScreen(
     var selectedGenre by remember { mutableStateOf("Trending") }
     var trackList by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+
+    // Batch download state
+    var isDownloadingBatch by remember { mutableStateOf(false) }
+    var batchTotal by remember { mutableIntStateOf(0) }
+    var batchCompleted by remember { mutableIntStateOf(0) }
+    var batchCurrentTitle by remember { mutableStateOf("") }
+    var showBatchConfirmDialog by remember { mutableStateOf(false) }
 
     // When searching or viewing specific genre, BackHandler resets to Trending
     BackHandler(enabled = searchQuery.isNotBlank() || selectedGenre != "Trending") {
@@ -351,24 +362,217 @@ fun DiscoverScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Results Counter & Header
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (searchQuery.isNotBlank()) "Resultados unificados" else "Tendencias ($selectedSource)",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "${trackList.size} canciones",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
+            // Batch Download Card & Results Header
+            if (!isLoading && trackList.isNotEmpty()) {
+                val downloadableTracks = remember(trackList) { trackList.filter { it.isDownloadable } }
+                val downloadableCount = downloadableTracks.size
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Color(0xFF1E1B4B).copy(alpha = 0.85f),
+                                    Color(0xFF0F172A).copy(alpha = 0.95f)
+                                )
+                            )
+                        )
+                        .border(
+                            1.dp,
+                            Brush.horizontalGradient(
+                                listOf(
+                                    Color(0xFF8B5CF6).copy(alpha = 0.6f),
+                                    Color(0xFF38BDF8).copy(alpha = 0.4f)
+                                )
+                            ),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (searchQuery.isNotBlank()) "Resultados / Álbum" else "Tendencias ($selectedSource)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "${trackList.size} canciones ($downloadableCount descargables en MP3 HD)",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+
+                            if (!isDownloadingBatch) {
+                                Button(
+                                    onClick = {
+                                        if (downloadableCount > 0) {
+                                            showBatchConfirmDialog = true
+                                        } else {
+                                            Toast.makeText(context, "No hay canciones descargables en esta lista", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF8B5CF6),
+                                        contentColor = Color.White
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDownload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Descargar Todo",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
+                                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "$batchCompleted/$batchTotal",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Live progress bar when batch download is active
+                        if (isDownloadingBatch) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val progress = if (batchTotal > 0) batchCompleted.toFloat() / batchTotal.toFloat() else 0f
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = Color(0xFF38BDF8),
+                                trackColor = Color(0xFF334155)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Descargando: ${batchCurrentTitle.ifBlank { "audio..." }}",
+                                fontSize = 11.sp,
+                                color = Color(0xFF38BDF8),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            } else {
+                // Results Counter & Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (searchQuery.isNotBlank()) "Resultados unificados" else "Tendencias ($selectedSource)",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${trackList.size} canciones",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            if (showBatchConfirmDialog) {
+                val downloadableTracks = trackList.filter { it.isDownloadable }
+                AlertDialog(
+                    onDismissRequest = { showBatchConfirmDialog = false },
+                    title = {
+                        Text(
+                            text = "Descargar Álbum o Lista",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Se descargarán ${downloadableTracks.size} canciones completas con carátula oficial y metadatos en segundo plano directamente a tu música local.\n\n¿Deseas continuar?",
+                            color = Color(0xFFCBD5E1),
+                            fontSize = 14.sp
+                        )
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showBatchConfirmDialog = false
+                                isDownloadingBatch = true
+                                batchTotal = downloadableTracks.size
+                                batchCompleted = 0
+                                batchCurrentTitle = ""
+                                Toast.makeText(context, "Iniciando descarga por lotes (${downloadableTracks.size} canciones)...", Toast.LENGTH_SHORT).show()
+
+                                scope.launch {
+                                    downloadEngine.downloadBatch(
+                                        tracks = downloadableTracks,
+                                        onProgress = { completed, total, currentTitle ->
+                                            batchCompleted = completed
+                                            batchTotal = total
+                                            batchCurrentTitle = currentTitle
+                                        },
+                                        onAllCompleted = {
+                                            isDownloadingBatch = false
+                                            Toast.makeText(context, "✓ ¡Descarga completa! $batchTotal canciones guardadas en tu biblioteca.", Toast.LENGTH_LONG).show()
+                                            onDownloadComplete()
+                                        }
+                                    )
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF8B5CF6),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Descargar (${downloadableTracks.size})")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showBatchConfirmDialog = false }
+                        ) {
+                            Text("Cancelar", color = Color(0xFF94A3B8))
+                        }
+                    },
+                    containerColor = Color(0xFF1E1B4B),
+                    shape = RoundedCornerShape(18.dp)
                 )
             }
 

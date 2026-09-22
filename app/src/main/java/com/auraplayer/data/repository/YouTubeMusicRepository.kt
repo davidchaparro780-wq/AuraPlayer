@@ -431,4 +431,238 @@ class YouTubeMusicRepository {
         }
         return null
     }
+
+    /**
+     * Extracts an entire playlist or album of videos from YouTube by playlist ID.
+     */
+    suspend fun extractPlaylist(playlistId: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
+        val cleanId = playlistId.trim().removePrefix("VL")
+        if (cleanId.isBlank()) return@withContext emptyList()
+        val list = mutableListOf<OnlineTrack>()
+
+        // 1. Primary: InnerTube Browse API
+        try {
+            val url = URL("https://www.youtube.com/youtubei/v1/browse")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 8000
+                readTimeout = 8000
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                doOutput = true
+            }
+
+            val payload = JSONObject().apply {
+                put("context", JSONObject().apply {
+                    put("client", JSONObject().apply {
+                        put("clientName", "WEB")
+                        put("clientVersion", "2.20231201.00.00")
+                        put("hl", "es")
+                        put("gl", "US")
+                    })
+                })
+                put("browseId", "VL$cleanId")
+            }
+
+            conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+
+            if (conn.responseCode == 200) {
+                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(jsonStr)
+
+                fun parseVideoItem(item: JSONObject) {
+                    val video = item.optJSONObject("playlistVideoRenderer")
+                        ?: item.optJSONObject("musicResponsiveListItemRenderer")
+                        ?: if (item.has("videoId")) item else null
+                        ?: return
+
+                    val videoId = video.optString("videoId")
+                    if (videoId.isBlank()) return
+
+                    val title = video.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
+                        ?: video.optJSONObject("title")?.optString("simpleText")
+                        ?: video.optString("title", "Canción")
+
+                    val author = video.optJSONObject("shortBylineText")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
+                        ?: video.optJSONObject("ownerText")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
+                        ?: video.optJSONObject("subtitle")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
+                        ?: "Artista"
+
+                    val lengthSec = video.optString("lengthSeconds").toIntOrNull()
+                        ?: run {
+                            val durText = video.optJSONObject("lengthText")?.optString("simpleText", "") ?: ""
+                            val parts = durText.split(":")
+                            when (parts.size) {
+                                2 -> (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 0)
+                                3 -> (parts[0].toIntOrNull() ?: 0) * 3600 + (parts[1].toIntOrNull() ?: 0) * 60 + (parts[2].toIntOrNull() ?: 0)
+                                else -> 180
+                            }
+                        }
+
+                    val thumbArray = video.optJSONObject("thumbnail")?.optJSONArray("thumbnails")
+                    val rawCover = if (thumbArray != null && thumbArray.length() > 0) {
+                        thumbArray.optJSONObject(thumbArray.length() - 1)?.optString("url") ?: ""
+                    } else {
+                        ""
+                    }
+                    val coverUrl = when {
+                        rawCover.startsWith("//") -> "https:$rawCover"
+                        rawCover.startsWith("http") -> rawCover
+                        else -> "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                    }
+
+                    list.add(
+                        OnlineTrack(
+                            id = "yt_$videoId",
+                            title = title,
+                            artist = author,
+                            album = "Álbum Completo",
+                            durationSec = lengthSec,
+                            audioUrl = "https://www.youtube.com/watch?v=$videoId",
+                            coverUrl = coverUrl,
+                            format = "HQ Audio",
+                            bitrateKbps = 320,
+                            license = "YouTube",
+                            source = "YouTube",
+                            isDownloadable = true
+                        )
+                    )
+                }
+
+                fun findVideoRenderers(node: Any?) {
+                    when (node) {
+                        is JSONObject -> {
+                            if (node.has("playlistVideoRenderer") || node.has("musicResponsiveListItemRenderer")) {
+                                parseVideoItem(node)
+                            } else {
+                                val keys = node.keys()
+                                while (keys.hasNext()) {
+                                    val key = keys.next()
+                                    findVideoRenderers(node.opt(key))
+                                }
+                            }
+                        }
+                        is org.json.JSONArray -> {
+                            for (i in 0 until node.length()) {
+                                findVideoRenderers(node.opt(i))
+                            }
+                        }
+                    }
+                }
+
+                findVideoRenderers(root)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        if (list.isNotEmpty()) {
+            return@withContext list.distinctBy { it.id }
+        }
+
+        // 2. Fallback: Invidious dynamic mirror playlist endpoints
+        for (mirror in invidiousMirrors) {
+            try {
+                val invUrl = "$mirror/api/v1/playlists/$cleanId"
+                val conn = (URL(invUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                }
+                if (conn.responseCode == 200) {
+                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(resp)
+                    val videos = root.optJSONArray("videos")
+                    if (videos != null && videos.length() > 0) {
+                        for (i in 0 until videos.length()) {
+                            val v = videos.getJSONObject(i)
+                            val videoId = v.optString("videoId")
+                            if (videoId.isNotBlank()) {
+                                list.add(
+                                    OnlineTrack(
+                                        id = "yt_$videoId",
+                                        title = v.optString("title", "Canción"),
+                                        artist = v.optString("author", "Artista"),
+                                        album = root.optString("title", "Álbum Completo"),
+                                        durationSec = v.optInt("lengthSeconds", 180),
+                                        audioUrl = "https://www.youtube.com/watch?v=$videoId",
+                                        coverUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                        format = "HQ Audio",
+                                        bitrateKbps = 320,
+                                        license = "YouTube",
+                                        source = "YouTube",
+                                        isDownloadable = true
+                                    )
+                                )
+                            }
+                        }
+                        if (list.isNotEmpty()) {
+                            return@withContext list.distinctBy { it.id }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        list.distinctBy { it.id }
+    }
+
+    /**
+     * Extracts metadata for a single YouTube video using official oEmbed.
+     */
+    suspend fun extractSingleVideo(videoId: String): OnlineTrack? = withContext(Dispatchers.IO) {
+        val cleanId = videoId.trim()
+        if (cleanId.isBlank()) return@withContext null
+
+        try {
+            val oembedUrl = "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$cleanId&format=json"
+            val conn = (URL(oembedUrl).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 4000
+                readTimeout = 4000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+            }
+            if (conn.responseCode == 200) {
+                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(jsonStr)
+                val title = root.optString("title", "Canción YouTube")
+                val author = root.optString("author_name", "YouTube")
+                val thumb = root.optString("thumbnail_url", "https://i.ytimg.com/vi/$cleanId/hqdefault.jpg")
+
+                return@withContext OnlineTrack(
+                    id = "yt_$cleanId",
+                    title = title,
+                    artist = author,
+                    album = "YouTube Track",
+                    durationSec = 0,
+                    audioUrl = "https://www.youtube.com/watch?v=$cleanId",
+                    coverUrl = thumb,
+                    format = "HQ Audio",
+                    bitrateKbps = 320,
+                    license = "YouTube",
+                    source = "YouTube",
+                    isDownloadable = true
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Fallback without oEmbed
+        OnlineTrack(
+            id = "yt_$cleanId",
+            title = "YouTube Audio",
+            artist = "YouTube",
+            album = "YouTube Track",
+            durationSec = 0,
+            audioUrl = "https://www.youtube.com/watch?v=$cleanId",
+            coverUrl = "https://i.ytimg.com/vi/$cleanId/hqdefault.jpg",
+            format = "HQ Audio",
+            bitrateKbps = 320,
+            license = "YouTube",
+            source = "YouTube",
+            isDownloadable = true
+        )
+    }
 }

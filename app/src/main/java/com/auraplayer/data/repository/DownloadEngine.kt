@@ -53,6 +53,42 @@ class DownloadEngine(
         return _downloadStates.value[trackId] ?: DownloadStatus.Idle
     }
 
+    /**
+     * Downloads an entire playlist or album batch sequentially in background with live progress.
+     */
+    suspend fun downloadBatch(
+        tracks: List<OnlineTrack>,
+        onProgress: (completed: Int, total: Int, currentTitle: String) -> Unit = { _, _, _ -> },
+        onAllCompleted: () -> Unit = {}
+    ) = withContext(Dispatchers.IO) {
+        val downloadable = tracks.filter { it.isDownloadable }
+        var done = 0
+        val total = downloadable.size
+
+        for (track in downloadable) {
+            onProgress(done, total, track.title)
+            try {
+                downloadTrack(
+                    track = track,
+                    onComplete = {
+                        done++
+                        onProgress(done, total, track.title)
+                    },
+                    onError = {
+                        done++
+                        onProgress(done, total, track.title)
+                    }
+                )
+            } catch (_: Exception) {
+                done++
+                onProgress(done, total, track.title)
+            }
+        }
+        withContext(Dispatchers.Main) {
+            onAllCompleted()
+        }
+    }
+
     suspend fun downloadTrack(
         track: OnlineTrack,
         onComplete: (() -> Unit)? = null,
@@ -66,10 +102,31 @@ class DownloadEngine(
 
             // 1. Resolve direct stream URL — skip if already resolved to a direct stream
             var resolvedAudioUrl = track.audioUrl
-            val isAlreadyDirectStream = resolvedAudioUrl.contains("googlevideo.com", ignoreCase = true) ||
+
+            // If the track is from Deezer or has a 30s preview CDN, upgrade to the full song via YouTube
+            val isDeezerPreview = resolvedAudioUrl.contains("dzcdn.net", ignoreCase = true) ||
                 resolvedAudioUrl.contains("cdns-preview-", ignoreCase = true) ||
                 resolvedAudioUrl.contains("cdnt-preview", ignoreCase = true) ||
-                resolvedAudioUrl.contains("dzcdn.net", ignoreCase = true) ||
+                track.source == "Deezer"
+
+            if (isDeezerPreview) {
+                try {
+                    val ytMatches = youtubeRepo.searchYouTube("${track.artist} ${track.title}")
+                    val bestYt = ytMatches.firstOrNull()
+                    if (bestYt != null) {
+                        val videoId = bestYt.id.removePrefix("yt_")
+                        val fullStream = youtubeRepo.resolveAudioStream(videoId)
+                        if (!fullStream.isNullOrBlank()) {
+                            resolvedAudioUrl = fullStream
+                            Log.d("DownloadEngine", "Upgraded Deezer preview to full YouTube HQ stream for ${track.title}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("DownloadEngine", "Could not upgrade Deezer preview: ${e.message}")
+                }
+            }
+
+            val isAlreadyDirectStream = resolvedAudioUrl.contains("googlevideo.com", ignoreCase = true) ||
                 resolvedAudioUrl.contains("jamendo.com", ignoreCase = true) ||
                 resolvedAudioUrl.contains("tikwm.com", ignoreCase = true) ||
                 resolvedAudioUrl.contains("archive.org", ignoreCase = true)

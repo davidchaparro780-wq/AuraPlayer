@@ -1,7 +1,7 @@
 {
-  "versionCode": 36,
-  "versionName": "2.0.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE 2.0: Motor multi-proveedor de YouTube (Cobalt + InnerTube iOS + NewPipe), auto-actualización ante cambios de YouTube y optimización anti-lag 90 FPS.",
-  "fileSizeMb": 23.1
+  "versionCode": 37,
+  "versionName": "2.0.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.1/app-debug.apk",
+  "changelog": "⚡ Descarga de álbumes y listas completas en 1 toque, extractor universal de playlists de YouTube/Deezer y máxima velocidad de descarga.",
+  "fileSizeMb": 23.2
 }
