@@ -47,20 +47,33 @@ class MediaRepository(private val context: Context) {
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
-                    val title = cursor.getString(titleCol) ?: "Unknown Title"
+                    val rawTitle = cursor.getString(titleCol) ?: "Unknown Title"
                     val rawArtist = cursor.getString(artistCol) ?: "Unknown Artist"
                     val rawAlbum = cursor.getString(albumCol) ?: "Unknown Album"
                     val duration = cursor.getLong(durationCol)
                     val data = cursor.getString(dataCol) ?: ""
                     val size = cursor.getLong(sizeCol)
 
-                    val artist = if (rawArtist.equals("<unknown>", ignoreCase = true)) "Artista desconocido" else rawArtist
-                    val album = if (rawAlbum.equals("<unknown>", ignoreCase = true)) "Álbum desconocido" else rawAlbum
+                    // Clean artist & title if MediaStore indexed file as "Artist - Title" with unknown artist
+                    var finalArtist = if (rawArtist.equals("<unknown>", ignoreCase = true) || rawArtist.equals("Unknown Artist", ignoreCase = true) || rawArtist.isBlank()) {
+                        "Artista desconocido"
+                    } else rawArtist
+
+                    var finalTitle = rawTitle
+                    if ((finalArtist == "Artista desconocido" || finalArtist.startsWith("Unknown")) && rawTitle.contains(" - ")) {
+                        finalArtist = rawTitle.substringBefore(" - ").trim()
+                        finalTitle = rawTitle.substringAfter(" - ").trim()
+                    }
+
+                    val album = if (rawAlbum.equals("<unknown>", ignoreCase = true) || rawAlbum.equals("Unknown Album", ignoreCase = true) || rawAlbum.isBlank()) {
+                        "Álbum desconocido"
+                    } else rawAlbum
 
                     val contentUri = ContentUris.withAppendedId(collection, id)
-                    // Check local saved persistent cover art first, then fallback to MediaStore
-                    val localCoverUri = coverArtManager.getLocalCoverUri(id, artist, title)
-                    val artworkUri = localCoverUri ?: ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                    
+                    // Check local saved persistent cover art first (by ID, parsed artist/title, raw title, etc.)
+                    val localCoverUri = coverArtManager.getLocalCoverUri(id, finalArtist, finalTitle)
+                        ?: coverArtManager.getLocalCoverUri(id, rawArtist, rawTitle)
 
                     val folderName = try {
                         File(data).parentFile?.name ?: "Música"
@@ -70,12 +83,12 @@ class MediaRepository(private val context: Context) {
 
                     val mediaModel = MediaModel(
                         id = id,
-                        title = title,
-                        artist = artist,
+                        title = finalTitle,
+                        artist = finalArtist,
                         album = album,
                         duration = duration,
                         uri = contentUri,
-                        artworkUri = artworkUri,
+                        artworkUri = localCoverUri,
                         isVideo = false,
                         folderName = folderName,
                         path = data,

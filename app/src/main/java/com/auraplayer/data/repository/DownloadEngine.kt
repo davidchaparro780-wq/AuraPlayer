@@ -310,7 +310,8 @@ class DownloadEngine(
 
         // Save Cover Art locally for instant offline display
         if (track.coverUrl.isNotBlank()) {
-            downloadCoverArt(track.artist, track.title, track.coverUrl)
+            val mediaStoreId = savedFileUri?.lastPathSegment?.toLongOrNull()
+            downloadCoverArt(track.artist, track.title, track.coverUrl, mediaStoreId, safeFileName)
         }
 
         // Pre-cache synced lyrics if available
@@ -376,7 +377,7 @@ class DownloadEngine(
         outputStream.flush()
     }
 
-    private fun downloadCoverArt(artist: String, title: String, coverUrl: String) {
+    private fun downloadCoverArt(artist: String, title: String, coverUrl: String, mediaStoreId: Long? = null, safeFileName: String? = null) {
         try {
             val coversDir = File(context.filesDir, "covers").apply { if (!exists()) mkdirs() }
             val cleanKey = sanitize("${artist}_${title}")
@@ -386,9 +387,22 @@ class DownloadEngine(
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
             if (conn.responseCode == 200) {
-                conn.inputStream.use { input ->
-                    FileOutputStream(namedFile).use { output ->
-                        input.copyTo(output)
+                val bytes = conn.inputStream.use { it.readBytes() }
+                if (bytes.isNotEmpty()) {
+                    FileOutputStream(namedFile).use { it.write(bytes) }
+                    
+                    val titleFile = File(coversDir, "${sanitize(title)}.jpg")
+                    FileOutputStream(titleFile).use { it.write(bytes) }
+
+                    if (mediaStoreId != null && mediaStoreId > 0) {
+                        val idFile = File(coversDir, "$mediaStoreId.jpg")
+                        FileOutputStream(idFile).use { it.write(bytes) }
+                    }
+
+                    if (!safeFileName.isNullOrBlank()) {
+                        val safeNameNoExt = safeFileName.substringBeforeLast(".")
+                        val safeFile = File(coversDir, "${sanitize(safeNameNoExt)}.jpg")
+                        FileOutputStream(safeFile).use { it.write(bytes) }
                     }
                 }
             }

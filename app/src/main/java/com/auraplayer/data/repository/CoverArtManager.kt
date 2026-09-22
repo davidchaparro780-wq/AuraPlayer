@@ -23,15 +23,39 @@ class CoverArtManager(private val context: Context) {
      * Returns a local saved cover Uri if available, otherwise null.
      */
     fun getLocalCoverUri(id: Long, artist: String, title: String): Uri? {
-        val fileById = File(coversDir, "$id.jpg")
-        if (fileById.exists() && fileById.length() > 0) {
-            return Uri.fromFile(fileById)
+        if (id > 0) {
+            val fileById = File(coversDir, "$id.jpg")
+            if (fileById.exists() && fileById.length() > 0) {
+                return Uri.fromFile(fileById)
+            }
         }
+
         val cleanKey = sanitize("${artist}_${title}")
         val fileByName = File(coversDir, "$cleanKey.jpg")
         if (fileByName.exists() && fileByName.length() > 0) {
             return Uri.fromFile(fileByName)
         }
+
+        val cleanTitleKey = sanitize(title)
+        val fileByTitle = File(coversDir, "$cleanTitleKey.jpg")
+        if (fileByTitle.exists() && fileByTitle.length() > 0) {
+            return Uri.fromFile(fileByTitle)
+        }
+
+        // Fuzzy match: check if any file in covers folder matches artist or title
+        try {
+            val files = coversDir.listFiles { _, name -> name.endsWith(".jpg", ignoreCase = true) }
+            if (files != null) {
+                val cleanWords = cleanSearchTerm(title).lowercase().split(" ").filter { it.length > 3 }
+                for (f in files) {
+                    val fName = f.nameWithoutExtension.lowercase()
+                    if (cleanWords.isNotEmpty() && cleanWords.all { fName.contains(it) }) {
+                        return Uri.fromFile(f)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
         return null
     }
 
