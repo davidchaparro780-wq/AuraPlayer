@@ -154,149 +154,268 @@ fun VideoThumbnail(
     }
 }
 
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+
 @Composable
 fun VideoScreen(
     videos: List<MediaModel>,
     isLoading: Boolean,
     onVideoClick: (MediaModel) -> Unit,
+    onOpenVault: () -> Unit = {},
+    onHideVideo: (MediaModel) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    if (isLoading) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-        }
-    } else if (videos.isEmpty()) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.Videocam,
-                    contentDescription = null,
-                    tint = Color(0xFF8B5CF6).copy(alpha = 0.5f),
-                    modifier = Modifier.size(64.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+    var videoForMenu by remember { mutableStateOf<MediaModel?>(null) }
+
+    Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        // Top Header Bar with Vault Button
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
                 Text(
-                    text = "No se encontraron videos en el dispositivo.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Videos Locales",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = "${videos.size} videos encontrados",
+                    fontSize = 12.sp,
+                    color = Color(0xFF94A3B8)
                 )
             }
-        }
-    } else {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 90.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
-        ) {
-            items(videos, key = { it.id }) { video ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shadow(6.dp, RoundedCornerShape(18.dp))
-                        .clip(RoundedCornerShape(18.dp))
-                        .border(
-                            1.dp,
-                            Brush.linearGradient(
-                                listOf(Color(0xFF8B5CF6).copy(alpha = 0.25f), Color(0xFF38BDF8).copy(alpha = 0.15f))
-                            ),
-                            RoundedCornerShape(18.dp)
+
+            // Glowing Vault Button
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8))
                         )
-                        .clickable { onVideoClick(video) },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF13182C))
-                ) {
-                    Column {
-                        // Thumbnail with duration badge and play icon
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 10f)
-                                .background(Color.Black),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            VideoThumbnail(
-                                video = video,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                    )
+                    .clickable { onOpenVault() }
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = "Bóveda",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "🔒 Bóveda Privada",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.White
+                    )
+                }
+            }
+        }
 
-                            // Scrim Gradient overlay for high contrast
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else if (videos.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.Videocam,
+                        contentDescription = null,
+                        tint = Color(0xFF8B5CF6).copy(alpha = 0.5f),
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "No se encontraron videos en el dispositivo.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 6.dp, bottom = 90.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(videos, key = { it.id }) { video ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(6.dp, RoundedCornerShape(18.dp))
+                            .clip(RoundedCornerShape(18.dp))
+                            .border(
+                                1.dp,
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF8B5CF6).copy(alpha = 0.25f), Color(0xFF38BDF8).copy(alpha = 0.15f))
+                                ),
+                                RoundedCornerShape(18.dp)
+                            )
+                            .clickable { onVideoClick(video) },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF13182C))
+                    ) {
+                        Column {
+                            // Thumbnail with duration badge and play icon
                             Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.6f)
-                                            )
-                                        )
-                                    )
-                            )
-
-                            // Glowing Center Play Button
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.55f))
-                                    .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.8f), CircleShape),
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 10f)
+                                    .background(Color.Black),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Reproducir",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
+                                VideoThumbnail(
+                                    video = video,
+                                    modifier = Modifier.fillMaxSize()
                                 )
+
+                                // Scrim Gradient overlay for high contrast
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(
+                                                    Color.Transparent,
+                                                    Color.Black.copy(alpha = 0.6f)
+                                                )
+                                            )
+                                        )
+                                )
+
+                                // Glowing Center Play Button
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.55f))
+                                        .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.8f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayArrow,
+                                        contentDescription = "Reproducir",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+
+                                // 3-dots Menu for Hiding
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.6f))
+                                            .clickable { videoForMenu = video },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = "Opciones",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = videoForMenu == video,
+                                        onDismissRequest = { videoForMenu = null },
+                                        modifier = Modifier.background(Color(0xFF0F172A))
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Lock,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF38BDF8),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("🔒 Ocultar en Bóveda", color = Color.White, fontSize = 13.sp)
+                                                }
+                                            },
+                                            onClick = {
+                                                val v = videoForMenu
+                                                videoForMenu = null
+                                                if (v != null) onHideVideo(v)
+                                            }
+                                        )
+                                    }
+                                }
+
+                                // Duration badge (Aesthetic neon pill)
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(8.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF0F172A).copy(alpha = 0.88f))
+                                        .border(0.5.dp, Color(0xFF8B5CF6).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                    ) {
+                                    Text(
+                                        text = video.formattedDuration,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                }
                             }
 
-                            // Duration badge (Aesthetic neon pill)
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(8.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF0F172A).copy(alpha = 0.88f))
-                                    .border(0.5.dp, Color(0xFF8B5CF6).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 7.dp, vertical = 2.dp)
-                            ) {
+                            // Video Title & Folder Info
+                            Column(modifier = Modifier.padding(10.dp)) {
                                 Text(
-                                    text = video.formattedDuration,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF38BDF8)
-                                )
-                            }
-                        }
-
-                        // Video Title & Folder Info
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Text(
-                                text = video.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Folder,
-                                    contentDescription = null,
-                                    tint = Color(0xFFA855F7).copy(alpha = 0.7f),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = video.folderName,
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF94A3B8),
-                                    maxLines = 1,
+                                    text = video.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                    maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Folder,
+                                        contentDescription = null,
+                                        tint = Color(0xFFA855F7).copy(alpha = 0.7f),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = video.folderName,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF94A3B8),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             }
                         }
                     }

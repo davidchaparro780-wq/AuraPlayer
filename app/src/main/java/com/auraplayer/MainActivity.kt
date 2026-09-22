@@ -99,6 +99,7 @@ import com.auraplayer.data.repository.SpotifyMetadataService
 import com.auraplayer.data.repository.UpdateManager
 import com.auraplayer.data.repository.UpdateInfo
 import com.auraplayer.data.repository.SongLyrics
+import com.auraplayer.data.repository.VaultManager
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
@@ -107,6 +108,7 @@ import com.auraplayer.ui.screens.DiscoverScreen
 import com.auraplayer.ui.screens.EqualizerScreen
 import com.auraplayer.ui.screens.MusicScreen
 import com.auraplayer.ui.screens.PlayerScreen
+import com.auraplayer.ui.screens.VaultScreen
 import com.auraplayer.ui.screens.VideoPlayerScreen
 import com.auraplayer.ui.screens.VideoScreen
 import com.auraplayer.ui.theme.AuraTheme
@@ -200,6 +202,8 @@ fun AuraApp(
     var showCarModeScreen by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
+    var showVaultScreen by remember { mutableStateOf(false) }
+    val vaultManager = remember { VaultManager(context) }
 
     // In-App Auto Updater (DaVE Updater)
     val updateManager = remember { UpdateManager(context) }
@@ -553,6 +557,23 @@ fun AuraApp(
         return
     }
 
+    // Fullscreen Private Safe Vault Screen
+    if (showVaultScreen) {
+        VaultScreen(
+            vaultManager = vaultManager,
+            onBack = {
+                showVaultScreen = false
+                scope.launch {
+                    videos = mediaRepository.loadVideoFiles()
+                }
+            },
+            onPlayHiddenVideo = { hiddenVideo ->
+                activeVideo = hiddenVideo
+            }
+        )
+        return
+    }
+
     // Fullscreen Video Player
     if (activeVideo != null) {
         // Automatically pause music when opening a video
@@ -856,6 +877,20 @@ fun AuraApp(
                 isLoading = isLoading,
                 onVideoClick = { video ->
                     activeVideo = video
+                },
+                onOpenVault = {
+                    showVaultScreen = true
+                },
+                onHideVideo = { videoToHide ->
+                    scope.launch {
+                        val ok = vaultManager.hideMediaFile(videoToHide.path, isVideo = true, sourceUri = videoToHide.uri)
+                        if (ok) {
+                            Toast.makeText(context, "Video ocultado en la Bóveda Privada", Toast.LENGTH_SHORT).show()
+                            videos = mediaRepository.loadVideoFiles()
+                        } else {
+                            Toast.makeText(context, "No se pudo ocultar el video", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 },
                 modifier = Modifier.padding(innerPadding)
             )
