@@ -1,7 +1,7 @@
 {
-  "versionCode": 34,
-  "versionName": "1.9.8",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.8/app-debug.apk",
-  "changelog": "⚡ Firma permanente unificada: Sustitución automática in-place sin duplicar la app, actualización con 1 toque y ultra fluidez 90 FPS.",
+  "versionCode": 35,
+  "versionName": "1.9.9",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.9/app-debug.apk",
+  "changelog": "⚡ Sustitución limpia e instantánea: Package visibility, ClipData URI grants y actualización directa con 1 toque a 90 FPS.",
   "fileSizeMb": 23.0
 }
