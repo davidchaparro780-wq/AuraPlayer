@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode as AnimRepeatMode
@@ -165,6 +166,22 @@ fun PlayerScreen(
     var showAudioSpecSheet by remember { mutableStateOf(false) }
     var visualizerMode by remember { mutableIntStateOf(0) } // 0: Spectrum bars, 1: Neon wave, 2: Radial pulse, 3: Starfield
     var lyricsFontSizeMultiplier by remember { mutableFloatStateOf(1.0f) }
+
+    BackHandler {
+        if (showQueueSheet) {
+            showQueueSheet = false
+        } else if (showAudioSpecSheet) {
+            showAudioSpecSheet = false
+        } else if (showLyricsView) {
+            showLyricsView = false
+        } else if (showFxDialog) {
+            showFxDialog = false
+        } else if (showDeleteConfirmDialog) {
+            showDeleteConfirmDialog = false
+        } else {
+            onDismiss()
+        }
+    }
 
     // Dynamic Atmospheric Gradient Background
     val dynamicBg = remember(currentMedia.id, currentMedia.title) {

@@ -2,6 +2,7 @@ package com.auraplayer.ui.screens
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -134,6 +135,19 @@ fun MusicScreen(
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var playlistSubCategory by remember { mutableIntStateOf(0) } // 0: Mis Playlists, 1: Top Escuchadas, 2: Historial
+
+    // BackHandler to handle playlist view, search query, or sub-tab navigation
+    BackHandler(enabled = selectedPlaylistForView != null || searchQuery.isNotBlank() || selectedTab != 0 || selectedFilterIndex != 0) {
+        if (selectedPlaylistForView != null) {
+            selectedPlaylistForView = null
+        } else if (searchQuery.isNotBlank()) {
+            searchQuery = ""
+        } else if (selectedFilterIndex != 0) {
+            selectedFilterIndex = 0
+        } else if (selectedTab != 0) {
+            selectedTab = 0
+        }
+    }
 
     // Process Filter and Sort
     val filteredSongs = remember(songs, searchQuery, selectedFilterIndex, selectedSortMode, favoritesManager) {

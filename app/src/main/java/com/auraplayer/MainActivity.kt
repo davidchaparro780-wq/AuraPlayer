@@ -15,6 +15,7 @@ import android.os.VibratorManager
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -101,6 +102,7 @@ import com.auraplayer.data.repository.UpdateInfo
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.data.repository.VaultManager
 import com.auraplayer.service.PlaybackService
+import com.auraplayer.ui.components.DaveSplashIntro
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
 import com.auraplayer.ui.screens.CarModeScreen
@@ -204,6 +206,53 @@ fun AuraApp(
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
     var showVaultScreen by remember { mutableStateOf(false) }
     val vaultManager = remember { VaultManager(context) }
+
+    var showAppIntro by remember { mutableStateOf(true) }
+    var lastBackPressTime by remember { mutableLongStateOf(0L) }
+
+    // Global Back Navigation Handler (Cascade return to Main screen / prevent accidental exit)
+    BackHandler(enabled = true) {
+        when {
+            showAppIntro -> {
+                showAppIntro = false
+            }
+            showPlayerScreen -> {
+                showPlayerScreen = false
+            }
+            showCarModeScreen -> {
+                showCarModeScreen = false
+            }
+            showSleepTimerDialog -> {
+                showSleepTimerDialog = false
+            }
+            activeVideo != null -> {
+                activeVideo = null
+            }
+            showVaultScreen -> {
+                showVaultScreen = false
+                scope.launch {
+                    videos = mediaRepository.loadVideoFiles()
+                }
+            }
+            showUpdateDialog -> {
+                showUpdateDialog = false
+            }
+            selectedNavTab != 0 -> {
+                // If in Explorar (1), Videos (2), or Ecualizador (3), return directly to Música (0)
+                selectedNavTab = 0
+            }
+            else -> {
+                // Already on the main screen (Tab 0: Música)
+                val now = System.currentTimeMillis()
+                if (now - lastBackPressTime < 2000L) {
+                    (context as? Activity)?.moveTaskToBack(true)
+                } else {
+                    lastBackPressTime = now
+                    Toast.makeText(context, "Presiona de nuevo para salir", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     // In-App Auto Updater (DaVE Updater)
     val updateManager = remember { UpdateManager(context) }
@@ -1155,6 +1204,13 @@ fun AuraApp(
                     }
                 }
             }
+        )
+    }
+
+    // Opening cinematic splash and animated aura
+    if (showAppIntro) {
+        DaveSplashIntro(
+            onFinish = { showAppIntro = false }
         )
     }
 }

@@ -3,6 +3,7 @@ package com.auraplayer.ui.screens
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,6 +99,19 @@ fun DiscoverScreen(
     var selectedGenre by remember { mutableStateOf("Trending") }
     var trackList by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+
+    // When searching or viewing specific genre, BackHandler resets to Trending
+    BackHandler(enabled = searchQuery.isNotBlank() || selectedGenre != "Trending") {
+        if (searchQuery.isNotBlank()) {
+            searchQuery = ""
+        }
+        selectedGenre = "Trending"
+        scope.launch {
+            isLoading = true
+            trackList = searchService.getTrendingTracks()
+            isLoading = false
+        }
+    }
 
     val downloadStates by downloadEngine.downloadStates.collectAsState()
 
