@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -240,7 +241,7 @@ fun VaultScreen(
 
     if (!isUnlocked) {
         // PIN LOCK / SETUP SCREEN
-        Box(
+        Column(
             modifier = modifier
                 .fillMaxSize()
                 .background(
@@ -249,27 +250,47 @@ fun VaultScreen(
                     )
                 )
                 .statusBarsPadding()
-                .padding(24.dp),
-            contentAlignment = Alignment.Center
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
+            // Top Bar with Back Button and Title
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Back Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
-                    }
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                 }
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Color(0xFF8B5CF6),
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Bóveda Privada",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Glowing Shield / Lock Icon
+            // PIN Lock / Setup Content Centered in Remaining Space
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp)
+                    .navigationBarsPadding(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Glowing Shield / Lock Icon
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -454,7 +475,8 @@ fun VaultScreen(
                 }
             }
         }
-    } else {
+    }
+} else {
         // UNLOCKED VAULT GALLERY
         val hiddenVideos = remember(vaultItems) { vaultItems.filter { it.isVideo } }
         val hiddenPhotos = remember(vaultItems) { vaultItems.filter { !it.isVideo } }

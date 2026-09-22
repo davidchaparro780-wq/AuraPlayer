@@ -1,7 +1,7 @@
 {
-  "versionCode": 39,
-  "versionName": "2.0.3",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.3/app-debug.apk",
-  "changelog": "🚀 DaVE v2.0.3: Animaciones de ventana fluidas a 90 FPS aceleradas por GPU, motor DJ Crossfade real, normalización inteligente de volumen ReplayGain, nuevo Cortador de Audio interactivo para tonos de llamada/alarmas, selector de calidad de descarga 320k Hi-Fi, temas VIP AMOLED Pure Black, Cyberpunk y Sunset Gold, letras flotantes PiP y compartir música sin internet.",
+  "versionCode": 40,
+  "versionName": "2.0.4",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.4/app-debug.apk",
+  "changelog": "⚡ DaVE v2.0.4: Corrección visual del espacio superior y botón volver en Bóveda Privada y Modo Coche con ajuste perfecto de notch y barra de estado.",
   "fileSizeMb": 23.4
 }
