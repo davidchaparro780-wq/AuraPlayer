@@ -146,16 +146,17 @@ fun MusicScreen(
 
         // Apply quick filter
         list = when (selectedFilterIndex) {
-            1 -> list.filter {
+            1 -> playlistManager.getMostPlayedSongs(list)
+            2 -> list.filter {
                 val ext = File(it.path).extension.lowercase()
                 ext in listOf("flac", "wav", "m4a", "alac", "dsf", "dff")
             }
-            2 -> {
+            3 -> {
                 val favs = favoritesManager.getFavoriteIds()
                 list.filter { favs.contains(it.id) }
             }
-            3 -> list.filter { it.duration in 1..150000L } // < 2.5 min
-            4 -> list.filter { it.duration >= 240000L } // > 4 min
+            4 -> list.filter { it.duration in 1..150000L } // < 2.5 min
+            5 -> list.filter { it.duration >= 240000L } // > 4 min
             else -> list
         }
 
@@ -288,7 +289,7 @@ fun MusicScreen(
                     .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                val filters = listOf("Todas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
+                val filters = listOf("Todas", "🔥 Más Escuchadas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
                 itemsIndexed(filters) { index, label ->
                     FilterChip(
                         selected = selectedFilterIndex == index,

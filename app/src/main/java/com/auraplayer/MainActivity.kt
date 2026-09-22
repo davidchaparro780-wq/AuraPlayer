@@ -21,23 +21,42 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +96,8 @@ import com.auraplayer.data.repository.OnlineMusicRepository
 import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.data.repository.GlobalSearchService
 import com.auraplayer.data.repository.SpotifyMetadataService
+import com.auraplayer.data.repository.UpdateManager
+import com.auraplayer.data.repository.UpdateInfo
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.MiniPlayer
@@ -179,6 +200,21 @@ fun AuraApp(
     var showCarModeScreen by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
+
+    // In-App Auto Updater (DaVE Updater)
+    val updateManager = remember { UpdateManager(context) }
+    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val info = updateManager.checkForUpdate()
+        if (info != null) {
+            updateInfo = info
+            showUpdateDialog = true
+        }
+    }
 
     // Live Lyrics state
     var lyrics by remember { mutableStateOf<SongLyrics?>(null) }
@@ -562,98 +598,9 @@ fun AuraApp(
         return
     }
 
-    // Fullscreen Audio Player Screen
-    if (showPlayerScreen && currentMedia != null) {
-        val isFav = favoritesTrigger.let { favoritesManager.isFavorite(currentMedia!!.id) }
-        PlayerScreen(
-            currentMedia = currentMedia,
-            isPlaying = isPlaying,
-            currentPositionMs = currentPositionMs,
-            durationMs = if (durationMs > 0L) durationMs else (currentMedia?.duration ?: 0L),
-            isShuffle = isShuffle,
-            repeatMode = repeatMode,
-            isFavorite = isFav,
-            playbackSpeed = playbackSpeed,
-            playbackPitch = playbackPitch,
-            isShakeEnabled = isShakeEnabled,
-            lyrics = lyrics,
-            isLoadingLyrics = isLoadingLyrics,
-            queueSongs = songs,
-            onQueueSongClick = { song ->
-                currentMedia = song
-                playlistManager.recordPlay(song.id)
-                controller?.run {
-                    val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-                    seekToDefaultPosition(songIndex)
-                    play()
-                }
-            },
-            onPlayPauseClick = {
-                controller?.let {
-                    if (it.isPlaying) it.pause() else it.play()
-                }
-            },
-            onNextClick = {
-                controller?.seekToNextMediaItem()
-            },
-            onPreviousClick = {
-                controller?.seekToPreviousMediaItem()
-            },
-            onSeek = { targetMs ->
-                controller?.seekTo(targetMs)
-                currentPositionMs = targetMs
-            },
-            onSeekRelative = { deltaMs ->
-                controller?.let { c ->
-                    val target = (c.currentPosition + deltaMs).coerceIn(0L, durationMs)
-                    c.seekTo(target)
-                    currentPositionMs = target
-                }
-            },
-            onShuffleToggle = {
-                isShuffle = !isShuffle
-                controller?.shuffleModeEnabled = isShuffle
-            },
-            onRepeatToggle = {
-                repeatMode = when (repeatMode) {
-                    RepeatMode.OFF -> RepeatMode.ALL
-                    RepeatMode.ALL -> RepeatMode.ONE
-                    RepeatMode.ONE -> RepeatMode.OFF
-                }
-                controller?.repeatMode = when (repeatMode) {
-                    RepeatMode.OFF -> Player.REPEAT_MODE_OFF
-                    RepeatMode.ALL -> Player.REPEAT_MODE_ALL
-                    RepeatMode.ONE -> Player.REPEAT_MODE_ONE
-                }
-            },
-            onToggleFavorite = {
-                currentMedia?.let {
-                    favoritesManager.toggleFavorite(it.id)
-                    favoritesTrigger++
-                }
-            },
-            onToggleShake = {
-                isShakeEnabled = !isShakeEnabled
-                val msg = if (isShakeEnabled) "Agitar para saltar canción: ACTIVADO" else "Agitar para saltar canción: DESACTIVADO"
-                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-            },
-            onAudioFxChange = { speed, pitch ->
-                playbackSpeed = speed
-                playbackPitch = pitch
-                controller?.playbackParameters = PlaybackParameters(speed, pitch)
-            },
-            onOpenSleepTimer = { showSleepTimerDialog = true },
-            onOpenCarMode = { showCarModeScreen = true },
-            onDeleteSong = { song ->
-                handleDeleteSong(song)
-            },
-            onDismiss = { showPlayerScreen = false }
-        )
-        return
-    }
-
-    // Main Scaffold with Bottom Navigation and MiniPlayer
-    Scaffold(
+    // Main Container with Animated Fullscreen Player & Update Dialog
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
         bottomBar = {
             androidx.compose.foundation.layout.Column {
                 // Mini Player
@@ -727,7 +674,20 @@ fun AuraApp(
             }
         }
     ) { innerPadding ->
-        when (selectedNavTab) {
+        AnimatedContent(
+            targetState = selectedNavTab,
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInHorizontally { width -> width / 4 } + fadeIn(animationSpec = tween(220)))
+                        .togetherWith(slideOutHorizontally { width -> -width / 4 } + fadeOut(animationSpec = tween(180)))
+                } else {
+                    (slideInHorizontally { width -> -width / 4 } + fadeIn(animationSpec = tween(220)))
+                        .togetherWith(slideOutHorizontally { width -> width / 4 } + fadeOut(animationSpec = tween(180)))
+                }
+            },
+            label = "NavTransition"
+        ) { targetTab ->
+            when (targetTab) {
             0 -> {
                 // Trigger recomposition when favorites change
                 favoritesTrigger.let { }
@@ -906,5 +866,155 @@ fun AuraApp(
                 modifier = Modifier.padding(innerPadding)
             )
         }
+    }
+
+    // Animated Fullscreen Audio Player Screen (Slides up smoothly with spring physics)
+    AnimatedVisibility(
+        visible = showPlayerScreen && currentMedia != null,
+        enter = slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        ) + fadeIn(animationSpec = tween(250)),
+        exit = slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(250)
+        ) + fadeOut(animationSpec = tween(200))
+    ) {
+        currentMedia?.let { media ->
+            val isFav = favoritesTrigger.let { favoritesManager.isFavorite(media.id) }
+            PlayerScreen(
+                currentMedia = media,
+                isPlaying = isPlaying,
+                currentPositionMs = currentPositionMs,
+                durationMs = if (durationMs > 0L) durationMs else media.duration,
+                isShuffle = isShuffle,
+                repeatMode = repeatMode,
+                isFavorite = isFav,
+                playbackSpeed = playbackSpeed,
+                playbackPitch = playbackPitch,
+                isShakeEnabled = isShakeEnabled,
+                lyrics = lyrics,
+                isLoadingLyrics = isLoadingLyrics,
+                queueSongs = songs,
+                onQueueSongClick = { song ->
+                    currentMedia = song
+                    playlistManager.recordPlay(song.id)
+                    controller?.run {
+                        val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+                        seekToDefaultPosition(songIndex)
+                        play()
+                    }
+                },
+                onPlayPauseClick = {
+                    controller?.let {
+                        if (it.isPlaying) it.pause() else it.play()
+                    }
+                },
+                onNextClick = {
+                    controller?.seekToNextMediaItem()
+                },
+                onPreviousClick = {
+                    controller?.seekToPreviousMediaItem()
+                },
+                onSeek = { targetMs ->
+                    controller?.seekTo(targetMs)
+                    currentPositionMs = targetMs
+                },
+                onSeekRelative = { deltaMs ->
+                    controller?.let { c ->
+                        val target = (c.currentPosition + deltaMs).coerceIn(0L, durationMs)
+                        c.seekTo(target)
+                        currentPositionMs = target
+                    }
+                },
+                onShuffleToggle = {
+                    isShuffle = !isShuffle
+                    controller?.shuffleModeEnabled = isShuffle
+                },
+                onRepeatToggle = {
+                    repeatMode = when (repeatMode) {
+                        RepeatMode.OFF -> RepeatMode.ALL
+                        RepeatMode.ALL -> RepeatMode.ONE
+                        RepeatMode.ONE -> RepeatMode.OFF
+                    }
+                    controller?.repeatMode = when (repeatMode) {
+                        RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+                        RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+                        RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+                    }
+                },
+                onToggleFavorite = {
+                    favoritesManager.toggleFavorite(media.id)
+                    favoritesTrigger++
+                },
+                onToggleShake = {
+                    isShakeEnabled = !isShakeEnabled
+                    val msg = if (isShakeEnabled) "Agitar para saltar canción: ACTIVADO" else "Agitar para saltar canción: DESACTIVADO"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                },
+                onAudioFxChange = { speed, pitch ->
+                    playbackSpeed = speed
+                    playbackPitch = pitch
+                    controller?.playbackParameters = PlaybackParameters(speed, pitch)
+                },
+                onOpenSleepTimer = { showSleepTimerDialog = true },
+                onOpenCarMode = { showCarModeScreen = true },
+                onDeleteSong = { song ->
+                    handleDeleteSong(song)
+                },
+                onDismiss = { showPlayerScreen = false }
+            )
+        }
+    }
+
+    // In-App Auto Update Dialog (DaVE Updater)
+    if (showUpdateDialog && updateInfo != null) {
+        AlertDialog(
+            onDismissRequest = { if (!isDownloadingUpdate) showUpdateDialog = false },
+            title = { Text("🚀 Actualización de DaVE (${updateInfo!!.versionName})") },
+            text = {
+                Column {
+                    Text(updateInfo!!.changelog.ifBlank { "Nueva versión disponible con mejoras de velocidad y nuevas funciones." })
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (isDownloadingUpdate) {
+                        Text("Descargando actualización: $updateProgress%")
+                        Spacer(modifier = Modifier.height(6.dp))
+                        LinearProgressIndicator(
+                            progress = { updateProgress / 100f },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (!isDownloadingUpdate) {
+                    Button(onClick = {
+                        isDownloadingUpdate = true
+                        scope.launch {
+                            updateManager.downloadAndInstall(
+                                updateInfo!!,
+                                onProgress = { updateProgress = it },
+                                onError = { err ->
+                                    isDownloadingUpdate = false
+                                    Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                }
+                            )
+                        }
+                    }) {
+                        Text("Actualizar Ahora")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isDownloadingUpdate) {
+                    TextButton(onClick = { showUpdateDialog = false }) {
+                        Text("Más tarde")
+                    }
+                }
+            }
+        )
     }
 }

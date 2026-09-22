@@ -57,6 +57,28 @@ class PlaylistManager(context: Context) {
         }
     }
 
+    /**
+     * Smart Playlist: Detects the user's most listened to songs based on play counts.
+     * Returns the tracks ordered by play count descending.
+     */
+    fun getMostPlayedSongs(allSongs: List<MediaModel>, limit: Int = 30): List<MediaModel> {
+        if (allSongs.isEmpty()) return emptyList()
+        val songsWithCounts = allSongs.map { song ->
+            song to getPlayCount(song.id)
+        }
+        val played = songsWithCounts
+            .filter { it.second > 0 }
+            .sortedByDescending { it.second }
+            .map { it.first }
+
+        return if (played.isNotEmpty()) {
+            played.take(limit)
+        } else {
+            // If no play counts recorded yet, provide first batch as initial recommendation
+            allSongs.take(minOf(limit, allSongs.size))
+        }
+    }
+
     // --- CUSTOM PLAYLISTS (Musicolet / Poweramp Style) ---
 
     fun getPlaylists(): List<Playlist> {
