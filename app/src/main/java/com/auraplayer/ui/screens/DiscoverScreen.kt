@@ -408,7 +408,7 @@ fun DiscoverScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 90.dp, top = 4.dp)
                 ) {
-                    items(trackList, key = { it.id }) { track ->
+                    items(trackList, key = { it.id }, contentType = { "online_track" }) { track ->
                         val status = downloadStates[track.id] ?: DownloadStatus.Idle
 
                         OnlineTrackCard(
@@ -512,6 +512,7 @@ fun OnlineTrackCard(
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(track.coverUrl)
+                        .size(180, 180)
                         .crossfade(true)
                         .build(),
                     contentDescription = track.title,

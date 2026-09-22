@@ -145,48 +145,58 @@ class YouTubeMusicRepository {
         list
     }
 
-    suspend fun resolveAudioStream(videoId: String): String? = withContext(Dispatchers.IO) {
-        if (videoId.isBlank()) return@withContext null
+    private var cobaltMirrors = listOf(
+        "https://cobalt-api.kwiatekm.pl",
+        "https://api.cobalt.tools",
+        "https://cobalt.api.sciter.io"
+    )
 
-        // 1. Try NewPipeExtractor (Direct googlevideo audio stream with highest bitrate)
+    private var invidiousMirrors = listOf(
+        "https://invidious.nerdvpn.de",
+        "https://inv.nadeko.net",
+        "https://invidious.tiekoetter.com",
+        "https://invidious.f5.si",
+        "https://yt.chocolatemoo53.com"
+    )
+
+    var onYouTubeApiChangedDetected: (() -> Unit)? = null
+    private var lastConfigFetchTime = 0L
+
+    private fun refreshRemoteConfigIfNeeded() {
+        val now = System.currentTimeMillis()
+        if (now - lastConfigFetchTime < 3600_000L) return
+        lastConfigFetchTime = now
+
         try {
-            initNewPipe()
-            val watchUrl = "https://www.youtube.com/watch?v=$videoId"
-            val extractor = ServiceList.YouTube.getStreamExtractor(watchUrl)
-            extractor.fetchPage()
-            val audioStreams: List<AudioStream>? = extractor.audioStreams
-            if (!audioStreams.isNullOrEmpty()) {
-                // Prioritize AAC / M4A if available (superior compatibility with Android MediaStore)
-                val aacStream = audioStreams.filter { stream ->
-                    val fmtName = stream.format?.name ?: ""
-                    fmtName.contains("M4A", ignoreCase = true)
-                }.maxByOrNull { it.averageBitrate }
-
-                val chosenStream = aacStream ?: audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.first()
-                val directUrl = chosenStream.url
-                if (!directUrl.isNullOrBlank()) {
-                    return@withContext directUrl
+            val url = URL("https://raw.githubusercontent.com/davidchaparro780-wq/AuraPlayer/main/api-config.json")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 3000
+                readTimeout = 3000
+                requestMethod = "GET"
+            }
+            if (conn.responseCode == 200) {
+                val json = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                val cList = json.optJSONArray("cobaltInstances")
+                if (cList != null && cList.length() > 0) {
+                    val list = mutableListOf<String>()
+                    for (i in 0 until cList.length()) list.add(cList.getString(i))
+                    cobaltMirrors = list
+                }
+                val iList = json.optJSONArray("invidiousInstances")
+                if (iList != null && iList.length() > 0) {
+                    val list = mutableListOf<String>()
+                    for (i in 0 until iList.length()) list.add(iList.getString(i))
+                    invidiousMirrors = list
                 }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (_: Exception) {}
+    }
 
-        // 2. Try InnerTube ANDROID_VR direct player endpoint
-        try {
-            val vrUrl = queryInnerTube(
-                videoId = videoId,
-                clientName = "ANDROID_VR",
-                clientVersion = "1.61.48"
-            )
-            if (!vrUrl.isNullOrBlank()) {
-                return@withContext vrUrl
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    suspend fun resolveAudioStream(videoId: String): String? = withContext(Dispatchers.IO) {
+        if (videoId.isBlank()) return@withContext null
+        refreshRemoteConfigIfNeeded()
 
-        // 3. Try InnerTube IOS direct player endpoint
+        // 1. Try InnerTube IOS direct player endpoint (Fastest, AAC 256kbps, bypasses n-sig)
         try {
             val iosUrl = queryInnerTube(
                 videoId = videoId,
@@ -202,32 +212,75 @@ class YouTubeMusicRepository {
             e.printStackTrace()
         }
 
-        // 4. Try InnerTube TVHTML5_SIMPLY_EMBEDDED_PLAYER endpoint
+        // 2. Try NewPipeExtractor (Direct googlevideo audio stream with highest bitrate)
         try {
-            val tvUrl = queryInnerTube(
-                videoId = videoId,
-                clientName = "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
-                clientVersion = "2.0"
-            )
-            if (!tvUrl.isNullOrBlank()) {
-                return@withContext tvUrl
+            initNewPipe()
+            val watchUrl = "https://www.youtube.com/watch?v=$videoId"
+            val extractor = ServiceList.YouTube.getStreamExtractor(watchUrl)
+            extractor.fetchPage()
+            val audioStreams: List<AudioStream>? = extractor.audioStreams
+            if (!audioStreams.isNullOrEmpty()) {
+                val aacStream = audioStreams.filter { stream ->
+                    val fmtName = stream.format?.name ?: ""
+                    fmtName.contains("M4A", ignoreCase = true)
+                }.maxByOrNull { it.averageBitrate }
+
+                val chosenStream = aacStream ?: audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.first()
+                val directUrl = chosenStream.url
+                if (!directUrl.isNullOrBlank()) {
+                    return@withContext directUrl
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        // 5. Try Invidious public mirror endpoints
-        val invidiousMirrors = listOf(
-            "https://inv.tux.pizza",
-            "https://invidious.nerdvpn.de",
-            "https://invidious.jing.rocks"
-        )
+        // 3. Try Cobalt API instances
+        try {
+            val cobaltUrl = queryCobalt(videoId)
+            if (!cobaltUrl.isNullOrBlank()) {
+                return@withContext cobaltUrl
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 4. Try InnerTube WEB_REMIX (YouTube Music Web Client)
+        try {
+            val ytmUrl = queryInnerTube(
+                videoId = videoId,
+                clientName = "WEB_REMIX",
+                clientVersion = "1.20240901.01.00",
+                userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0"
+            )
+            if (!ytmUrl.isNullOrBlank()) {
+                return@withContext ytmUrl
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 5. Try InnerTube ANDROID_VR direct player endpoint
+        try {
+            val vrUrl = queryInnerTube(
+                videoId = videoId,
+                clientName = "ANDROID_VR",
+                clientVersion = "1.61.48"
+            )
+            if (!vrUrl.isNullOrBlank()) {
+                return@withContext vrUrl
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 6. Try Invidious dynamic mirror endpoints
         for (mirror in invidiousMirrors) {
             try {
                 val invUrl = "$mirror/api/v1/videos/$videoId"
                 val conn = (URL(invUrl).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 4000
-                    readTimeout = 4000
+                    connectTimeout = 3500
+                    readTimeout = 3500
                     requestMethod = "GET"
                     setRequestProperty("User-Agent", "Mozilla/5.0")
                 }
@@ -260,11 +313,49 @@ class YouTubeMusicRepository {
                         }
                     }
                 }
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) {}
         }
 
+        // If all providers failed, YouTube likely updated its cipher/player JS — trigger self-updater check!
+        try {
+            onYouTubeApiChangedDetected?.invoke()
+        } catch (_: Exception) {}
+
         null
+    }
+
+    private fun queryCobalt(videoId: String): String? {
+        val targetUrl = "https://www.youtube.com/watch?v=$videoId"
+        for (instance in cobaltMirrors) {
+            try {
+                val url = URL(instance)
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("User-Agent", "DaVE-Player/2.0")
+                    doOutput = true
+                }
+                val payload = JSONObject().apply {
+                    put("url", targetUrl)
+                    put("downloadMode", "audio")
+                    put("audioFormat", "mp3")
+                }
+                conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+
+                if (conn.responseCode in 200..299) {
+                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(resp)
+                    val streamUrl = root.optString("url", "")
+                    if (streamUrl.isNotBlank()) {
+                        return streamUrl
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return null
     }
 
     private fun queryInnerTube(
@@ -276,8 +367,8 @@ class YouTubeMusicRepository {
     ): String? {
         val url = URL("https://www.youtube.com/youtubei/v1/player")
         val conn = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 8000
+            connectTimeout = 7000
+            readTimeout = 7000
             requestMethod = "POST"
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("User-Agent", userAgent)

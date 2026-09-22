@@ -598,7 +598,11 @@ fun PlayerScreen(
                                             modifier = Modifier.fillMaxSize(),
                                             verticalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
-                                            itemsIndexed(lyrics.lines) { index, line ->
+                                            itemsIndexed(
+                                                items = lyrics.lines,
+                                                key = { index, line -> "${line.timeMs}_$index" },
+                                                contentType = { _, _ -> "lyric_line" }
+                                            ) { index, line ->
                                                 val isActive = index == activeIndex
                                                 Text(
                                                     text = line.text,

@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-09-22",
+  "cobaltInstances": [
+    "https://cobalt-api.kwiatekm.pl",
+    "https://api.cobalt.tools",
+    "https://cobalt.api.sciter.io"
+  ],
+  "invidiousInstances": [
+    "https://invidious.nerdvpn.de",
+    "https://inv.nadeko.net",
+    "https://invidious.tiekoetter.com",
+    "https://invidious.f5.si",
+    "https://yt.chocolatemoo53.com"
+  ],
+  "pipedInstances": [
+    "https://pipedapi.kavin.rocks",
+    "https://piped-api.lunar.icu"
+  ]
+}

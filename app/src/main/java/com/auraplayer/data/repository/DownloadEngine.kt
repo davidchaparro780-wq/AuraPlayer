@@ -35,8 +35,16 @@ class DownloadEngine(
     private val context: Context,
     private val coverArtManager: CoverArtManager,
     private val lyricsManager: LyricsManager,
-    private val youtubeRepo: YouTubeMusicRepository = YouTubeMusicRepository()
+    val youtubeRepo: YouTubeMusicRepository = YouTubeMusicRepository()
 ) {
+
+    var onUpdateNeeded: (() -> Unit)? = null
+
+    init {
+        youtubeRepo.onYouTubeApiChangedDetected = {
+            onUpdateNeeded?.invoke()
+        }
+    }
 
     private val _downloadStates = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadStatus>> = _downloadStates.asStateFlow()

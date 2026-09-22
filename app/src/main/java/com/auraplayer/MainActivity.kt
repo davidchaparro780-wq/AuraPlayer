@@ -247,6 +247,17 @@ fun AuraApp(
     var updateProgress by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
+        downloadEngine.onUpdateNeeded = {
+            scope.launch {
+                val info = updateManager.checkForUpdate()
+                if (info != null) {
+                    updateInfo = info.copy(
+                        changelog = "⚡ YouTube actualizó su reproductor. Esta nueva versión de DaVE corrige la descarga:\n" + info.changelog
+                    )
+                    showUpdateDialog = true
+                }
+            }
+        }
         val info = updateManager.checkForUpdate()
         if (info != null) {
             updateInfo = info
@@ -648,25 +659,28 @@ fun AuraApp(
             videos = mediaRepository.loadVideoFiles()
             isLoading = false
 
-            // Auto-fetch & save cover art in background coroutine without blocking UI
+            // Auto-fetch & save cover art in background coroutine without blocking UI (optimized: only for songs without artwork)
             scope.launch(Dispatchers.IO) {
-                var updated = false
-                songs.forEach { song ->
-                    val savedCover = mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
-                    if (savedCover != null && song.artworkUri != savedCover) {
-                        updated = true
+                val songsWithoutArt = songs.filter { it.artworkUri == null }.take(15)
+                if (songsWithoutArt.isNotEmpty()) {
+                    var updated = false
+                    songsWithoutArt.forEach { song ->
+                        val savedCover = mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
+                        if (savedCover != null && song.artworkUri != savedCover) {
+                            updated = true
+                        }
                     }
-                }
-                if (updated) {
-                    val reloaded = mediaRepository.loadAudioFiles()
-                    val reloadedSongs = reloaded.map { s ->
-                        val override = playlistManager.getTagOverride(s.id)
-                        if (override != null) {
-                            s.copy(title = override.title, artist = override.artist, album = override.album)
-                        } else s
-                    }
-                    withContext(Dispatchers.Main) {
-                        songs = reloadedSongs
+                    if (updated) {
+                        val reloaded = mediaRepository.loadAudioFiles()
+                        val reloadedSongs = reloaded.map { s ->
+                            val override = playlistManager.getTagOverride(s.id)
+                            if (override != null) {
+                                s.copy(title = override.title, artist = override.artist, album = override.album)
+                            } else s
+                        }
+                        withContext(Dispatchers.Main) {
+                            songs = reloadedSongs
+                        }
                     }
                 }
             }

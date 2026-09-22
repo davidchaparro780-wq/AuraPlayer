@@ -104,6 +104,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.data.repository.Playlist
@@ -1305,7 +1306,11 @@ fun SongListItem(
             )
             if (song.artworkUri != null) {
                 AsyncImage(
-                    model = song.artworkUri,
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(song.artworkUri)
+                        .size(160, 160)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
