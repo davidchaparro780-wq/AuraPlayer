@@ -106,6 +106,7 @@ fun DiscoverScreen(
     )
 
     val genres = listOf(
+        "TikTok" to "🎵 Top TikTok",
         "Trending" to "🔥 Tendencias",
         "Pop" to "⚡ Pop",
         "Rock" to "🎸 Rock",
@@ -143,184 +144,194 @@ fun DiscoverScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 14.dp)
         ) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Header Title (Protected with notch & status bar padding)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.CloudDownload,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(28.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8)))
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CloudDownload,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
                         text = "Explorar y Descargar",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Text(
-                        text = "Música completa en MP3 con portadas HD",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Top TikTok y música completa en MP3 HD",
+                        fontSize = 12.sp,
+                        color = Color(0xFF94A3B8)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Omnibar Global Input
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        "Buscar canción, artista o pegar enlace (TikTok/Web)...",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 13.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Buscar",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                },
-                trailingIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = {
-                                searchQuery = ""
-                                scope.launch {
-                                    isLoading = true
-                                    trackList = searchService.getTrending(selectedGenre, selectedSource)
-                                    isLoading = false
+            // Omnibar Global Input (Aesthetic Neon Glow)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF13182E))
+                    .border(
+                        1.dp,
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF8B5CF6).copy(alpha = 0.5f),
+                                Color(0xFF38BDF8).copy(alpha = 0.4f)
+                            )
+                        ),
+                        RoundedCornerShape(24.dp)
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = {
+                        Text(
+                            "Buscar canción, artista o pegar enlace (TikTok/Web)...",
+                            color = Color(0xFF94A3B8).copy(alpha = 0.7f),
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    scope.launch {
+                                        isLoading = true
+                                        trackList = searchService.getTrending(selectedGenre, selectedSource)
+                                        isLoading = false
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Limpiar",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Limpiar",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else {
-                            // Quick Paste Button from Clipboard
-                            IconButton(onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                                val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
-                                if (!clip.isNullOrBlank()) {
-                                    searchQuery = clip.trim()
-                                    executeSearch()
-                                } else {
-                                    Toast.makeText(context, "Portapapeles vacío", Toast.LENGTH_SHORT).show()
+                            } else {
+                                // Quick Paste Button from Clipboard
+                                IconButton(onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                    val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
+                                    if (!clip.isNullOrBlank()) {
+                                        searchQuery = clip.trim()
+                                        executeSearch()
+                                    } else {
+                                        Toast.makeText(context, "Portapapeles vacío", Toast.LENGTH_SHORT).show()
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentPaste,
+                                        contentDescription = "Pegar enlace",
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.ContentPaste,
-                                    contentDescription = "Pegar enlace",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
                             }
                         }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
-                ),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { executeSearch() })
-            )
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { executeSearch() })
+                )
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Source Filter Chips
+            // Category & Genre Filter Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                sourceFilters.forEach { (key, label) ->
-                    val isSelected = selectedSource == key
+                genres.forEach { (key, label) ->
+                    val isSelected = selectedGenre == key
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .background(
-                                if (isSelected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                if (isSelected) {
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6))
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF13182E), Color(0xFF0F172A))
+                                    )
+                                }
+                            )
+                            .border(
+                                1.dp,
+                                if (isSelected) Color.Transparent else Color(0xFF8B5CF6).copy(alpha = 0.25f),
+                                RoundedCornerShape(16.dp)
                             )
                             .clickable {
-                                selectedSource = key
-                                if (searchQuery.isNotBlank()) executeSearch()
+                                selectedGenre = key
+                                if (searchQuery.isNotBlank()) {
+                                    searchQuery = ""
+                                }
                             }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = label,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (isSelected) Color.White else Color(0xFF94A3B8)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Genre Quick Filter Chips (when no custom search is active)
-            if (searchQuery.isBlank()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    genres.forEach { (genreKey, genreLabel) ->
-                        val isSelected = selectedGenre == genreKey
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(
-                                    if (isSelected) MaterialTheme.colorScheme.secondary.copy(alpha = 0.35f)
-                                    else Color.Transparent
-                                )
-                                .border(
-                                    1.dp,
-                                    if (isSelected) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                                    RoundedCornerShape(20.dp)
-                                )
-                                .clickable { selectedGenre = genreKey }
-                                .padding(horizontal = 10.dp, vertical = 5.dp)
-                        ) {
-                            Text(
-                                text = genreLabel,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Results Counter & Header
             Row(

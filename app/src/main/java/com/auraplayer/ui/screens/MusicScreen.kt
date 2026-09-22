@@ -182,54 +182,108 @@ fun MusicScreen(
     }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Search & Quick Actions Bar
+        // Aesthetic Search & Quick Actions Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Buscar pista, artista...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Limpiar")
+            // Neon Glow Search Input Field
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Color(0xFF13182E))
+                    .border(
+                        1.dp,
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF8B5CF6).copy(alpha = 0.45f),
+                                Color(0xFF38BDF8).copy(alpha = 0.35f)
+                            )
+                        ),
+                        RoundedCornerShape(24.dp)
+                    ),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            "Buscar canción, artista...",
+                            fontSize = 13.sp,
+                            color = Color(0xFF94A3B8).copy(alpha = 0.7f)
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Limpiar",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(20.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                    unfocusedBorderColor = Color.Transparent
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    )
                 )
-            )
+            }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Sort Menu Button
+            // Sort Menu Button (Aesthetic Neon Squircle)
             Box {
-                IconButton(
-                    onClick = { showSortMenu = true },
+                Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF13182E))
+                        .border(
+                            1.dp,
+                            Color(0xFFA855F7).copy(alpha = 0.4f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { showSortMenu = true },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Sort, contentDescription = "Ordenar", tint = MaterialTheme.colorScheme.primary)
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Ordenar",
+                        tint = Color(0xFFA855F7),
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
 
                 DropdownMenu(
                     expanded = showSortMenu,
                     onDismissRequest = { showSortMenu = false },
-                    modifier = Modifier.background(Color(0xFF101422))
+                    modifier = Modifier.background(Color(0xFF0F172A))
                 ) {
                     DropdownMenuItem(text = { Text("🔤 Título (A-Z)", color = Color.White) }, onClick = { selectedSortMode = 0; showSortMenu = false })
                     DropdownMenuItem(text = { Text("👤 Artista", color = Color.White) }, onClick = { selectedSortMode = 1; showSortMenu = false })
@@ -238,24 +292,32 @@ fun MusicScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            IconButton(
-                onClick = onOpenSleepTimer,
+            // Sleep Timer Button (Aesthetic Neon Squircle)
+            Box(
                 modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF13182E))
+                    .border(
+                        1.dp,
+                        Color(0xFF38BDF8).copy(alpha = 0.4f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable { onOpenSleepTimer() },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Timer,
                     contentDescription = "Temporizador",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
 
-        // Tab Row
+        // Tab Row with Aesthetic Neon Accent
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
             edgePadding = 16.dp,
@@ -273,33 +335,56 @@ fun MusicScreen(
                     text = {
                         Text(
                             text = title,
-                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selectedTab == index) Color(0xFF38BDF8) else Color(0xFF94A3B8),
+                            fontSize = 14.sp
                         )
                     }
                 )
             }
         }
 
-        // Quick Filter Chips (When in Canciones tab)
+        // Aesthetic Quick Filter Chips (When in Canciones tab)
         if (selectedTab == 0) {
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val filters = listOf("Todas", "🔥 Más Escuchadas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
                 itemsIndexed(filters) { index, label ->
-                    FilterChip(
-                        selected = selectedFilterIndex == index,
-                        onClick = { selectedFilterIndex = index },
-                        label = { Text(label, fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                            selectedLabelColor = Color.White
+                    val isSelected = selectedFilterIndex == index
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                if (isSelected) {
+                                    Brush.horizontalGradient(
+                                        listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6))
+                                    )
+                                } else {
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFF13182E), Color(0xFF0F172A))
+                                    )
+                                }
+                            )
+                            .border(
+                                1.dp,
+                                if (isSelected) Color.Transparent else Color(0xFF8B5CF6).copy(alpha = 0.25f),
+                                RoundedCornerShape(16.dp)
+                            )
+                            .clickable { selectedFilterIndex = index }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else Color(0xFF94A3B8)
                         )
-                    )
+                    }
                 }
             }
         }
