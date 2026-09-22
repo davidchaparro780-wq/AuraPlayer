@@ -819,9 +819,17 @@ fun AuraApp(
             }
         }
     ) { innerPadding ->
-        Crossfade(
+        AnimatedContent(
             targetState = selectedNavTab,
-            animationSpec = tween(60),
+            transitionSpec = {
+                if (targetState > initialState) {
+                    (slideInHorizontally(animationSpec = tween(220)) { width -> width / 4 } + fadeIn(animationSpec = tween(220)))
+                        .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(180)))
+                } else {
+                    (slideInHorizontally(animationSpec = tween(220)) { width -> -width / 4 } + fadeIn(animationSpec = tween(220)))
+                        .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> width / 4 } + fadeOut(animationSpec = tween(180)))
+                }
+            },
             label = "NavTransition"
         ) { targetTab ->
             when (targetTab) {
@@ -929,6 +937,18 @@ fun AuraApp(
                     },
                     onOpenSleepTimer = {
                         showSleepTimerDialog = true
+                    },
+                    onCheckUpdates = {
+                        scope.launch {
+                            Toast.makeText(context, "Buscando actualizaciones...", Toast.LENGTH_SHORT).show()
+                            val info = updateManager.checkForUpdate()
+                            if (info != null) {
+                                updateInfo = info
+                                showUpdateDialog = true
+                            } else {
+                                Toast.makeText(context, "¡DaVE está al día! Tienes la última versión (${updateManager.currentVersionName}) 🎉", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     },
                     modifier = Modifier.padding(innerPadding)
                 )
@@ -1168,13 +1188,26 @@ fun AuraApp(
     if (showUpdateDialog && updateInfo != null) {
         AlertDialog(
             onDismissRequest = { if (!isDownloadingUpdate) showUpdateDialog = false },
-            title = { Text("🚀 Actualización de DaVE (${updateInfo!!.versionName})") },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🚀 Nueva versión disponible", fontWeight = FontWeight.Bold)
+                }
+            },
             text = {
                 Column {
-                    Text(updateInfo!!.changelog.ifBlank { "Nueva versión disponible con mejoras de velocidad y nuevas funciones." })
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "DaVE ${updateInfo!!.versionName} (${updateInfo!!.fileSizeMb} MB)",
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = updateInfo!!.changelog.ifBlank { "Novedades, optimizaciones de velocidad y nuevas funciones." },
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
                     if (isDownloadingUpdate) {
-                        Text("Descargando actualización: $updateProgress%")
+                        Text("Descargando actualización: $updateProgress%", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(6.dp))
                         LinearProgressIndicator(
                             progress = { updateProgress / 100f },
@@ -1185,27 +1218,40 @@ fun AuraApp(
             },
             confirmButton = {
                 if (!isDownloadingUpdate) {
-                    Button(onClick = {
-                        isDownloadingUpdate = true
-                        scope.launch {
-                            updateManager.downloadAndInstall(
-                                updateInfo!!,
-                                onProgress = { updateProgress = it },
-                                onError = { err ->
-                                    isDownloadingUpdate = false
-                                    Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-                                }
-                            )
-                        }
-                    }) {
+                    Button(
+                        onClick = {
+                            isDownloadingUpdate = true
+                            scope.launch {
+                                updateManager.downloadAndInstall(
+                                    updateInfo!!,
+                                    onProgress = { updateProgress = it },
+                                    onError = { err ->
+                                        isDownloadingUpdate = false
+                                        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
                         Text("Actualizar Ahora")
                     }
                 }
             },
             dismissButton = {
                 if (!isDownloadingUpdate) {
-                    TextButton(onClick = { showUpdateDialog = false }) {
-                        Text("Más tarde")
+                    Row {
+                        TextButton(onClick = {
+                            try {
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.downloadUrl))
+                                context.startActivity(browserIntent)
+                            } catch (_: Exception) {}
+                        }) {
+                            Text("Navegador")
+                        }
+                        TextButton(onClick = { showUpdateDialog = false }) {
+                            Text("Más tarde")
+                        }
                     }
                 }
             }

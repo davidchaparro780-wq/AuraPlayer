@@ -77,11 +77,21 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -112,6 +122,7 @@ fun MusicScreen(
     onDeleteSong: (MediaModel) -> Unit,
     onFetchCover: (MediaModel) -> Unit,
     onOpenSleepTimer: () -> Unit,
+    onCheckUpdates: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -326,6 +337,33 @@ fun MusicScreen(
                     imageVector = Icons.Default.Timer,
                     contentDescription = "Temporizador",
                     tint = Color(0xFF38BDF8),
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // In-App Updates Button (Aesthetic Neon Squircle)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF13182E))
+                    .border(
+                        1.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                Color(0xFF8B5CF6).copy(alpha = 0.5f),
+                                Color(0xFFEC4899).copy(alpha = 0.5f)
+                            )
+                        ),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable { onCheckUpdates() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = "Buscar Actualizaciones",
+                    tint = Color(0xFFEC4899),
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -1147,6 +1185,51 @@ private fun MenuOptionItem(
     }
 }
 
+@Composable
+fun LiveEqualizerIndicator(
+    modifier: Modifier = Modifier,
+    barColor: Color = Color(0xFF38BDF8)
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "eq_bars")
+    val h1 by infiniteTransition.animateFloat(
+        initialValue = 0.2f, targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(tween(380, easing = LinearEasing), RepeatMode.Reverse),
+        label = "h1"
+    )
+    val h2 by infiniteTransition.animateFloat(
+        initialValue = 0.85f, targetValue = 0.15f,
+        animationSpec = infiniteRepeatable(tween(310, easing = LinearEasing), RepeatMode.Reverse),
+        label = "h2"
+    )
+    val h3 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(tween(460, easing = LinearEasing), RepeatMode.Reverse),
+        label = "h3"
+    )
+    val h4 by infiniteTransition.animateFloat(
+        initialValue = 0.7f, targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(tween(390, easing = LinearEasing), RepeatMode.Reverse),
+        label = "h4"
+    )
+
+    Row(
+        modifier = modifier.height(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        listOf(h1, h2, h3, h4).forEach { heightFraction ->
+            val finalHeight = (heightFraction * 14).coerceAtLeast(3f)
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(finalHeight.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(barColor)
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongListItem(
@@ -1218,6 +1301,18 @@ fun SongListItem(
                     modifier = Modifier.fillMaxSize()
                 )
             }
+
+            // Live Equalizer Overlay on top of the active song's album art
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LiveEqualizerIndicator(barColor = Color(0xFF38BDF8))
+                }
+            }
         }
 
         Spacer(modifier = Modifier.width(14.dp))
@@ -1233,13 +1328,27 @@ fun SongListItem(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
+                if (isSelected) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    LiveEqualizerIndicator(barColor = Color(0xFF38BDF8))
+                }
                 if (isFavorite) {
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (isFavorite) 1.2f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "heartScale"
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
                     Icon(
                         imageVector = Icons.Default.Favorite,
                         contentDescription = "Favorito",
                         tint = Color(0xFFEC4899),
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier
+                            .size(14.dp)
+                            .graphicsLayer(scaleX = heartScale, scaleY = heartScale)
                     )
                 }
             }

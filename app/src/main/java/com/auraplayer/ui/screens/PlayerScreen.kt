@@ -198,15 +198,24 @@ fun PlayerScreen(
     var hudIcon by remember { mutableStateOf(Icons.Default.VolumeUp) }
     var isHudVisible by remember { mutableStateOf(false) }
 
-    val infiniteTransition = rememberInfiniteTransition(label = "vinyl")
-    val rotation by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(24000, easing = LinearEasing),
-            repeatMode = AnimRepeatMode.Restart
+    // Continuous turntable vinyl rotation (preserves angle smoothly on pause/play)
+    var vinylAngle by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(isPlaying) {
+        var lastNano = androidx.compose.runtime.withFrameNanos { it }
+        while (isPlaying) {
+            androidx.compose.runtime.withFrameNanos { now ->
+                val dt = (now - lastNano) / 1_000_000_000f
+                lastNano = now
+                vinylAngle = (vinylAngle + dt * 28f) % 360f
+            }
+        }
+    }
+    val animatedVinylRotation by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = vinylAngle,
+        animationSpec = androidx.compose.animation.core.spring(
+            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
         ),
-        label = "rotation"
+        label = "animatedVinylRotation"
     )
 
     // Visualizer wave phase animation
@@ -430,37 +439,54 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     if (!showLyricsView) {
-                        // Glowing Ambient Aura Disc
+                        // Glowing Ambient Aura Disc with Vinyl Record Grooves
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(0.82f)
+                                .fillMaxWidth(0.84f)
                                 .aspectRatio(1f)
-                                .shadow(36.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) ambientPulse * 0.5f else 0.2f))
+                                .shadow(
+                                    elevation = if (isPlaying) (32 * ambientPulse).dp else 16.dp,
+                                    shape = CircleShape,
+                                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.65f else 0.25f),
+                                    ambientColor = Color(0xFF8B5CF6).copy(alpha = if (isPlaying) 0.5f else 0.2f)
+                                )
                                 .clip(CircleShape)
                                 .background(
                                     Brush.radialGradient(
                                         listOf(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                            Color(0xFF101422),
-                                            Color(0xFF07090E)
+                                            MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.4f * ambientPulse else 0.2f),
+                                            Color(0xFF14192A),
+                                            Color(0xFF080B12)
                                         )
                                     )
                                 )
                                 .border(
-                                    2.dp,
+                                    2.5.dp,
                                     Brush.sweepGradient(
                                         listOf(
                                             MaterialTheme.colorScheme.primary,
-                                            MaterialTheme.colorScheme.secondary,
+                                            Color(0xFF38BDF8),
                                             Color(0xFFEC4899),
                                             MaterialTheme.colorScheme.primary
                                         )
                                     ),
                                     CircleShape
                                 )
-                                .rotate(if (isPlaying) rotation else 0f),
+                                .rotate(animatedVinylRotation),
                             contentAlignment = Alignment.Center
                         ) {
+                            // Concentric Vinyl Record Grooves
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val radiusStep = size.minDimension / 14f
+                                for (i in 3..6) {
+                                    drawCircle(
+                                        color = Color.White.copy(alpha = 0.045f),
+                                        radius = radiusStep * i,
+                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f)
+                                    )
+                                }
+                            }
+
                             if (currentMedia.artworkUri != null) {
                                 AsyncImage(
                                     model = currentMedia.artworkUri,

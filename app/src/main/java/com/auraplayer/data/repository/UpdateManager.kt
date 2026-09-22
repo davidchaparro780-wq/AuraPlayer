@@ -25,22 +25,59 @@ data class UpdateInfo(
 
 class UpdateManager(private val context: Context) {
 
+    private val rawVersionJson = "https://raw.githubusercontent.com/davidchaparro780-wq/AuraPlayer/main/version.json"
     private val repoReleasesApi = "https://api.github.com/repos/davidchaparro780-wq/AuraPlayer/releases/latest"
     private val tag = "UpdateManager"
 
-    private val currentVersionName: String
+    val currentVersionName: String
         get() = try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.8.4"
+            pInfo.versionName ?: "1.9.4"
         } catch (_: Exception) {
-            "1.8.4"
+            "1.9.4"
         }
 
     /**
-     * Checks GitHub Releases for a newer version of DaVE.
+     * Checks for a newer version of DaVE.
+     * Tries fast version.json endpoint first, then falls back to GitHub Releases API.
      * Returns UpdateInfo if an update is available, or null if already on the latest version.
      */
     suspend fun checkForUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
+        val currentVersion = currentVersionName.removePrefix("v").trim()
+
+        // 1. Fast, non-rate-limited check via version.json on raw.githubusercontent.com
+        try {
+            val url = URL(rawVersionJson)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 6000
+                readTimeout = 6000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "DaVE-App/$currentVersionName")
+            }
+            if (conn.responseCode == 200) {
+                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(jsonStr)
+                val remoteVersion = root.optString("versionName", "").removePrefix("v").trim()
+                val changelog = root.optString("changelog", "Nueva versión de DaVE disponible.")
+                val downloadUrl = root.optString("downloadUrl", "")
+                val fileSizeMb = root.optDouble("fileSizeMb", 23.0)
+
+                Log.d(tag, "version.json check: Remote $remoteVersion vs Current $currentVersion")
+
+                if (isVersionNewer(remoteVersion, currentVersion) && downloadUrl.isNotBlank()) {
+                    return@withContext UpdateInfo(
+                        versionName = "v$remoteVersion",
+                        changelog = changelog,
+                        downloadUrl = downloadUrl,
+                        fileSizeMb = fileSizeMb
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(tag, "version.json check failed, trying GitHub Releases API: ${e.message}")
+        }
+
+        // 2. Fallback to GitHub Releases API
         try {
             val url = URL(repoReleasesApi)
             val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -51,50 +88,45 @@ class UpdateManager(private val context: Context) {
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
             }
 
-            if (conn.responseCode != 200) {
-                Log.d(tag, "GitHub API returned code ${conn.responseCode}")
-                return@withContext null
-            }
+            if (conn.responseCode == 200) {
+                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                val root = JSONObject(jsonStr)
 
-            val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
-            val root = JSONObject(jsonStr)
+                val rawTagName = root.optString("tag_name", "")
+                val remoteVersion = rawTagName.removePrefix("v").trim()
+                val body = root.optString("body", "Mejoras de rendimiento y nuevas funciones.")
 
-            val rawTagName = root.optString("tag_name", "")
-            val remoteVersion = rawTagName.removePrefix("v").trim()
-            val currentVersion = currentVersionName.removePrefix("v").trim()
-            val body = root.optString("body", "Mejoras de rendimiento y nuevas funciones.")
+                Log.d(tag, "GitHub API: Remote $remoteVersion vs Current $currentVersion")
 
-            Log.d(tag, "Remote version: $remoteVersion vs Current: $currentVersion")
+                if (isVersionNewer(remoteVersion, currentVersion)) {
+                    val assets = root.optJSONArray("assets")
+                    var apkUrl = ""
+                    var apkSize = 0L
 
-            if (isVersionNewer(remoteVersion, currentVersion)) {
-                // Find APK asset
-                val assets = root.optJSONArray("assets")
-                var apkUrl = ""
-                var apkSize = 0L
-
-                if (assets != null) {
-                    for (i in 0 until assets.length()) {
-                        val asset = assets.getJSONObject(i)
-                        val name = asset.optString("name", "")
-                        if (name.endsWith(".apk", ignoreCase = true)) {
-                            apkUrl = asset.optString("browser_download_url", "")
-                            apkSize = asset.optLong("size", 0L)
-                            break
+                    if (assets != null) {
+                        for (i in 0 until assets.length()) {
+                            val asset = assets.getJSONObject(i)
+                            val name = asset.optString("name", "")
+                            if (name.endsWith(".apk", ignoreCase = true)) {
+                                apkUrl = asset.optString("browser_download_url", "")
+                                apkSize = asset.optLong("size", 0L)
+                                break
+                            }
                         }
                     }
-                }
 
-                if (apkUrl.isNotBlank()) {
-                    return@withContext UpdateInfo(
-                        versionName = rawTagName,
-                        changelog = body,
-                        downloadUrl = apkUrl,
-                        fileSizeMb = String.format("%.1f", apkSize / (1024.0 * 1024.0)).toDoubleOrNull() ?: 20.0
-                    )
+                    if (apkUrl.isNotBlank()) {
+                        return@withContext UpdateInfo(
+                            versionName = rawTagName,
+                            changelog = body,
+                            downloadUrl = apkUrl,
+                            fileSizeMb = String.format("%.1f", apkSize / (1024.0 * 1024.0)).toDoubleOrNull() ?: 23.0
+                        )
+                    }
                 }
             }
         } catch (e: Exception) {
-            Log.e(tag, "Error checking for update: ${e.message}")
+            Log.e(tag, "Error checking for update on GitHub: ${e.message}")
         }
         null
     }
