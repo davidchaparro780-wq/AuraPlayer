@@ -883,9 +883,13 @@ fun AuraApp(
                 },
                 onHideVideo = { videoToHide ->
                     scope.launch {
+                        if (!vaultManager.hasAllFilesAccess()) {
+                            Toast.makeText(context, "Para borrar el video de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                            vaultManager.openAllFilesAccessSettings(context)
+                        }
                         val ok = vaultManager.hideMediaFile(videoToHide.path, isVideo = true, sourceUri = videoToHide.uri)
                         if (ok) {
-                            Toast.makeText(context, "Video ocultado en la Bóveda Privada", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
                             videos = mediaRepository.loadVideoFiles()
                         } else {
                             Toast.makeText(context, "No se pudo ocultar el video", Toast.LENGTH_SHORT).show()

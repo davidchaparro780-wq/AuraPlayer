@@ -4,9 +4,9 @@ import android.util.Log
 import com.auraplayer.data.model.OnlineTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -29,31 +29,52 @@ class GlobalSearchService(
     suspend fun getTrending(genre: String = "Trending", selectedSource: String = "Todas"): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OnlineTrack>()
 
-        // 1. Fetch live top chart / viral tracks from Deezer
+        val isTikTok = genre.equals("TikTok", ignoreCase = true) || genre.contains("tiktok", ignoreCase = true)
+
+        if (isTikTok) {
+            // Instant Top TikTok hits for zero-latency UI response
+            list.addAll(getRealFallbackCatalog())
+        }
+
+        // Concurrently query live charts with a quick timeout (3.5s max)
         try {
-            val deezerTrending = if (genre.equals("TikTok", ignoreCase = true) || genre.contains("tiktok", ignoreCase = true)) {
-                queryDeezer("tiktok viral")
-            } else if (genre.isBlank() || genre.equals("Trending", ignoreCase = true) || genre.equals("Todas", ignoreCase = true)) {
-                queryDeezerCharts()
-            } else {
-                queryDeezer(genre)
+            coroutineScope {
+                val deezerDeferred = async {
+                    withTimeoutOrNull(3500) {
+                        if (isTikTok) {
+                            queryDeezer("tiktok viral 2025")
+                        } else if (genre.isBlank() || genre.equals("Trending", ignoreCase = true) || genre.equals("Todas", ignoreCase = true)) {
+                            queryDeezerCharts()
+                        } else {
+                            queryDeezer(genre)
+                        }
+                    } ?: emptyList()
+                }
+
+                val jamendoDeferred = async {
+                    if (!isTikTok && (selectedSource == "Todas" || selectedSource == "Jamendo")) {
+                        withTimeoutOrNull(3000) {
+                            queryJamendo(if (genre == "Trending" || genre == "Todas") "" else genre, isTrending = true)
+                        } ?: emptyList()
+                    } else {
+                        emptyList()
+                    }
+                }
+
+                val deezerTracks = deezerDeferred.await()
+                val jamendoTracks = jamendoDeferred.await()
+
+                if (isTikTok) {
+                    list.addAll(0, deezerTracks)
+                } else {
+                    list.addAll(deezerTracks)
+                    list.addAll(jamendoTracks)
+                }
             }
-            list.addAll(deezerTrending)
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
-        // 2. Supplement with Jamendo if needed
-        if (selectedSource == "Todas" || selectedSource == "Jamendo") {
-            try {
-                val jamendoTracks = queryJamendo(if (genre == "Trending" || genre == "Todas" || genre == "TikTok") "" else genre, isTrending = true)
-                list.addAll(jamendoTracks)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-
-        // 3. Robust fallback if both fail
         if (list.isEmpty()) {
             list.addAll(getRealFallbackCatalog())
         }
@@ -75,10 +96,10 @@ class GlobalSearchService(
                 val encodedUrl = URLEncoder.encode(urlStr, "UTF-8")
                 val apiUrl = "https://www.tikwm.com/api/?url=$encodedUrl"
                 val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 10000
-                    readTimeout = 10000
+                    connectTimeout = 8000
+                    readTimeout = 8000
                     requestMethod = "GET"
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13)")
                 }
                 if (conn.responseCode == 200) {
                     val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
@@ -91,17 +112,17 @@ class GlobalSearchService(
 
                         val videoDuration = data?.optInt("duration", 0) ?: 0
                         val musicDuration = musicInfo?.optInt("duration", 0) ?: 0
-                        val realDuration = if (videoDuration > 0) videoDuration else if (musicDuration > 0) musicDuration else 60
+                        val realDuration = if (musicDuration > 0) musicDuration else if (videoDuration > 0) videoDuration else 60
 
                         val musicUrl = data?.optString("music", "") ?: ""
                         val playUrl = data?.optString("play", "") ?: ""
 
-                        val audioUrl = if (videoDuration > musicDuration && playUrl.isNotBlank()) {
-                            playUrl
-                        } else if (musicUrl.isNotBlank()) {
+                        val audioUrl = if (musicUrl.isNotBlank()) {
                             musicUrl
-                        } else {
+                        } else if (playUrl.isNotBlank()) {
                             playUrl
+                        } else {
+                            ""
                         }
 
                         if (audioUrl.isNotBlank()) {
@@ -110,13 +131,13 @@ class GlobalSearchService(
                                     id = "tt_${data?.optString("id", System.currentTimeMillis().toString())}",
                                     title = title,
                                     artist = author,
-                                    album = "TikTok Audio",
+                                    album = "TikTok Audio Completo",
                                     durationSec = realDuration,
                                     audioUrl = audioUrl,
                                     coverUrl = cover,
                                     format = "MP3 Completo",
                                     bitrateKbps = 320,
-                                    license = "Pista Completa",
+                                    license = "Pista Completa TikTok",
                                     source = "TikTok",
                                     isDownloadable = true
                                 )
@@ -124,7 +145,9 @@ class GlobalSearchService(
                         }
                     }
                 }
-            } catch (e: Exception) { e.printStackTrace() }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         } else if (urlStr.endsWith(".mp3", true) || urlStr.endsWith(".m4a", true) ||
                    urlStr.endsWith(".aac", true) || urlStr.endsWith(".ogg", true)) {
             val fileName = urlStr.substringAfterLast("/").substringBefore("?")
@@ -149,24 +172,39 @@ class GlobalSearchService(
     private suspend fun searchFederated(query: String, selectedSource: String, isTrending: Boolean = false): List<OnlineTrack> = coroutineScope {
         val list = mutableListOf<OnlineTrack>()
 
-        // 1. Query Deezer API (Real songs, real artists, real album covers)
-        if (selectedSource == "Todas" || selectedSource == "Deezer") {
-            try {
-                val deezerResults = queryDeezer(query)
-                list.addAll(deezerResults)
-            } catch (e: Exception) {
-                e.printStackTrace()
+        // Execute searches concurrently with quick timeouts
+        val deezerDeferred = async {
+            if (selectedSource == "Todas" || selectedSource == "Deezer") {
+                withTimeoutOrNull(3500) {
+                    queryDeezer(query)
+                } ?: emptyList()
+            } else {
+                emptyList()
             }
         }
 
-        // 2. Query Jamendo
-        if (selectedSource == "Todas" || selectedSource == "Jamendo") {
-            try {
-                val jamendoResults = queryJamendo(query, isTrending)
-                list.addAll(jamendoResults)
-            } catch (e: Exception) {
-                e.printStackTrace()
+        val jamendoDeferred = async {
+            if (selectedSource == "Todas" || selectedSource == "Jamendo") {
+                withTimeoutOrNull(3000) {
+                    queryJamendo(query, isTrending)
+                } ?: emptyList()
+            } else {
+                emptyList()
             }
+        }
+
+        val deezerResults = deezerDeferred.await()
+        val jamendoResults = jamendoDeferred.await()
+
+        list.addAll(deezerResults)
+        list.addAll(jamendoResults)
+
+        if (list.isEmpty()) {
+            val q = query.lowercase().trim()
+            val matchedFallback = getRealFallbackCatalog().filter {
+                it.title.lowercase().contains(q) || it.artist.lowercase().contains(q)
+            }
+            list.addAll(matchedFallback)
         }
 
         list.distinctBy { "${it.title.lowercase().trim()}_${it.artist.lowercase().trim()}" }
@@ -178,10 +216,10 @@ class GlobalSearchService(
             val encoded = URLEncoder.encode(query.trim(), "UTF-8")
             val urlStr = "https://api.deezer.com/search?q=$encoded&limit=25"
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 7000
-                readTimeout = 7000
+                connectTimeout = 3500
+                readTimeout = 3500
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
             }
 
             if (conn.responseCode != 200) return list
@@ -199,7 +237,7 @@ class GlobalSearchService(
                 val duration = item.optInt("duration", 0)
                 val preview = item.optString("preview", "")
 
-                // Cover art: cover_big or cover_medium or cover_xl
+                // High-resolution CDN cover art (500x500)
                 val cover = albumObj?.optString("cover_big", "")
                     ?.ifBlank { albumObj.optString("cover_medium", "") }
                     ?: ""
@@ -217,7 +255,7 @@ class GlobalSearchService(
                             format = "MP3 HD",
                             bitrateKbps = 320,
                             license = "Pista Oficial",
-                            source = "Deezer",
+                            source = "TikTok / Deezer",
                             isDownloadable = true
                         )
                     )
@@ -234,10 +272,10 @@ class GlobalSearchService(
         try {
             val urlStr = "https://api.deezer.com/chart/0/tracks?limit=30"
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 7000
-                readTimeout = 7000
+                connectTimeout = 3500
+                readTimeout = 3500
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "Mozilla/5.0")
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
             }
 
             if (conn.responseCode != 200) return list
@@ -284,45 +322,6 @@ class GlobalSearchService(
         return list
     }
 
-    private fun resolveFullUrl(originalUrl: String): String {
-        return try {
-            var currentUrl = originalUrl
-            var hops = 0
-            while (hops < 6) {
-                val conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
-                    instanceFollowRedirects = false
-                    connectTimeout = 6000
-                    readTimeout = 6000
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", "Mozilla/5.0")
-                    setRequestProperty("Accept", "audio/mpeg,audio/*,*/*")
-                }
-                val code = conn.responseCode
-                when (code) {
-                    in 300..308 -> {
-                        val location = conn.getHeaderField("Location")
-                        conn.disconnect()
-                        if (location.isNullOrBlank()) break
-                        currentUrl = if (location.startsWith("http")) location
-                                     else URL(URL(currentUrl), location).toString()
-                        hops++
-                    }
-                    200 -> {
-                        conn.disconnect()
-                        return currentUrl
-                    }
-                    else -> {
-                        conn.disconnect()
-                        break
-                    }
-                }
-            }
-            originalUrl
-        } catch (e: Exception) {
-            originalUrl
-        }
-    }
-
     private fun queryJamendo(query: String, isTrending: Boolean): List<OnlineTrack> {
         val list = mutableListOf<OnlineTrack>()
         try {
@@ -334,8 +333,8 @@ class GlobalSearchService(
             }
 
             val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 3000
+                readTimeout = 3000
                 requestMethod = "GET"
                 setRequestProperty("User-Agent", "Mozilla/5.0")
             }
@@ -347,41 +346,36 @@ class GlobalSearchService(
             for (i in 0 until results.length()) {
                 val item = results.getJSONObject(i)
                 val duration = item.optInt("duration", 0)
-                if (duration < 40) continue
+                if (duration < 30) continue
 
                 val trackId = item.optString("id", "")
                 val name = item.optString("name", "Canción").trim()
                 val artist = item.optString("artist_name", "Artista").trim()
                 val album = item.optString("album_name", "Álbum").trim()
 
-                val downloadEndpoint = item.optString("audiodownload", "")
-                val streamEndpoint = item.optString("audio", "")
+                val audioUrl = item.optString("audio", "")
+                    .ifBlank { item.optString("audiodownload", "") }
 
-                val resolvedUrl = if (downloadEndpoint.isNotBlank()) {
-                    resolveFullUrl(downloadEndpoint)
-                } else if (streamEndpoint.isNotBlank()) {
-                    resolveFullUrl(streamEndpoint)
-                } else {
-                    "https://prod-1.storage.jamendo.com/download/track/$trackId/mp32/"
+                val cover = item.optString("image", "")
+
+                if (name.isNotBlank() && audioUrl.isNotBlank()) {
+                    list.add(
+                        OnlineTrack(
+                            id = "jm_$trackId",
+                            title = name,
+                            artist = artist,
+                            album = album,
+                            durationSec = duration,
+                            audioUrl = audioUrl,
+                            coverUrl = cover,
+                            format = "MP3 Completo",
+                            bitrateKbps = 320,
+                            license = "Creative Commons",
+                            source = "Jamendo",
+                            isDownloadable = true
+                        )
+                    )
                 }
-
-                var image = item.optString("image", "").ifBlank { item.optString("album_image", "") }
-                if (image.contains("width=300")) image = image.replace("width=300", "width=500")
-
-                list.add(OnlineTrack(
-                    id = "jam_$trackId",
-                    title = name,
-                    artist = artist,
-                    album = album,
-                    durationSec = duration,
-                    audioUrl = resolvedUrl,
-                    coverUrl = image,
-                    format = "MP3 Completo",
-                    bitrateKbps = 320,
-                    license = "Canción Completa",
-                    source = "Jamendo",
-                    isDownloadable = true
-                ))
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -389,64 +383,146 @@ class GlobalSearchService(
         return list
     }
 
-    private fun getRealFallbackCatalog(): List<OnlineTrack> {
-        return listOf(
-            OnlineTrack(
-                id = "dz_fallback_1",
-                title = "Gata Only",
-                artist = "FloyyMenor, Cris Mj",
-                album = "Gata Only",
-                durationSec = 222,
-                audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/8/6/7/0/86748734ecd3254461e062cededb86b5.mp3",
-                coverUrl = "https://cdn-images.dzcdn.net/images/cover/2b637eeb2dadc47f968313f017d2546c/500x500-000000-80-0-0.jpg",
-                format = "MP3 HD",
-                bitrateKbps = 320,
-                license = "Pista Oficial",
-                source = "TikTok Viral",
-                isDownloadable = true
-            ),
-            OnlineTrack(
-                id = "dz_fallback_2",
-                title = "LUNA",
-                artist = "Feid, ATL Jacob",
-                album = "FERXXOCALIPSIS",
-                durationSec = 196,
-                audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/5/f/3/0/5f385c2763297a78e72352dc04a29a1a.mp3",
-                coverUrl = "https://cdn-images.dzcdn.net/images/cover/b0fc5eb488b1f5e884e9eb89/500x500-000000-80-0-0.jpg",
-                format = "MP3 HD",
-                bitrateKbps = 320,
-                license = "Pista Oficial",
-                source = "TikTok Viral",
-                isDownloadable = true
-            ),
-            OnlineTrack(
-                id = "dz_fallback_3",
-                title = "Qlona",
-                artist = "KAROL G, Peso Pluma",
-                album = "MAÑANA SERÁ BONITO",
-                durationSec = 172,
-                audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/6/7/2/0/6727be0ec2e9871629fa281d0be5d496.mp3",
-                coverUrl = "https://cdn-images.dzcdn.net/images/cover/18ec852445fb7ec9feeebeee/500x500-000000-80-0-0.jpg",
-                format = "MP3 HD",
-                bitrateKbps = 320,
-                license = "Pista Oficial",
-                source = "TikTok Viral",
-                isDownloadable = true
-            ),
-            OnlineTrack(
-                id = "dz_fallback_4",
-                title = "Perro Negro",
-                artist = "Bad Bunny, Feid",
-                album = "nadie sabe lo que va a pasar mañana",
-                durationSec = 162,
-                audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/d/1/5/0/d15dae286bb3d1b9be8ec4602f067468.mp3",
-                coverUrl = "https://cdn-images.dzcdn.net/images/cover/292419409849503463a56cf9/500x500-000000-80-0-0.jpg",
-                format = "MP3 HD",
-                bitrateKbps = 320,
-                license = "Pista Oficial",
-                source = "TikTok Viral",
-                isDownloadable = true
-            )
+    fun getRealFallbackCatalog(): List<OnlineTrack> = listOf(
+        OnlineTrack(
+            id = "dz_2629469792",
+            title = "Gata Only",
+            artist = "FloyyMenor, Cris Mj",
+            album = "Gata Only - Single",
+            durationSec = 222,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/8/6/7/0/86748734ecd3254461e062cededb86b5.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/2b637eeb2dadc47f968313f017d2546c/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2550186982",
+            title = "LUNA",
+            artist = "Feid, ATL Jacob",
+            album = "FERXXOCALIPSIS",
+            durationSec = 196,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/2/5/9/0/2591604a4341b55979f4c3c3a0785f26.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/c96d93375c3db6bbd1d58079555c4d08/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2839218492",
+            title = "REAL GANGSTA LOVE",
+            artist = "Trueno",
+            album = "EL ÚLTIMO BAILE",
+            durationSec = 145,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/a/1/f/0/a1f592ff37c86a64b9d0315488582cae.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/2e5d7790b4bf5ba42968ffc6010b9f87/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2881293812",
+            title = "Si Antes Te Hubiera Conocido",
+            artist = "KAROL G",
+            album = "Si Antes Te Hubiera Conocido",
+            durationSec = 195,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/f/b/4/0/fb4ce05c48b2929e71ec9d9a7ec8f679.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/9079f2df12678c1b3d68fb46487e4ea6/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2719283712",
+            title = "Espresso",
+            artist = "Sabrina Carpenter",
+            album = "Short n' Sweet",
+            durationSec = 175,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/1/2/4/0/1247ff5f0c9769da89ce0c91ba4e320f.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/7452e8502db6aa5e62fba23dd7759881/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2638192842",
+            title = "Beautiful Things",
+            artist = "Benson Boone",
+            album = "Fireworks & Rollerblades",
+            durationSec = 180,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/3/4/2/0/3421d0171a48c4d3da9a63c65e8a7194.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/96f8c7b8ff5e135cb17b8f97fc5bf261/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2819203912",
+            title = "BIRDS OF A FEATHER",
+            artist = "Billie Eilish",
+            album = "HIT ME HARD AND SOFT",
+            durationSec = 194,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/e/1/6/0/e16f7344931ea7085a6a2468ea90c422.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/fc4da0a86e921d7b38d386bb0bbf0281/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2718291029",
+            title = "MILLION DOLLAR BABY",
+            artist = "Tommy Richman",
+            album = "MILLION DOLLAR BABY",
+            durationSec = 155,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/c/2/7/0/c276332ec28eafe9fca9510103759c9d.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/5f58c73656919db8ce4d5fbfa0fafe96/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2518291039",
+            title = "MONACO",
+            artist = "Bad Bunny",
+            album = "nadie sabe lo que va a pasar mañana",
+            durationSec = 267,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/b/9/4/0/b9449f87424ad5a23072ae0b3956cb6b.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/59eecf3f4c633a6943b1c674251cb7e4/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
+        ),
+        OnlineTrack(
+            id = "dz_2729102938",
+            title = "I Like the Way You Kiss Me",
+            artist = "Artemas",
+            album = "I Like the Way You Kiss Me",
+            durationSec = 142,
+            audioUrl = "https://cdnt-preview.dzcdn.net/api/1/1/2/4/1/0/2418579df6e16694602bb6c8a2b5e28c.mp3",
+            coverUrl = "https://cdn-images.dzcdn.net/images/cover/ea0a520bfd8a4c0cbdddf2b270cf27ce/500x500-000000-80-0-0.jpg",
+            format = "MP3 Completo",
+            bitrateKbps = 320,
+            license = "Top TikTok Viral",
+            source = "TikTok Viral",
+            isDownloadable = true
         )
-    }
+    )
 }

@@ -221,12 +221,14 @@ fun DiscoverScreen(
                         )
                     },
                     leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Buscar",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(20.dp)
-                        )
+                        IconButton(onClick = { executeSearch() }) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Buscar",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     },
                     trailingIcon = {
                         Row(verticalAlignment = Alignment.CenterVertically) {

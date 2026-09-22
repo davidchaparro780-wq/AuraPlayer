@@ -1,12 +1,14 @@
 package com.auraplayer.data.repository
 
-import android.content.ContentValues
+import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -31,18 +33,58 @@ class VaultManager(private val context: Context) {
     private val vaultDir: File by lazy {
         File(context.filesDir, ".secure_vault").apply {
             if (!exists()) mkdirs()
+            ensureNoMedia(this)
         }
     }
 
     private val videoVaultDir: File by lazy {
         File(vaultDir, "videos").apply {
             if (!exists()) mkdirs()
+            ensureNoMedia(this)
         }
     }
 
     private val photoVaultDir: File by lazy {
         File(vaultDir, "photos").apply {
             if (!exists()) mkdirs()
+            ensureNoMedia(this)
+        }
+    }
+
+    init {
+        ensureNoMedia(vaultDir)
+    }
+
+    private fun ensureNoMedia(dir: File) {
+        try {
+            if (!dir.exists()) dir.mkdirs()
+            val noMedia = File(dir, ".nomedia")
+            if (!noMedia.exists()) noMedia.createNewFile()
+        } catch (_: Exception) {}
+    }
+
+    fun hasAllFilesAccess(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Environment.isExternalStorageManager()
+        } else {
+            true
+        }
+    }
+
+    fun openAllFilesAccessSettings(ctx: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = Uri.parse("package:${ctx.packageName}")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                ctx.startActivity(intent)
+            } catch (_: Exception) {
+                val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                ctx.startActivity(intent)
+            }
         }
     }
 
@@ -72,7 +114,7 @@ class VaultManager(private val context: Context) {
     suspend fun getVaultItems(): List<VaultItem> = withContext(Dispatchers.IO) {
         val list = mutableListOf<VaultItem>()
 
-        videoVaultDir.listFiles()?.filter { it.isFile }?.forEach { f ->
+        videoVaultDir.listFiles()?.filter { it.isFile && it.name != ".nomedia" }?.forEach { f ->
             list.add(
                 VaultItem(
                     id = f.name,
@@ -85,7 +127,7 @@ class VaultManager(private val context: Context) {
             )
         }
 
-        photoVaultDir.listFiles()?.filter { it.isFile }?.forEach { f ->
+        photoVaultDir.listFiles()?.filter { it.isFile && it.name != ".nomedia" }?.forEach { f ->
             list.add(
                 VaultItem(
                     id = f.name,
@@ -114,7 +156,7 @@ class VaultManager(private val context: Context) {
                 }
             }
 
-            // Try to delete from MediaStore if user gave permission / accessible
+            // Remove from MediaStore
             try {
                 context.contentResolver.delete(uri, null, null)
             } catch (_: Exception) {}
@@ -140,7 +182,10 @@ class VaultManager(private val context: Context) {
                         input.copyTo(output)
                     }
                 }
-                sourceFile.delete()
+                // Physically delete the original file so it vanishes from filesystem
+                try {
+                    sourceFile.delete()
+                } catch (_: Exception) {}
             } else if (sourceUri != null) {
                 context.contentResolver.openInputStream(sourceUri)?.use { input ->
                     FileOutputStream(targetFile).use { output ->
@@ -149,15 +194,32 @@ class VaultManager(private val context: Context) {
                 }
             }
 
-            // Delete from MediaStore so it vanishes from gallery
+            // 1. Delete from ContentResolver by URI if provided
             if (sourceUri != null) {
                 try {
                     context.contentResolver.delete(sourceUri, null, null)
                 } catch (_: Exception) {}
             }
 
+            // 2. Query and delete from MediaStore by file path
             if (sourcePath.isNotBlank()) {
-                MediaScannerConnection.scanFile(context, arrayOf(sourcePath), null, null)
+                try {
+                    val contentUri = if (isVideo) {
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                    } else {
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                    }
+                    context.contentResolver.delete(
+                        contentUri,
+                        "${MediaStore.MediaColumns.DATA} = ?",
+                        arrayOf(sourcePath)
+                    )
+                } catch (_: Exception) {}
+
+                // 3. Scan the deleted file path to force Android MediaStore / Gallery to immediately update
+                try {
+                    MediaScannerConnection.scanFile(context, arrayOf(sourcePath), null, null)
+                } catch (_: Exception) {}
             }
 
             targetFile.exists() && targetFile.length() > 0
@@ -185,6 +247,7 @@ class VaultManager(private val context: Context) {
 
             if (destFile.exists()) {
                 item.file.delete()
+                // Force MediaScanner to index restored file so it shows in phone Gallery
                 MediaScannerConnection.scanFile(context, arrayOf(destFile.absolutePath), null, null)
                 true
             } else {

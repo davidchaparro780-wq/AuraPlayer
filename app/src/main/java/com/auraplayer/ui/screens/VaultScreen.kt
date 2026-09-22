@@ -3,6 +3,7 @@ package com.auraplayer.ui.screens
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -98,6 +99,11 @@ fun VaultScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Smooth Back Navigation: intercepts hardware/gesture back to return without quitting app
+    BackHandler {
+        onBack()
+    }
+
     var isUnlocked by remember { mutableStateOf(false) }
     var isPinSet by remember { mutableStateOf(vaultManager.isPinSet()) }
 
@@ -106,6 +112,11 @@ fun VaultScreen(
     var setupFirstPin by remember { mutableStateOf("") }
     var setupStep by remember { mutableIntStateOf(0) } // 0: Enter Pin or Setup Step 1, 1: Confirm Setup Pin
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Restore media with PIN confirmation state
+    var itemToRestoreWithPin by remember { mutableStateOf<VaultItem?>(null) }
+    var restorePinEntered by remember { mutableStateOf("") }
+    var restorePinError by remember { mutableStateOf<String?>(null) }
 
     // Vault contents state
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Videos, 1: Photos
@@ -491,6 +502,31 @@ fun VaultScreen(
                     )
                 }
 
+                // Storage Permission banner if not granted on Android 11+
+                if (!vaultManager.hasAllFilesAccess()) {
+                    androidx.compose.material3.Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .clickable { vaultManager.openAllFilesAccessSettings(context) },
+                        color = Color(0xFF1E1B4B),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Permiso de Archivos Recomendado", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Toca aquí para permitir que DaVE elimine automáticamente los videos de tu galería principal de Android.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -658,18 +694,10 @@ fun VaultScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     TextButton(
                         onClick = {
-                            scope.launch {
-                                isLoading = true
-                                val ok = vaultManager.restoreMedia(item)
-                                isLoading = false
-                                if (ok) {
-                                    Toast.makeText(context, "Restaurado a la galería pública", Toast.LENGTH_SHORT).show()
-                                    refreshItems()
-                                } else {
-                                    Toast.makeText(context, "Error al restaurar", Toast.LENGTH_SHORT).show()
-                                }
-                                selectedItemForMenu = null
-                            }
+                            itemToRestoreWithPin = item
+                            restorePinEntered = ""
+                            restorePinError = null
+                            selectedItemForMenu = null
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -705,6 +733,142 @@ fun VaultScreen(
             dismissButton = {
                 TextButton(onClick = { selectedItemForMenu = null }) {
                     Text("Cerrar")
+                }
+            },
+            containerColor = Color(0xFF13182E),
+            shape = RoundedCornerShape(20.dp)
+        )
+    }
+
+    // PIN Confirmation Dialog to Restore Media back to Public Gallery
+    if (itemToRestoreWithPin != null) {
+        val item = itemToRestoreWithPin!!
+        AlertDialog(
+            onDismissRequest = { itemToRestoreWithPin = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Confirmar con Clave", fontWeight = FontWeight.Bold, color = Color.White)
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Ingresa tu clave de 4 dígitos para restaurar \"${item.name}\" a tu galería principal:",
+                        fontSize = 13.sp,
+                        color = Color(0xFF94A3B8),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // PIN Dots
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        for (i in 0 until 4) {
+                            val isFilled = i < restorePinEntered.length
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isFilled) Color(0xFF38BDF8)
+                                        else Color(0xFF334155)
+                                    )
+                                    .border(
+                                        1.dp,
+                                        if (isFilled) Color(0xFF38BDF8) else Color(0xFF64748B),
+                                        CircleShape
+                                    )
+                            )
+                        }
+                    }
+
+                    if (restorePinError != null) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = restorePinError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Mini Keypad
+                    val keys = listOf(
+                        listOf("1", "2", "3"),
+                        listOf("4", "5", "6"),
+                        listOf("7", "8", "9"),
+                        listOf("C", "0", "⌫")
+                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        keys.forEach { row ->
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                row.forEach { key ->
+                                    Button(
+                                        onClick = {
+                                            restorePinError = null
+                                            when (key) {
+                                                "C" -> restorePinEntered = ""
+                                                "⌫" -> if (restorePinEntered.isNotEmpty()) restorePinEntered = restorePinEntered.dropLast(1)
+                                                else -> {
+                                                    if (restorePinEntered.length < 4) {
+                                                        restorePinEntered += key
+                                                        if (restorePinEntered.length == 4) {
+                                                            if (vaultManager.verifyPin(restorePinEntered)) {
+                                                                scope.launch {
+                                                                    isLoading = true
+                                                                    val ok = vaultManager.restoreMedia(item)
+                                                                    isLoading = false
+                                                                    if (ok) {
+                                                                        Toast.makeText(context, "✅ Archivo restaurado en tu galería", Toast.LENGTH_SHORT).show()
+                                                                        refreshItems()
+                                                                    } else {
+                                                                        Toast.makeText(context, "Error al restaurar archivo", Toast.LENGTH_SHORT).show()
+                                                                    }
+                                                                    itemToRestoreWithPin = null
+                                                                }
+                                                            } else {
+                                                                restorePinError = "Clave incorrecta"
+                                                                restorePinEntered = ""
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f).height(46.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF1E293B)
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(0.dp)
+                                    ) {
+                                        Text(key, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { itemToRestoreWithPin = null }) {
+                    Text("Cancelar", color = Color(0xFF94A3B8))
                 }
             },
             containerColor = Color(0xFF13182E),
