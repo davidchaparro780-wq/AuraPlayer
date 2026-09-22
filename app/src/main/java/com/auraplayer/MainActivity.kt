@@ -867,6 +867,7 @@ fun AuraApp(
             )
         }
     }
+}
 
     // Animated Fullscreen Audio Player Screen (Slides up smoothly with spring physics)
     AnimatedVisibility(
