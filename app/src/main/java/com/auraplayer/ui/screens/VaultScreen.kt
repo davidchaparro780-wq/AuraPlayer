@@ -140,6 +140,21 @@ fun VaultScreen(
         }
     }
 
+    var pendingVaultItemToDelete by remember { mutableStateOf<Pair<File, Uri?>?>(null) }
+    val vaultDeleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val pending = pendingVaultItemToDelete
+        pendingVaultItemToDelete = null
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            Toast.makeText(context, "🔒 Archivo ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
+            refreshItems()
+        } else {
+            vaultManager.cleanVaultFile(pending?.first)
+            Toast.makeText(context, "Cancelado: el archivo permanece en tu galería", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // Media Pickers to hide directly from Vault screen
     val videoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -147,13 +162,29 @@ fun VaultScreen(
         if (uri != null) {
             scope.launch {
                 isLoading = true
-                val ok = vaultManager.hideMediaFromUri(uri, isVideo = true)
+                val copiedVaultFile = vaultManager.copyMediaToVault(sourceUri = uri, isVideo = true)
+                if (copiedVaultFile == null) {
+                    isLoading = false
+                    Toast.makeText(context, "Error al copiar archivo a la Bóveda", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val deleted = vaultManager.deleteOriginalMedia(context, filePath = null, uri = uri, isVideo = true)
                 isLoading = false
-                if (ok) {
-                    Toast.makeText(context, "Video ocultado en la Bóveda", Toast.LENGTH_SHORT).show()
+                if (deleted) {
+                    Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
                     refreshItems()
                 } else {
-                    Toast.makeText(context, "Error al ocultar video", Toast.LENGTH_SHORT).show()
+                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = null, isVideo = true)
+                    if (pendingIntent != null) {
+                        pendingVaultItemToDelete = Pair(copiedVaultFile, uri)
+                        vaultDeleteLauncher.launch(
+                            androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                        )
+                    } else {
+                        Toast.makeText(context, "Para borrar de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                        vaultManager.openAllFilesAccessSettings(context)
+                        refreshItems()
+                    }
                 }
             }
         }
@@ -165,13 +196,29 @@ fun VaultScreen(
         if (uri != null) {
             scope.launch {
                 isLoading = true
-                val ok = vaultManager.hideMediaFromUri(uri, isVideo = false)
+                val copiedVaultFile = vaultManager.copyMediaToVault(sourceUri = uri, isVideo = false)
+                if (copiedVaultFile == null) {
+                    isLoading = false
+                    Toast.makeText(context, "Error al copiar foto a la Bóveda", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                val deleted = vaultManager.deleteOriginalMedia(context, filePath = null, uri = uri, isVideo = false)
                 isLoading = false
-                if (ok) {
-                    Toast.makeText(context, "Foto ocultada en la Bóveda", Toast.LENGTH_SHORT).show()
+                if (deleted) {
+                    Toast.makeText(context, "🔒 Foto ocultada de la galería y protegida en Bóveda", Toast.LENGTH_SHORT).show()
                     refreshItems()
                 } else {
-                    Toast.makeText(context, "Error al ocultar foto", Toast.LENGTH_SHORT).show()
+                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = null, isVideo = false)
+                    if (pendingIntent != null) {
+                        pendingVaultItemToDelete = Pair(copiedVaultFile, uri)
+                        vaultDeleteLauncher.launch(
+                            androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                        )
+                    } else {
+                        Toast.makeText(context, "Para borrar de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                        vaultManager.openAllFilesAccessSettings(context)
+                        refreshItems()
+                    }
                 }
             }
         }

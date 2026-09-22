@@ -31,18 +31,14 @@ class GlobalSearchService(
 
         val isTikTok = genre.equals("TikTok", ignoreCase = true) || genre.contains("tiktok", ignoreCase = true)
 
-        if (isTikTok) {
-            // Instant Top TikTok hits for zero-latency UI response
-            list.addAll(getRealFallbackCatalog())
-        }
-
         // Concurrently query live charts with a quick timeout (3.5s max)
         try {
             coroutineScope {
                 val deezerDeferred = async {
                     withTimeoutOrNull(3500) {
                         if (isTikTok) {
-                            queryDeezer("tiktok viral 2025")
+                            val viral = queryDeezer("tiktok viral 2025")
+                            if (viral.isNotEmpty()) viral else queryDeezer("tiktok hits")
                         } else if (genre.isBlank() || genre.equals("Trending", ignoreCase = true) || genre.equals("Todas", ignoreCase = true)) {
                             queryDeezerCharts()
                         } else {
@@ -64,12 +60,8 @@ class GlobalSearchService(
                 val deezerTracks = deezerDeferred.await()
                 val jamendoTracks = jamendoDeferred.await()
 
-                if (isTikTok) {
-                    list.addAll(0, deezerTracks)
-                } else {
-                    list.addAll(deezerTracks)
-                    list.addAll(jamendoTracks)
-                }
+                list.addAll(deezerTracks)
+                list.addAll(jamendoTracks)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -80,6 +72,42 @@ class GlobalSearchService(
         }
 
         list.distinctBy { "${it.title.lowercase().trim()}_${it.artist.lowercase().trim()}" }
+    }
+
+    fun fetchFreshDeezerPreview(artist: String, title: String): String? {
+        try {
+            val q = "$artist $title".trim()
+            val encoded = URLEncoder.encode(q, "UTF-8")
+            val urlStr = "https://api.deezer.com/search?q=$encoded&limit=1"
+            val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 3000
+                readTimeout = 3000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            }
+            if (conn.responseCode == 200) {
+                val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                val data = root.optJSONArray("data")
+                if (data != null && data.length() > 0) {
+                    val preview = data.getJSONObject(0).optString("preview", "")
+                    if (preview.isNotBlank()) return preview
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
+    suspend fun resolveValidAudioUrl(track: OnlineTrack): String = withContext(Dispatchers.IO) {
+        if (track.audioUrl.contains("hdnea=") || track.audioUrl.contains("jamendo") || track.audioUrl.contains("tikwm") || track.audioUrl.contains("radio-browser")) {
+            return@withContext track.audioUrl
+        }
+        val fresh = fetchFreshDeezerPreview(track.artist, track.title)
+        if (!fresh.isNullOrBlank()) {
+            return@withContext fresh
+        }
+        track.audioUrl
     }
 
     private fun isUrl(text: String): Boolean {

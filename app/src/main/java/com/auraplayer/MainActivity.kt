@@ -305,6 +305,24 @@ fun AuraApp(
         }
     }
 
+    var pendingVaultVideoToHide by remember { mutableStateOf<Pair<MediaModel, java.io.File>?>(null) }
+    val hideVideoDeleteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val pending = pendingVaultVideoToHide
+        pendingVaultVideoToHide = null
+        if (result.resultCode == Activity.RESULT_OK) {
+            Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
+            pending?.let { (video, _) ->
+                android.media.MediaScannerConnection.scanFile(context, arrayOf(video.path), null, null)
+            }
+            videos = mediaRepository.loadVideoFiles()
+        } else {
+            vaultManager.cleanVaultFile(pending?.second)
+            Toast.makeText(context, "Cancelado: el video permanece en tu galería", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val handleDeleteSong: (MediaModel) -> Unit = { song ->
         scope.launch {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -465,7 +483,41 @@ fun AuraApp(
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     error.printStackTrace()
-                    Toast.makeText(context, "No se pudo reproducir este audio. Intenta con otra canción.", Toast.LENGTH_SHORT).show()
+                    val media = currentMedia
+                    if (media != null && media.id == -1L) {
+                        // Attempt automatic stream self-healing before failing
+                        scope.launch(Dispatchers.IO) {
+                            val freshUrl = searchService.fetchFreshDeezerPreview(media.artist, media.title)
+                            if (!freshUrl.isNullOrBlank() && freshUrl != media.path) {
+                                withContext(Dispatchers.Main) {
+                                    currentMedia = media.copy(uri = Uri.parse(freshUrl), path = freshUrl)
+                                    val retryItem = MediaItem.Builder()
+                                        .setUri(freshUrl)
+                                        .setMediaId("online_retry_${System.currentTimeMillis()}")
+                                        .setMediaMetadata(
+                                            MediaMetadata.Builder()
+                                                .setTitle(media.title)
+                                                .setArtist(media.artist)
+                                                .setAlbumTitle(media.album)
+                                                .setArtworkUri(media.artworkUri)
+                                                .build()
+                                        )
+                                        .build()
+                                    controller?.run {
+                                        setMediaItem(retryItem)
+                                        prepare()
+                                        play()
+                                    }
+                                }
+                                return@launch
+                            }
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(context, "No se pudo reproducir este audio. Intenta con otra canción.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        Toast.makeText(context, "Error al reproducir audio.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             })
         }, MoreExecutors.directExecutor())
@@ -821,38 +873,41 @@ fun AuraApp(
                 searchService = searchService,
                 downloadEngine = downloadEngine,
                 onPreviewTrack = { onlineTrack ->
-                    val trackDurationMs = onlineTrack.durationSec * 1000L
-                    val bundle = android.os.Bundle().apply {
-                        putLong("duration_ms", trackDurationMs)
-                    }
-                    val previewItem = MediaItem.Builder()
-                        .setUri(onlineTrack.audioUrl)
-                        .setMediaId("online_${onlineTrack.id}")
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(onlineTrack.title)
-                                .setArtist(onlineTrack.artist)
-                                .setAlbumTitle(onlineTrack.album)
-                                .setArtworkUri(if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null)
-                                .setExtras(bundle)
-                                .build()
+                    scope.launch {
+                        val validUrl = searchService.resolveValidAudioUrl(onlineTrack)
+                        val trackDurationMs = onlineTrack.durationSec * 1000L
+                        val bundle = android.os.Bundle().apply {
+                            putLong("duration_ms", trackDurationMs)
+                        }
+                        val previewItem = MediaItem.Builder()
+                            .setUri(validUrl)
+                            .setMediaId("online_${onlineTrack.id}")
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(onlineTrack.title)
+                                    .setArtist(onlineTrack.artist)
+                                    .setAlbumTitle(onlineTrack.album)
+                                    .setArtworkUri(if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null)
+                                    .setExtras(bundle)
+                                    .build()
+                            )
+                            .build()
+                        currentMedia = MediaModel(
+                            id = -1L,
+                            title = onlineTrack.title,
+                            artist = onlineTrack.artist,
+                            album = onlineTrack.album,
+                            duration = trackDurationMs,
+                            uri = Uri.parse(validUrl),
+                            path = validUrl,
+                            artworkUri = if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null
                         )
-                        .build()
-                    currentMedia = MediaModel(
-                        id = -1L,
-                        title = onlineTrack.title,
-                        artist = onlineTrack.artist,
-                        album = onlineTrack.album,
-                        duration = trackDurationMs,
-                        uri = Uri.parse(onlineTrack.audioUrl),
-                        path = onlineTrack.audioUrl,
-                        artworkUri = if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null
-                    )
-                    durationMs = trackDurationMs
-                    controller?.run {
-                        setMediaItem(previewItem)
-                        prepare()
-                        play()
+                        durationMs = trackDurationMs
+                        controller?.run {
+                            setMediaItem(previewItem)
+                            prepare()
+                            play()
+                        }
                     }
                 },
                 onDownloadComplete = {
@@ -883,16 +938,42 @@ fun AuraApp(
                 },
                 onHideVideo = { videoToHide ->
                     scope.launch {
-                        if (!vaultManager.hasAllFilesAccess()) {
-                            Toast.makeText(context, "Para borrar el video de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
-                            vaultManager.openAllFilesAccessSettings(context)
+                        val vaultFile = vaultManager.copyMediaToVault(
+                            sourcePath = videoToHide.path,
+                            sourceUri = videoToHide.uri,
+                            isVideo = true
+                        )
+                        if (vaultFile == null) {
+                            Toast.makeText(context, "Error al copiar video a la Bóveda", Toast.LENGTH_SHORT).show()
+                            return@launch
                         }
-                        val ok = vaultManager.hideMediaFile(videoToHide.path, isVideo = true, sourceUri = videoToHide.uri)
-                        if (ok) {
+
+                        val deleted = vaultManager.deleteOriginalMedia(
+                            context,
+                            filePath = videoToHide.path,
+                            uri = videoToHide.uri,
+                            isVideo = true
+                        )
+                        if (deleted) {
                             Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
                             videos = mediaRepository.loadVideoFiles()
                         } else {
-                            Toast.makeText(context, "No se pudo ocultar el video", Toast.LENGTH_SHORT).show()
+                            val pendingIntent = vaultManager.getDeleteRequestPendingIntent(
+                                context,
+                                uri = videoToHide.uri,
+                                filePath = videoToHide.path,
+                                isVideo = true
+                            )
+                            if (pendingIntent != null) {
+                                pendingVaultVideoToHide = Pair(videoToHide, vaultFile)
+                                hideVideoDeleteLauncher.launch(
+                                    androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                                )
+                            } else {
+                                Toast.makeText(context, "Para borrar el video de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                                vaultManager.openAllFilesAccessSettings(context)
+                                videos = mediaRepository.loadVideoFiles()
+                            }
                         }
                     }
                 },

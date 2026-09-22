@@ -312,7 +312,7 @@ fun PlayerScreen(
                         modifier = Modifier.clickable { showAudioSpecSheet = true }
                     ) {
                         Text(
-                            text = "AURA SOUND",
+                            text = "DaVE SOUND",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -988,7 +988,7 @@ fun PlayerScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Aura Studio FX",
+                        text = "DaVE Studio FX",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
