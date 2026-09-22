@@ -175,11 +175,11 @@ class GlobalSearchService(
                         val item = results.getJSONObject(i)
                         val allowed = item.optBoolean("audiodownload_allowed", true)
 
-                        // Priority: 'audio' gives direct streaming MP3 URL with range support
-                        // 'audiodownload' gives direct download endpoint
-                        val streamAudioUrl = item.optString("audio", "")
+                        // IMPORTANT: 'audiodownload' = full song direct URL (ALWAYS USE THIS FIRST)
+                        // 'audio' = Jamendo streaming endpoint, may be capped at ~1 min for some keys
                         val downloadAudioUrl = item.optString("audiodownload", "")
-                        val audioUrl = streamAudioUrl.ifBlank { downloadAudioUrl }
+                        val streamAudioUrl = item.optString("audio", "")
+                        val audioUrl = downloadAudioUrl.ifBlank { streamAudioUrl }
                         val duration = item.optInt("duration", 0)
 
                         // Only include full songs (at least 45 seconds) with direct audio streams
