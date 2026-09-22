@@ -24,6 +24,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -168,21 +169,30 @@ fun AuraApp(
     }
     val downloadEngine = remember { DownloadEngine(context, coverArtManager, lyricsManager) }
 
+    val appPrefs = remember { context.getSharedPreferences("dave_app_prefs", Context.MODE_PRIVATE) }
+    val permKey = "media_permissions_granted"
+    val isPermanentlyGranted = appPrefs.getBoolean(permKey, false)
+
     var hasPermission by remember {
         val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             listOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO)
         } else {
             listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        mutableStateOf(permissions.all {
+        val hasAnySystemPerm = permissions.any {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        })
+        }
+        mutableStateOf(isPermanentlyGranted || hasAnySystemPerm)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        hasPermission = result.values.all { it }
+        val granted = result.values.any { it } || isPermanentlyGranted
+        hasPermission = granted
+        if (granted) {
+            appPrefs.edit().putBoolean(permKey, true).apply()
+        }
     }
 
     var songs by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
@@ -616,8 +626,8 @@ fun AuraApp(
             videos = mediaRepository.loadVideoFiles()
             isLoading = false
 
-            // Auto-fetch & save cover art in background for all downloaded tracks
-            withContext(Dispatchers.IO) {
+            // Auto-fetch & save cover art in background coroutine without blocking UI
+            scope.launch(Dispatchers.IO) {
                 var updated = false
                 songs.forEach { song ->
                     val savedCover = mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
@@ -627,11 +637,14 @@ fun AuraApp(
                 }
                 if (updated) {
                     val reloaded = mediaRepository.loadAudioFiles()
-                    songs = reloaded.map { s ->
+                    val reloadedSongs = reloaded.map { s ->
                         val override = playlistManager.getTagOverride(s.id)
                         if (override != null) {
                             s.copy(title = override.title, artist = override.artist, album = override.album)
                         } else s
+                    }
+                    withContext(Dispatchers.Main) {
+                        songs = reloadedSongs
                     }
                 }
             }
@@ -642,7 +655,7 @@ fun AuraApp(
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Aura necesita permisos para explorar tu música y videos.",
+                    text = "DaVE necesita permisos para explorar tu música y videos.",
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(24.dp)
                 )
@@ -806,17 +819,9 @@ fun AuraApp(
             }
         }
     ) { innerPadding ->
-        AnimatedContent(
+        Crossfade(
             targetState = selectedNavTab,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    (slideInHorizontally { width -> width / 4 } + fadeIn(animationSpec = tween(220)))
-                        .togetherWith(slideOutHorizontally { width -> -width / 4 } + fadeOut(animationSpec = tween(180)))
-                } else {
-                    (slideInHorizontally { width -> -width / 4 } + fadeIn(animationSpec = tween(220)))
-                        .togetherWith(slideOutHorizontally { width -> width / 4 } + fadeOut(animationSpec = tween(180)))
-                }
-            },
+            animationSpec = tween(60),
             label = "NavTransition"
         ) { targetTab ->
             when (targetTab) {

@@ -30,8 +30,11 @@ data class VaultItem(
 class VaultManager(private val context: Context) {
 
     private val prefs = context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE)
+    private val legacyPrefs = context.getSharedPreferences("aura_vault_prefs", Context.MODE_PRIVATE)
     private val pinKey = "vault_pin_hash"
+    private val hiddenPathsKey = "hidden_media_paths"
 
+    // Primary internal vault directory
     private val vaultDir: File by lazy {
         File(context.filesDir, ".secure_vault").apply {
             if (!exists()) mkdirs()
@@ -53,8 +56,66 @@ class VaultManager(private val context: Context) {
         }
     }
 
+    // Persistent external vault directory (Survives app updates, data clears & reinstalls)
+    private val persistentVaultDir: File by lazy {
+        val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+        File(docsDir, ".dave_vault").apply {
+            try {
+                if (!exists()) mkdirs()
+                ensureNoMedia(this)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private val persistentVideoVaultDir: File by lazy {
+        File(persistentVaultDir, "videos").apply {
+            try {
+                if (!exists()) mkdirs()
+                ensureNoMedia(this)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private val persistentPhotoVaultDir: File by lazy {
+        File(persistentVaultDir, "photos").apply {
+            try {
+                if (!exists()) mkdirs()
+                ensureNoMedia(this)
+            } catch (_: Exception) {}
+        }
+    }
+
+    // App external vault directory
+    private val externalAppVaultDir: File by lazy {
+        File(context.getExternalFilesDir(null), ".secure_vault").apply {
+            try {
+                if (!exists()) mkdirs()
+                ensureNoMedia(this)
+            } catch (_: Exception) {}
+        }
+    }
+
     init {
+        migrateLegacyPrefs()
         ensureNoMedia(vaultDir)
+        try { ensureNoMedia(persistentVaultDir) } catch (_: Exception) {}
+    }
+
+    private fun migrateLegacyPrefs() {
+        try {
+            if (!prefs.contains(pinKey) && legacyPrefs.contains(pinKey)) {
+                val legacyPin = legacyPrefs.getString(pinKey, null)
+                if (!legacyPin.isNullOrBlank()) {
+                    prefs.edit().putString(pinKey, legacyPin).apply()
+                }
+            }
+            if (!prefs.contains(hiddenPathsKey) && legacyPrefs.contains(hiddenPathsKey)) {
+                val legacyPaths = legacyPrefs.getStringSet(hiddenPathsKey, null)
+                if (legacyPaths != null) {
+                    prefs.edit().putStringSet(hiddenPathsKey, legacyPaths).apply()
+                }
+            }
+        } catch (_: Exception) {}
     }
 
     private fun ensureNoMedia(dir: File) {
@@ -161,35 +222,77 @@ class VaultManager(private val context: Context) {
     }
 
     suspend fun getVaultItems(): List<VaultItem> = withContext(Dispatchers.IO) {
-        val list = mutableListOf<VaultItem>()
+        val itemsMap = mutableMapOf<String, VaultItem>()
 
-        videoVaultDir.listFiles()?.filter { it.isFile && it.name != ".nomedia" }?.forEach { f ->
-            list.add(
-                VaultItem(
-                    id = f.name,
-                    file = f,
-                    name = f.nameWithoutExtension,
-                    isVideo = true,
-                    sizeBytes = f.length(),
-                    dateAdded = f.lastModified()
-                )
-            )
+        val candidateDirs = listOf(
+            videoVaultDir to true,
+            photoVaultDir to false,
+            persistentVideoVaultDir to true,
+            persistentPhotoVaultDir to false,
+            File(externalAppVaultDir, "videos") to true,
+            File(externalAppVaultDir, "photos") to false,
+            File(Environment.getExternalStorageDirectory(), ".dave_vault/videos") to true,
+            File(Environment.getExternalStorageDirectory(), ".dave_vault/photos") to false,
+            File(context.filesDir, "vault/videos") to true,
+            File(context.filesDir, "vault/photos") to false
+        )
+
+        for ((dir, isVideo) in candidateDirs) {
+            try {
+                if (dir.exists()) {
+                    dir.listFiles()?.filter { it.isFile && it.name != ".nomedia" && it.length() > 0 }?.forEach { f ->
+                        if (!itemsMap.containsKey(f.name)) {
+                            itemsMap[f.name] = VaultItem(
+                                id = f.name,
+                                file = f,
+                                name = f.nameWithoutExtension,
+                                isVideo = isVideo,
+                                sizeBytes = f.length(),
+                                dateAdded = f.lastModified()
+                            )
+                            // Auto-mirror: If missing from internal, copy to internal. If missing from persistent, copy to persistent.
+                            val internalTarget = File(if (isVideo) videoVaultDir else photoVaultDir, f.name)
+                            if (!internalTarget.exists() && f.absolutePath != internalTarget.absolutePath) {
+                                try {
+                                    FileInputStream(f).use { input ->
+                                        FileOutputStream(internalTarget).use { output -> input.copyTo(output) }
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                            val persistentTarget = File(if (isVideo) persistentVideoVaultDir else persistentPhotoVaultDir, f.name)
+                            if (!persistentTarget.exists() && f.absolutePath != persistentTarget.absolutePath) {
+                                try {
+                                    FileInputStream(f).use { input ->
+                                        FileOutputStream(persistentTarget).use { output -> input.copyTo(output) }
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
         }
 
-        photoVaultDir.listFiles()?.filter { it.isFile && it.name != ".nomedia" }?.forEach { f ->
-            list.add(
-                VaultItem(
-                    id = f.name,
-                    file = f,
-                    name = f.nameWithoutExtension,
-                    isVideo = false,
-                    sizeBytes = f.length(),
-                    dateAdded = f.lastModified()
-                )
-            )
+        // Also check if any known hidden path still exists on disk
+        val hiddenPaths = prefs.getStringSet(hiddenPathsKey, emptySet()) ?: emptySet()
+        for (hp in hiddenPaths) {
+            try {
+                val f = File(hp)
+                if (f.exists() && f.isFile && f.length() > 0 && !itemsMap.containsKey(f.name)) {
+                    val isVid = hp.endsWith(".mp4", true) || hp.endsWith(".mkv", true) || hp.endsWith(".webm", true)
+                    itemsMap[f.name] = VaultItem(
+                        id = f.name,
+                        file = f,
+                        name = f.nameWithoutExtension,
+                        isVideo = isVid,
+                        sizeBytes = f.length(),
+                        dateAdded = f.lastModified()
+                    )
+                }
+            } catch (_: Exception) {}
         }
 
-        list.sortedByDescending { it.dateAdded }
+        itemsMap.values.sortedByDescending { it.dateAdded }
     }
 
     suspend fun copyMediaToVault(
@@ -200,12 +303,15 @@ class VaultManager(private val context: Context) {
     ): File? = withContext(Dispatchers.IO) {
         try {
             val targetDir = if (isVideo) videoVaultDir else photoVaultDir
+            val persistentDir = if (isVideo) persistentVideoVaultDir else persistentPhotoVaultDir
+
             val ext = if (sourcePath != null && sourcePath.contains(".")) {
                 "." + sourcePath.substringAfterLast(".")
             } else if (isVideo) ".mp4" else ".jpg"
 
             val baseName = customName ?: "hidden_${System.currentTimeMillis()}"
             val targetFile = File(targetDir, "${baseName}${ext}")
+            val persistentFile = File(persistentDir, "${baseName}${ext}")
 
             var realSourcePath = sourcePath
             if (realSourcePath.isNullOrBlank() && sourceUri != null) {
@@ -228,8 +334,18 @@ class VaultManager(private val context: Context) {
                 return@withContext null
             }
 
+            // Dual persistence: create mirrored replica in external Documents/.dave_vault
             if (targetFile.exists() && targetFile.length() > 0) {
+                try {
+                    FileInputStream(targetFile).use { input ->
+                        FileOutputStream(persistentFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                } catch (_: Exception) {}
+
                 markPathAsHidden(realSourcePath ?: sourcePath)
+                markPathAsHidden(targetFile.name)
                 targetFile
             } else null
         } catch (e: Exception) {
@@ -401,6 +517,11 @@ class VaultManager(private val context: Context) {
 
             if (destFile.exists()) {
                 item.file.delete()
+                val persistentCopy = if (item.isVideo) File(persistentVideoVaultDir, item.file.name) else File(persistentPhotoVaultDir, item.file.name)
+                try { persistentCopy.delete() } catch (_: Exception) {}
+                val externalCopy = File(File(externalAppVaultDir, if (item.isVideo) "videos" else "photos"), item.file.name)
+                try { externalCopy.delete() } catch (_: Exception) {}
+
                 unmarkPathAsHidden(destFile.absolutePath)
                 unmarkPathAsHidden(item.file.name)
                 // Force MediaScanner to index restored file so it shows in phone Gallery
@@ -419,6 +540,11 @@ class VaultManager(private val context: Context) {
         try {
             unmarkPathAsHidden(item.file.name)
             item.file.delete()
+            val persistentCopy = if (item.isVideo) File(persistentVideoVaultDir, item.file.name) else File(persistentPhotoVaultDir, item.file.name)
+            try { persistentCopy.delete() } catch (_: Exception) {}
+            val externalCopy = File(File(externalAppVaultDir, if (item.isVideo) "videos" else "photos"), item.file.name)
+            try { externalCopy.delete() } catch (_: Exception) {}
+            true
         } catch (e: Exception) {
             e.printStackTrace()
             false

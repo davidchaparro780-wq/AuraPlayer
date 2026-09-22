@@ -1,13 +1,35 @@
 package com.auraplayer.data.repository
 
 import com.auraplayer.data.model.OnlineTrack
+import com.auraplayer.data.network.OkHttpDownloader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.stream.AudioStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 
 class YouTubeMusicRepository {
+
+    companion object {
+        private val isInitialized = AtomicBoolean(false)
+        fun initNewPipe() {
+            if (isInitialized.compareAndSet(false, true)) {
+                try {
+                    NewPipe.init(OkHttpDownloader.instance)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    }
+
+    init {
+        initNewPipe()
+    }
 
     suspend fun searchYouTube(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
@@ -90,7 +112,6 @@ class YouTubeMusicRepository {
                             else -> 180
                         }
 
-                        // Initial stream endpoint placeholder
                         val audioUrl = "https://www.youtube.com/watch?v=$videoId"
 
                         list.add(
@@ -104,7 +125,9 @@ class YouTubeMusicRepository {
                                 coverUrl = coverUrl,
                                 format = "HQ Audio",
                                 bitrateKbps = 320,
-                                license = "YouTube"
+                                license = "YouTube",
+                                source = "YouTube",
+                                isDownloadable = true
                             )
                         )
                     }
@@ -119,6 +142,25 @@ class YouTubeMusicRepository {
     suspend fun resolveAudioStream(videoId: String): String? = withContext(Dispatchers.IO) {
         if (videoId.isBlank()) return@withContext null
 
+        // 1. Try NewPipeExtractor (Direct googlevideo audio stream with highest bitrate)
+        try {
+            initNewPipe()
+            val watchUrl = "https://www.youtube.com/watch?v=$videoId"
+            val extractor = ServiceList.YouTube.getStreamExtractor(watchUrl)
+            extractor.fetchPage()
+            val audioStreams: List<AudioStream>? = extractor.audioStreams
+            if (!audioStreams.isNullOrEmpty()) {
+                val bestStream = audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.first()
+                val directUrl = bestStream.url
+                if (!directUrl.isNullOrBlank()) {
+                    return@withContext directUrl
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Fallback to InnerTube ANDROID_VR direct player endpoint
         try {
             val url = URL("https://www.youtube.com/youtubei/v1/player")
             val conn = (url.openConnection() as HttpURLConnection).apply {

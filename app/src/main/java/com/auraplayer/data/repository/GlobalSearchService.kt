@@ -13,11 +13,13 @@ import java.net.URL
 import java.net.URLEncoder
 
 class GlobalSearchService(
-    private val spotifyService: SpotifyMetadataService = SpotifyMetadataService()
+    private val spotifyService: SpotifyMetadataService = SpotifyMetadataService(),
+    private val youtubeRepo: YouTubeMusicRepository = YouTubeMusicRepository()
 ) {
 
     private val jamendoClientId = "3dce8b55"
     private val tag = "GlobalSearch"
+    private val trendingCache = java.util.concurrent.ConcurrentHashMap<String, List<OnlineTrack>>()
 
     suspend fun searchOrExtract(input: String, selectedSource: String = "Todas"): List<OnlineTrack> = withContext(Dispatchers.IO) {
         val trimmed = input.trim()
@@ -27,6 +29,11 @@ class GlobalSearchService(
     }
 
     suspend fun getTrending(genre: String = "Trending", selectedSource: String = "Todas"): List<OnlineTrack> = withContext(Dispatchers.IO) {
+        val cacheKey = "${genre.lowercase().trim()}_$selectedSource"
+        trendingCache[cacheKey]?.let { cached ->
+            if (cached.isNotEmpty()) return@withContext cached
+        }
+
         val list = mutableListOf<OnlineTrack>()
 
         val isTikTok = genre.equals("TikTok", ignoreCase = true) || genre.contains("tiktok", ignoreCase = true)
@@ -71,7 +78,11 @@ class GlobalSearchService(
             list.addAll(getRealFallbackCatalog())
         }
 
-        list.distinctBy { "${it.title.lowercase().trim()}_${it.artist.lowercase().trim()}" }
+        val result = list.distinctBy { "${it.title.lowercase().trim()}_${it.artist.lowercase().trim()}" }
+        if (result.isNotEmpty()) {
+            trendingCache[cacheKey] = result
+        }
+        result
     }
 
     fun fetchFreshDeezerPreview(artist: String, title: String): String? {
@@ -100,7 +111,20 @@ class GlobalSearchService(
     }
 
     suspend fun resolveValidAudioUrl(track: OnlineTrack): String = withContext(Dispatchers.IO) {
-        if (track.audioUrl.contains("hdnea=") || track.audioUrl.contains("jamendo") || track.audioUrl.contains("tikwm") || track.audioUrl.contains("radio-browser")) {
+        if (track.source == "YouTube" || track.id.startsWith("yt_") || track.license == "YouTube" || track.audioUrl.contains("youtube.com")) {
+            val videoId = when {
+                track.id.startsWith("yt_") -> track.id.removePrefix("yt_")
+                track.audioUrl.contains("v=") -> track.audioUrl.substringAfter("v=").substringBefore("&")
+                else -> ""
+            }
+            if (videoId.isNotBlank()) {
+                val streamUrl = youtubeRepo.resolveAudioStream(videoId)
+                if (!streamUrl.isNullOrBlank()) {
+                    return@withContext streamUrl
+                }
+            }
+        }
+        if (track.audioUrl.contains("hdnea=") || track.audioUrl.contains("jamendo") || track.audioUrl.contains("tikwm") || track.audioUrl.contains("radio-browser") || track.audioUrl.contains("googlevideo.com")) {
             return@withContext track.audioUrl
         }
         val fresh = fetchFreshDeezerPreview(track.artist, track.title)
@@ -201,6 +225,16 @@ class GlobalSearchService(
         val list = mutableListOf<OnlineTrack>()
 
         // Execute searches concurrently with quick timeouts
+        val youtubeDeferred = async {
+            if (selectedSource == "Todas" || selectedSource == "YouTube") {
+                withTimeoutOrNull(4000) {
+                    youtubeRepo.searchYouTube(query)
+                } ?: emptyList()
+            } else {
+                emptyList()
+            }
+        }
+
         val deezerDeferred = async {
             if (selectedSource == "Todas" || selectedSource == "Deezer") {
                 withTimeoutOrNull(3500) {
@@ -221,9 +255,11 @@ class GlobalSearchService(
             }
         }
 
+        val ytResults = youtubeDeferred.await()
         val deezerResults = deezerDeferred.await()
         val jamendoResults = jamendoDeferred.await()
 
+        list.addAll(ytResults)
         list.addAll(deezerResults)
         list.addAll(jamendoResults)
 

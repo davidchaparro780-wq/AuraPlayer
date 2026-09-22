@@ -117,6 +117,7 @@ fun DiscoverScreen(
 
     val sourceFilters = listOf(
         "Todas" to "🌐 Todas (Completas)",
+        "YouTube" to "🔴 YouTube (RYT)",
         "Jamendo" to "⚡ Jamendo (Full)"
     )
 
@@ -419,11 +420,17 @@ fun DiscoverScreen(
                             },
                             onDownload = {
                                 if (!track.isDownloadable) {
-                                    Toast.makeText(context, "⚠️ Esta pista es una muestra de 30s. Filtra por Jamendo o Archive para canciones completas.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "⚠️ Esta pista es una muestra de 30s. Filtra por Jamendo o YouTube para canciones completas.", Toast.LENGTH_LONG).show()
                                 } else {
-                                    Toast.makeText(context, "Iniciando descarga completa: ${track.title}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
                                     scope.launch {
-                                        downloadEngine.downloadTrack(track) {
+                                        val validUrl = searchService.resolveValidAudioUrl(track)
+                                        val readyTrack = if (validUrl.isNotBlank() && validUrl != track.audioUrl) {
+                                            track.copy(audioUrl = validUrl)
+                                        } else {
+                                            track
+                                        }
+                                        downloadEngine.downloadTrack(readyTrack) {
                                             Toast.makeText(context, "✓ Canción completa guardada en tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
                                             onDownloadComplete()
                                         }
@@ -448,6 +455,7 @@ fun OnlineTrackCard(
     val context = LocalContext.current
 
     val sourceBadgeColor = when (track.source) {
+        "YouTube" -> Color(0xFFEF4444)
         "Jamendo" -> Color(0xFF8B5CF6)
         "Deezer" -> Color(0xFF3B82F6)
         "Archive" -> Color(0xFFF59E0B)

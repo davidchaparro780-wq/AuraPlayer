@@ -12,8 +12,8 @@ android {
         applicationId = "com.auraplayer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "1.9.0"
+        versionCode = 27
+        versionName = "1.9.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +32,7 @@ android {
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -45,6 +46,8 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -65,4 +68,8 @@ dependencies {
 
     // Coil Image Loading
     implementation(libs.coil.compose)
+
+    // NewPipeExtractor (YouTube Stream Extractor) & OkHttp
+    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.3")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
