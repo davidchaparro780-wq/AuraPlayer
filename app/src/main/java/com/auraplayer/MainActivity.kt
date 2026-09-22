@@ -313,10 +313,12 @@ fun AuraApp(
         pendingVaultVideoToHide = null
         if (result.resultCode == Activity.RESULT_OK) {
             Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
-            pending?.let { (video, _) ->
-                android.media.MediaScannerConnection.scanFile(context, arrayOf(video.path), null, null)
+            scope.launch {
+                pending?.let { (video, _) ->
+                    android.media.MediaScannerConnection.scanFile(context, arrayOf(video.path), null, null)
+                }
+                videos = mediaRepository.loadVideoFiles()
             }
-            videos = mediaRepository.loadVideoFiles()
         } else {
             vaultManager.cleanVaultFile(pending?.second)
             Toast.makeText(context, "Cancelado: el video permanece en tu galería", Toast.LENGTH_SHORT).show()
