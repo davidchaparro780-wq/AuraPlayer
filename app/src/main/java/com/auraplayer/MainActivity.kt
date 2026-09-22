@@ -132,6 +132,25 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Maximize display refresh rate (90Hz / 120Hz) for silky smooth 90 FPS rendering
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            try {
+                val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    display
+                } else {
+                    @Suppress("DEPRECATION")
+                    windowManager.defaultDisplay
+                }
+                val modes = display?.supportedModes
+                val maxMode = modes?.maxByOrNull { it.refreshRate }
+                if (maxMode != null) {
+                    val params = window.attributes
+                    params.preferredDisplayModeId = maxMode.modeId
+                    window.attributes = params
+                }
+            } catch (_: Exception) {}
+        }
+
         setContent {
             val context = LocalContext.current
             val playlistManager = remember { PlaylistManager(context) }
@@ -822,17 +841,9 @@ fun AuraApp(
             }
         }
     ) { innerPadding ->
-        AnimatedContent(
+        Crossfade(
             targetState = selectedNavTab,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    (slideInHorizontally(animationSpec = tween(220)) { width -> width / 4 } + fadeIn(animationSpec = tween(220)))
-                        .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> -width / 4 } + fadeOut(animationSpec = tween(180)))
-                } else {
-                    (slideInHorizontally(animationSpec = tween(220)) { width -> -width / 4 } + fadeIn(animationSpec = tween(220)))
-                        .togetherWith(slideOutHorizontally(animationSpec = tween(200)) { width -> width / 4 } + fadeOut(animationSpec = tween(180)))
-                }
-            },
+            animationSpec = tween(70),
             label = "NavTransition"
         ) { targetTab ->
             when (targetTab) {

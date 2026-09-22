@@ -8,6 +8,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode as AnimRepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -102,6 +103,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -117,6 +119,7 @@ import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.RepeatMode
 import com.auraplayer.data.repository.SongLyrics
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.io.File
 import kotlin.math.sin
 
@@ -198,25 +201,18 @@ fun PlayerScreen(
     var hudIcon by remember { mutableStateOf(Icons.Default.VolumeUp) }
     var isHudVisible by remember { mutableStateOf(false) }
 
-    // Continuous turntable vinyl rotation (preserves angle smoothly on pause/play)
-    var vinylAngle by remember { mutableFloatStateOf(0f) }
+    // Hardware-accelerated continuous vinyl rotation (RenderThread / GPU execution with zero Compose recomposition)
+    val vinylRotation = remember { Animatable(0f) }
     LaunchedEffect(isPlaying) {
-        var lastNano = androidx.compose.runtime.withFrameNanos { it }
-        while (isPlaying) {
-            androidx.compose.runtime.withFrameNanos { now ->
-                val dt = (now - lastNano) / 1_000_000_000f
-                lastNano = now
-                vinylAngle = (vinylAngle + dt * 28f) % 360f
+        if (isPlaying) {
+            while (isActive) {
+                vinylRotation.animateTo(
+                    targetValue = vinylRotation.value + 360f,
+                    animationSpec = tween(12000, easing = LinearEasing)
+                )
             }
         }
     }
-    val animatedVinylRotation by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = vinylAngle,
-        animationSpec = androidx.compose.animation.core.spring(
-            stiffness = androidx.compose.animation.core.Spring.StiffnessLow
-        ),
-        label = "animatedVinylRotation"
-    )
 
     // Visualizer wave phase animation
     val infiniteTransition = rememberInfiniteTransition(label = "player_infinite")
@@ -228,17 +224,6 @@ fun PlayerScreen(
             repeatMode = AnimRepeatMode.Restart
         ),
         label = "visualizerPhase"
-    )
-
-    // Dynamic Ambient Pulse animation
-    val ambientPulse by infiniteTransition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = LinearEasing),
-            repeatMode = AnimRepeatMode.Reverse
-        ),
-        label = "ambientPulse"
     )
 
     val audioBadgeText = remember(currentMedia.path) {
@@ -446,7 +431,7 @@ fun PlayerScreen(
                                 .fillMaxWidth(0.84f)
                                 .aspectRatio(1f)
                                 .shadow(
-                                    elevation = if (isPlaying) (32 * ambientPulse).dp else 16.dp,
+                                    elevation = if (isPlaying) 28.dp else 16.dp,
                                     shape = CircleShape,
                                     spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.65f else 0.25f),
                                     ambientColor = Color(0xFF8B5CF6).copy(alpha = if (isPlaying) 0.5f else 0.2f)
@@ -455,7 +440,7 @@ fun PlayerScreen(
                                 .background(
                                     Brush.radialGradient(
                                         listOf(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.4f * ambientPulse else 0.2f),
+                                            MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.35f else 0.2f),
                                             Color(0xFF14192A),
                                             Color(0xFF080B12)
                                         )
@@ -473,7 +458,9 @@ fun PlayerScreen(
                                     ),
                                     CircleShape
                                 )
-                                .rotate(animatedVinylRotation),
+                                .graphicsLayer {
+                                    rotationZ = vinylRotation.value
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             // Concentric Vinyl Record Grooves

@@ -1,7 +1,7 @@
 {
-  "versionCode": 31,
-  "versionName": "1.9.5",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.5/app-debug.apk",
-  "changelog": "✨ Animaciones completas: Mini-ecualizador en vivo en la lista de canciones, transiciones fluidas entre pantallas, efecto vinilo giratorio con ambient glow, y actualizador directo integrado dentro de la app.",
+  "versionCode": 32,
+  "versionName": "1.9.6",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.9.6/app-debug.apk",
+  "changelog": "⚡ Ultra Rendimiento 90 FPS / 120 FPS: Desbloqueo de hardware a 90Hz, renderizado de ecualizador acelerado por GPU (Hardware Canvas), rotación de vinilo con cero sobrecarga en RenderThread y navegación instantánea.",
   "fileSizeMb": 23.0
 }

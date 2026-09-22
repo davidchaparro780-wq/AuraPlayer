@@ -3,11 +3,15 @@ package com.auraplayer.ui.screens
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -475,7 +479,7 @@ fun MusicScreen(
                                     )
                                 }
                             }
-                            items(filteredSongs, key = { it.id }) { song ->
+                            items(filteredSongs, key = { it.id }, contentType = { "song" }) { song ->
                                 val isSelected = currentMedia?.id == song.id
                                 SongListItem(
                                     song = song,
@@ -527,7 +531,7 @@ fun MusicScreen(
                                 EmptyListMessage("Esta playlist está vacía.\nAñade canciones desde el menú de 3 puntos de cualquier pista.")
                             } else {
                                 LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                    items(plSongs, key = { it.id }) { song ->
+                                    items(plSongs, key = { it.id }, contentType = { "song" }) { song ->
                                         SongListItem(
                                             song = song,
                                             isSelected = currentMedia?.id == song.id,
@@ -649,7 +653,7 @@ fun MusicScreen(
                                         EmptyListMessage("Escucha tus canciones para que aparezcan aquí ordenadas por las más reproducidas.")
                                     } else {
                                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                            items(topSongs, key = { it.id }) { song ->
+                                            items(topSongs, key = { it.id }, contentType = { "song" }) { song ->
                                                 val count = playlistManager.getPlayCount(song.id)
                                                 SongListItem(
                                                     song = song,
@@ -675,7 +679,7 @@ fun MusicScreen(
                                         EmptyListMessage("Tu historial de reproducción está vacío.")
                                     } else {
                                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                            items(recentSongs, key = { it.id }) { song ->
+                                            items(recentSongs, key = { it.id }, contentType = { "song" }) { song ->
                                                 SongListItem(
                                                     song = song,
                                                     extraBadge = "🕒 Reciente",
@@ -698,7 +702,7 @@ fun MusicScreen(
                         EmptyListMessage("Aún no tienes canciones favoritas.\nToca el corazón o mantén presionada cualquier canción.")
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(favoriteSongs, key = { it.id }) { song ->
+                            items(favoriteSongs, key = { it.id }, contentType = { "song" }) { song ->
                                 SongListItem(
                                     song = song,
                                     isSelected = currentMedia?.id == song.id,
@@ -1214,19 +1218,23 @@ fun LiveEqualizerIndicator(
         label = "h4"
     )
 
-    Row(
-        modifier = modifier.height(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.Bottom
+    Canvas(
+        modifier = modifier.size(width = 16.dp, height = 14.dp)
     ) {
-        listOf(h1, h2, h3, h4).forEach { heightFraction ->
-            val finalHeight = (heightFraction * 14).coerceAtLeast(3f)
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(finalHeight.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(barColor)
+        val barWidth = 2.5.dp.toPx()
+        val spacing = 1.5.dp.toPx()
+        val cornerRadius = CornerRadius(1.5.dp.toPx(), 1.5.dp.toPx())
+        val heights = floatArrayOf(h1, h2, h3, h4)
+
+        for (i in 0 until 4) {
+            val barH = (heights[i] * size.height).coerceAtLeast(2.5.dp.toPx())
+            val left = i * (barWidth + spacing)
+            val top = size.height - barH
+            drawRoundRect(
+                color = barColor,
+                topLeft = Offset(left, top),
+                size = Size(barWidth, barH),
+                cornerRadius = cornerRadius
             )
         }
     }
@@ -1304,17 +1312,6 @@ fun SongListItem(
                 )
             }
 
-            // Live Equalizer Overlay on top of the active song's album art
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    LiveEqualizerIndicator(barColor = Color(0xFF38BDF8))
-                }
-            }
         }
 
         Spacer(modifier = Modifier.width(14.dp))
