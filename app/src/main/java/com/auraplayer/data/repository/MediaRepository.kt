@@ -109,6 +109,7 @@ class MediaRepository(private val context: Context) {
         )
 
         val sortOrder = "${MediaStore.Video.Media.DATE_ADDED} DESC"
+        val vaultManager = VaultManager(context)
 
         try {
             context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
@@ -125,10 +126,25 @@ class MediaRepository(private val context: Context) {
                     val data = cursor.getString(dataCol) ?: ""
                     val size = cursor.getLong(sizeCol)
 
+                    // 1. Skip if empty, inside vault, or marked as hidden
+                    if (data.isBlank() || data.contains(".secure_vault") || vaultManager.isPathHidden(data)) {
+                        continue
+                    }
+
+                    // 2. Skip if physical file does not exist on disk, and purge stale MediaStore entry
+                    val file = File(data)
+                    if (!file.exists() || file.length() == 0L) {
+                        try {
+                            val staleUri = ContentUris.withAppendedId(collection, id)
+                            context.contentResolver.delete(staleUri, null, null)
+                        } catch (_: Exception) {}
+                        continue
+                    }
+
                     val contentUri = ContentUris.withAppendedId(collection, id)
 
                     val folderName = try {
-                        File(data).parentFile?.name ?: "Videos"
+                        file.parentFile?.name ?: "Videos"
                     } catch (e: Exception) {
                         "Videos"
                     }

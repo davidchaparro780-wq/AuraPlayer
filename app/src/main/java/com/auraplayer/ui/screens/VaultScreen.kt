@@ -150,6 +150,10 @@ fun VaultScreen(
             Toast.makeText(context, "🔒 Archivo ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
             refreshItems()
         } else {
+            pending?.second?.let { uri ->
+                val realPath = vaultManager.resolveRealPathFromUri(uri)
+                if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+            }
             vaultManager.cleanVaultFile(pending?.first)
             Toast.makeText(context, "Cancelado: el archivo permanece en tu galería", Toast.LENGTH_SHORT).show()
         }
@@ -162,19 +166,24 @@ fun VaultScreen(
         if (uri != null) {
             scope.launch {
                 isLoading = true
-                val copiedVaultFile = vaultManager.copyMediaToVault(sourceUri = uri, isVideo = true)
+                val realPath = vaultManager.resolveRealPathFromUri(uri)
+                if (realPath != null) {
+                    vaultManager.markPathAsHidden(realPath)
+                }
+                val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = true)
                 if (copiedVaultFile == null) {
+                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
                     isLoading = false
                     Toast.makeText(context, "Error al copiar archivo a la Bóveda", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
-                val deleted = vaultManager.deleteOriginalMedia(context, filePath = null, uri = uri, isVideo = true)
+                val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = true)
                 isLoading = false
                 if (deleted) {
                     Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
                     refreshItems()
                 } else {
-                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = null, isVideo = true)
+                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = realPath, isVideo = true)
                     if (pendingIntent != null) {
                         pendingVaultItemToDelete = Pair(copiedVaultFile, uri)
                         vaultDeleteLauncher.launch(
@@ -196,19 +205,24 @@ fun VaultScreen(
         if (uri != null) {
             scope.launch {
                 isLoading = true
-                val copiedVaultFile = vaultManager.copyMediaToVault(sourceUri = uri, isVideo = false)
+                val realPath = vaultManager.resolveRealPathFromUri(uri)
+                if (realPath != null) {
+                    vaultManager.markPathAsHidden(realPath)
+                }
+                val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = false)
                 if (copiedVaultFile == null) {
+                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
                     isLoading = false
                     Toast.makeText(context, "Error al copiar foto a la Bóveda", Toast.LENGTH_SHORT).show()
                     return@launch
                 }
-                val deleted = vaultManager.deleteOriginalMedia(context, filePath = null, uri = uri, isVideo = false)
+                val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = false)
                 isLoading = false
                 if (deleted) {
                     Toast.makeText(context, "🔒 Foto ocultada de la galería y protegida en Bóveda", Toast.LENGTH_SHORT).show()
                     refreshItems()
                 } else {
-                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = null, isVideo = false)
+                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = realPath, isVideo = false)
                     if (pendingIntent != null) {
                         pendingVaultItemToDelete = Pair(copiedVaultFile, uri)
                         vaultDeleteLauncher.launch(

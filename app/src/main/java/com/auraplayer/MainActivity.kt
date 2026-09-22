@@ -315,12 +315,20 @@ fun AuraApp(
             Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
             scope.launch {
                 pending?.let { (video, _) ->
-                    android.media.MediaScannerConnection.scanFile(context, arrayOf(video.path), null, null)
+                    try {
+                        android.media.MediaScannerConnection.scanFile(context, arrayOf(video.path), null, null)
+                    } catch (_: Exception) {}
                 }
                 videos = mediaRepository.loadVideoFiles()
             }
         } else {
+            pending?.first?.let { video ->
+                vaultManager.unmarkPathAsHidden(video.path)
+            }
             vaultManager.cleanVaultFile(pending?.second)
+            scope.launch {
+                videos = mediaRepository.loadVideoFiles()
+            }
             Toast.makeText(context, "Cancelado: el video permanece en tu galería", Toast.LENGTH_SHORT).show()
         }
     }
@@ -939,6 +947,10 @@ fun AuraApp(
                     showVaultScreen = true
                 },
                 onHideVideo = { videoToHide ->
+                    // Instantly remove from UI and mark in VaultManager so it vanishes immediately
+                    vaultManager.markPathAsHidden(videoToHide.path)
+                    videos = videos.filter { it.id != videoToHide.id && it.path != videoToHide.path }
+
                     scope.launch {
                         val vaultFile = vaultManager.copyMediaToVault(
                             sourcePath = videoToHide.path,
@@ -946,6 +958,8 @@ fun AuraApp(
                             isVideo = true
                         )
                         if (vaultFile == null) {
+                            vaultManager.unmarkPathAsHidden(videoToHide.path)
+                            videos = mediaRepository.loadVideoFiles()
                             Toast.makeText(context, "Error al copiar video a la Bóveda", Toast.LENGTH_SHORT).show()
                             return@launch
                         }
@@ -958,6 +972,9 @@ fun AuraApp(
                         )
                         if (deleted) {
                             Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
+                            try {
+                                android.media.MediaScannerConnection.scanFile(context, arrayOf(videoToHide.path), null, null)
+                            } catch (_: Exception) {}
                             videos = mediaRepository.loadVideoFiles()
                         } else {
                             val pendingIntent = vaultManager.getDeleteRequestPendingIntent(

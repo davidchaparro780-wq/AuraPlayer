@@ -108,6 +108,53 @@ class VaultManager(private val context: Context) {
         prefs.edit().remove(pinKey).apply()
     }
 
+    private val hiddenPathsKey = "hidden_media_paths"
+
+    fun markPathAsHidden(path: String?) {
+        if (path.isNullOrBlank()) return
+        val current = prefs.getStringSet(hiddenPathsKey, emptySet())?.toMutableSet() ?: mutableSetOf()
+        current.add(path)
+        val name = try { File(path).name } catch (_: Exception) { "" }
+        if (name.isNotBlank()) current.add(name)
+        prefs.edit().putStringSet(hiddenPathsKey, current).apply()
+    }
+
+    fun unmarkPathAsHidden(path: String?) {
+        if (path.isNullOrBlank()) return
+        val current = prefs.getStringSet(hiddenPathsKey, emptySet())?.toMutableSet() ?: mutableSetOf()
+        val name = try { File(path).name } catch (_: Exception) { "" }
+        current.removeAll { it == path || (name.isNotBlank() && (it == name || it.endsWith(name))) }
+        prefs.edit().putStringSet(hiddenPathsKey, current).apply()
+    }
+
+    fun isPathHidden(path: String?): Boolean {
+        if (path.isNullOrBlank()) return false
+        if (path.contains(".secure_vault")) return true
+        val set = prefs.getStringSet(hiddenPathsKey, emptySet()) ?: emptySet()
+        if (set.contains(path)) return true
+        val name = try { File(path).name } catch (_: Exception) { "" }
+        if (name.isNotBlank() && set.contains(name)) return true
+        return if (name.isNotBlank()) set.any { it.endsWith(name) } else false
+    }
+
+    fun resolveRealPathFromUri(uri: Uri?): String? {
+        if (uri == null) return null
+        try {
+            if (uri.scheme == "file") return uri.path
+            val projection = arrayOf(MediaStore.MediaColumns.DATA)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                    if (idx != -1) {
+                        val path = cursor.getString(idx)
+                        if (!path.isNullOrBlank()) return path
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return null
+    }
+
     private fun hashPin(pin: String): String {
         val bytes = MessageDigest.getInstance("SHA-256").digest(pin.toByteArray())
         return bytes.joinToString("") { "%02x".format(it) }
@@ -160,8 +207,13 @@ class VaultManager(private val context: Context) {
             val baseName = customName ?: "hidden_${System.currentTimeMillis()}"
             val targetFile = File(targetDir, "${baseName}${ext}")
 
-            if (sourcePath != null && File(sourcePath).exists()) {
-                FileInputStream(File(sourcePath)).use { input ->
+            var realSourcePath = sourcePath
+            if (realSourcePath.isNullOrBlank() && sourceUri != null) {
+                realSourcePath = resolveRealPathFromUri(sourceUri)
+            }
+
+            if (realSourcePath != null && File(realSourcePath).exists()) {
+                FileInputStream(File(realSourcePath)).use { input ->
                     FileOutputStream(targetFile).use { output ->
                         input.copyTo(output)
                     }
@@ -176,7 +228,10 @@ class VaultManager(private val context: Context) {
                 return@withContext null
             }
 
-            if (targetFile.exists() && targetFile.length() > 0) targetFile else null
+            if (targetFile.exists() && targetFile.length() > 0) {
+                markPathAsHidden(realSourcePath ?: sourcePath)
+                targetFile
+            } else null
         } catch (e: Exception) {
             e.printStackTrace()
             null
@@ -346,6 +401,8 @@ class VaultManager(private val context: Context) {
 
             if (destFile.exists()) {
                 item.file.delete()
+                unmarkPathAsHidden(destFile.absolutePath)
+                unmarkPathAsHidden(item.file.name)
                 // Force MediaScanner to index restored file so it shows in phone Gallery
                 MediaScannerConnection.scanFile(context, arrayOf(destFile.absolutePath), null, null)
                 true
@@ -360,6 +417,7 @@ class VaultManager(private val context: Context) {
 
     suspend fun deletePermanently(item: VaultItem): Boolean = withContext(Dispatchers.IO) {
         try {
+            unmarkPathAsHidden(item.file.name)
             item.file.delete()
         } catch (e: Exception) {
             e.printStackTrace()
