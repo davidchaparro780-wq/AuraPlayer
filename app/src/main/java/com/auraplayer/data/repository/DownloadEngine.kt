@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.OnlineTrack
 import kotlinx.coroutines.Dispatchers
@@ -14,11 +15,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 sealed class DownloadStatus {
     object Idle : DownloadStatus()
@@ -31,7 +34,8 @@ sealed class DownloadStatus {
 class DownloadEngine(
     private val context: Context,
     private val coverArtManager: CoverArtManager,
-    private val lyricsManager: LyricsManager
+    private val lyricsManager: LyricsManager,
+    private val youtubeRepo: YouTubeMusicRepository = YouTubeMusicRepository()
 ) {
 
     private val _downloadStates = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
@@ -43,27 +47,55 @@ class DownloadEngine(
 
     suspend fun downloadTrack(
         track: OnlineTrack,
-        onComplete: (() -> Unit)? = null
+        onComplete: (() -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
         updateState(track.id, DownloadStatus.Downloading(0))
 
         try {
-            val safeArtist = sanitize(track.artist).ifBlank { "Aura Artist" }
-            val safeTitle = sanitize(track.title).ifBlank { "Aura Song" }
+            val safeArtist = sanitize(track.artist).ifBlank { "DaVE Artist" }
+            val safeTitle = sanitize(track.title).ifBlank { "DaVE Song" }
 
-            // 1. Establish HTTP connection with multi-redirect support (CDNs, Storage)
-            var currentUrl = track.audioUrl
+            // 1. Resolve direct stream URL if track has a YouTube URL or is from YouTube
+            var resolvedAudioUrl = track.audioUrl
+            if (track.source == "YouTube" || track.id.startsWith("yt_") ||
+                resolvedAudioUrl.contains("youtube.com", ignoreCase = true) ||
+                resolvedAudioUrl.contains("youtu.be", ignoreCase = true)) {
+                
+                val videoId = when {
+                    track.id.startsWith("yt_") -> track.id.removePrefix("yt_")
+                    resolvedAudioUrl.contains("v=") -> resolvedAudioUrl.substringAfter("v=").substringBefore("&")
+                    resolvedAudioUrl.contains("youtu.be/") -> resolvedAudioUrl.substringAfter("youtu.be/").substringBefore("?")
+                    else -> ""
+                }
+                
+                var directUrl: String? = null
+                if (videoId.isNotBlank()) {
+                    directUrl = youtubeRepo.resolveAudioStream(videoId)
+                }
+                if (directUrl.isNullOrBlank()) {
+                    directUrl = searchFallbackAudioUrl(track.artist, track.title)
+                }
+                if (directUrl.isNullOrBlank()) {
+                    throw IllegalStateException("No se pudo obtener el audio de YouTube. Verifica tu conexión o intenta con otra canción.")
+                }
+                resolvedAudioUrl = directUrl
+            }
+
+            // 2. Establish HTTP connection with multi-redirect support (CDNs, Storage)
+            var currentUrl = resolvedAudioUrl
             var connection: HttpURLConnection
             var redirectCount = 0
             while (true) {
                 val url = URL(currentUrl)
                 connection = (url.openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 15000
-                    readTimeout = 15000
+                    connectTimeout = 20000
+                    readTimeout = 20000
                     requestMethod = "GET"
                     instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
                     setRequestProperty("Accept", "*/*")
+                    setRequestProperty("Connection", "keep-alive")
                 }
                 val code = connection.responseCode
                 if ((code in 301..303 || code == 307 || code == 308) && redirectCount < 5) {
@@ -81,53 +113,82 @@ class DownloadEngine(
                 throw IllegalStateException("Servidor respondió con código ${connection.responseCode}")
             }
 
-            val contentType = connection.contentType?.lowercase() ?: ""
-            val isMp4 = track.audioUrl.contains("video_mp4", true) ||
-                        track.audioUrl.contains(".mp4", true) ||
-                        contentType.contains("mp4") ||
-                        contentType.contains("video/")
-            val extension = if (isMp4) ".m4a" else ".mp3"
-            val mimeType = if (isMp4) "audio/mp4" else "audio/mpeg"
-            val safeFileName = "$safeArtist - $safeTitle$extension"
+            val rawContentType = connection.contentType?.lowercase() ?: ""
+            if (rawContentType.contains("text/html")) {
+                throw IllegalStateException("La URL no contiene un archivo de audio válido")
+            }
 
+            val isMp4 = rawContentType.contains("mp4") ||
+                        rawContentType.contains("m4a") ||
+                        rawContentType.contains("aac") ||
+                        currentUrl.contains("mime=audio%2fmp4", ignoreCase = true) ||
+                        currentUrl.contains(".m4a", ignoreCase = true) ||
+                        currentUrl.contains(".mp4", ignoreCase = true)
+
+            val isWebm = rawContentType.contains("webm") ||
+                         rawContentType.contains("opus") ||
+                         rawContentType.contains("ogg") ||
+                         currentUrl.contains("mime=audio%2fwebm", ignoreCase = true) ||
+                         currentUrl.contains(".opus", ignoreCase = true) ||
+                         currentUrl.contains(".webm", ignoreCase = true)
+
+            val extension = when {
+                isMp4 -> ".m4a"
+                isWebm -> ".opus"
+                else -> ".mp3"
+            }
+
+            val mimeType = when {
+                isMp4 -> "audio/mp4"
+                isWebm -> "audio/ogg"
+                else -> "audio/mpeg"
+            }
+
+            val safeFileName = "$safeArtist - $safeTitle$extension"
             val contentLength = connection.contentLength
             val inputStream = connection.inputStream
 
             var savedFileUri: Uri? = null
             var savedFilePath: String? = null
 
-            // 2. Write file using MediaStore on Android 10+ (Scoped Storage safe) or direct File
+            // 3. Write file using MediaStore on Android 10+ (Scoped Storage safe)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val values = ContentValues().apply {
-                    put(MediaStore.Audio.Media.DISPLAY_NAME, safeFileName)
-                    put(MediaStore.Audio.Media.TITLE, track.title)
-                    put(MediaStore.Audio.Media.ARTIST, track.artist)
-                    put(MediaStore.Audio.Media.ALBUM, track.album)
-                    put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
-                    put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/AuraPlayer")
-                    put(MediaStore.Audio.Media.IS_PENDING, 1)
-                }
-                val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-                if (uri != null) {
-                    savedFileUri = uri
-                    val outputStream = context.contentResolver.openOutputStream(uri)
-                    if (outputStream != null) {
-                        streamWithProgress(inputStream, outputStream, contentLength, track.id)
-                        outputStream.close()
+                try {
+                    val values = ContentValues().apply {
+                        put(MediaStore.Audio.Media.DISPLAY_NAME, safeFileName)
+                        put(MediaStore.Audio.Media.TITLE, track.title)
+                        put(MediaStore.Audio.Media.ARTIST, track.artist)
+                        put(MediaStore.Audio.Media.ALBUM, track.album)
+                        put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+                        put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/DaVEPlayer")
+                        put(MediaStore.Audio.Media.IS_MUSIC, 1)
+                        put(MediaStore.Audio.Media.IS_PENDING, 1)
                     }
-                    values.clear()
-                    values.put(MediaStore.Audio.Media.IS_PENDING, 0)
-                    context.contentResolver.update(uri, values, null, null)
+                    val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                    if (uri != null) {
+                        val outputStream = context.contentResolver.openOutputStream(uri)
+                        if (outputStream != null) {
+                            streamWithProgress(inputStream, outputStream, contentLength, track.id)
+                            outputStream.close()
+                            savedFileUri = uri
+                        }
+                        values.clear()
+                        values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+                        context.contentResolver.update(uri, values, null, null)
+                    }
+                } catch (e: Exception) {
+                    Log.e("DownloadEngine", "MediaStore write failed, falling back to direct public storage: ${e.message}")
+                    savedFileUri = null
                 }
             }
 
-            // Fallback for Android 9 or below, or if MediaStore insert failed
+            // Fallback for Android 9 or below, or if MediaStore insert/update threw an exception
             if (savedFileUri == null) {
-                val publicMusicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "AuraPlayer")
+                val publicMusicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVEPlayer")
                 val targetDir = if (publicMusicDir.exists() || publicMusicDir.mkdirs()) {
                     publicMusicDir
                 } else {
-                    File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "AuraPlayer").apply { mkdirs() }
+                    File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "DaVEPlayer").apply { mkdirs() }
                 }
                 val targetFile = File(targetDir, safeFileName)
                 savedFilePath = targetFile.absolutePath
@@ -145,16 +206,18 @@ class DownloadEngine(
                 )
             }
 
-            inputStream.close()
+            try {
+                inputStream.close()
+            } catch (_: Exception) {}
 
             updateState(track.id, DownloadStatus.Tagging)
 
-            // 3. Save Cover Art locally for instant offline display
+            // 4. Save Cover Art locally for instant offline display
             if (track.coverUrl.isNotBlank()) {
                 downloadCoverArt(track.artist, track.title, track.coverUrl)
             }
 
-            // 4. Pre-cache synced lyrics if available
+            // 5. Pre-cache synced lyrics if available
             val dummyMedia = MediaModel(
                 id = System.currentTimeMillis(),
                 title = track.title,
@@ -168,8 +231,7 @@ class DownloadEngine(
             )
             try {
                 lyricsManager.getLyrics(dummyMedia)
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) {}
 
             updateState(track.id, DownloadStatus.Completed)
             withContext(Dispatchers.Main) {
@@ -178,8 +240,37 @@ class DownloadEngine(
 
         } catch (e: Exception) {
             e.printStackTrace()
-            updateState(track.id, DownloadStatus.Error(e.localizedMessage ?: "Error de descarga"))
+            val userMsg = e.localizedMessage ?: "Error de descarga"
+            updateState(track.id, DownloadStatus.Error(userMsg))
+            withContext(Dispatchers.Main) {
+                onError?.invoke(userMsg)
+            }
         }
+    }
+
+    private fun searchFallbackAudioUrl(artist: String, title: String): String? {
+        try {
+            val q = "$artist $title".trim()
+            val encoded = URLEncoder.encode(q, "UTF-8")
+            val urlStr = "https://api.deezer.com/search?q=$encoded&limit=1"
+            val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 4000
+                readTimeout = 4000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+            }
+            if (conn.responseCode == 200) {
+                val root = JSONObject(conn.inputStream.bufferedReader().use { it.readText() })
+                val data = root.optJSONArray("data")
+                if (data != null && data.length() > 0) {
+                    val preview = data.getJSONObject(0).optString("preview", "")
+                    if (preview.isNotBlank()) return preview
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
     }
 
     private fun streamWithProgress(

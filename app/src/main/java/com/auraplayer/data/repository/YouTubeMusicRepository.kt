@@ -7,6 +7,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.stream.AudioStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,9 +21,13 @@ class YouTubeMusicRepository {
         fun initNewPipe() {
             if (isInitialized.compareAndSet(false, true)) {
                 try {
-                    NewPipe.init(OkHttpDownloader.instance)
+                    NewPipe.init(OkHttpDownloader.instance, Localization.DEFAULT, ContentCountry("US"))
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    try {
+                        NewPipe.init(OkHttpDownloader.instance)
+                    } catch (e2: Exception) {
+                        e2.printStackTrace()
+                    }
                 }
             }
         }
@@ -150,8 +156,15 @@ class YouTubeMusicRepository {
             extractor.fetchPage()
             val audioStreams: List<AudioStream>? = extractor.audioStreams
             if (!audioStreams.isNullOrEmpty()) {
-                val bestStream = audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.first()
-                val directUrl = bestStream.url
+                // Prioritize AAC / M4A if available (superior compatibility with Android MediaStore)
+                val aacStream = audioStreams.filter { stream ->
+                    val fmtName = try { stream.format?.name ?: "" } catch (_: Exception) { "" }
+                    val mime = try { stream.mimeType ?: "" } catch (_: Exception) { "" }
+                    fmtName.contains("M4A", ignoreCase = true) || mime.contains("mp4", ignoreCase = true)
+                }.maxByOrNull { it.averageBitrate }
+
+                val chosenStream = aacStream ?: audioStreams.maxByOrNull { it.averageBitrate } ?: audioStreams.first()
+                val directUrl = chosenStream.url
                 if (!directUrl.isNullOrBlank()) {
                     return@withContext directUrl
                 }
@@ -160,60 +173,172 @@ class YouTubeMusicRepository {
             e.printStackTrace()
         }
 
-        // 2. Fallback to InnerTube ANDROID_VR direct player endpoint
+        // 2. Try InnerTube ANDROID_VR direct player endpoint
         try {
-            val url = URL("https://www.youtube.com/youtubei/v1/player")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
-                requestMethod = "POST"
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                doOutput = true
-            }
-
-            val payload = JSONObject().apply {
-                put("context", JSONObject().apply {
-                    put("client", JSONObject().apply {
-                        put("clientName", "ANDROID_VR")
-                        put("clientVersion", "1.61.48")
-                        put("hl", "es")
-                        put("gl", "US")
-                    })
-                })
-                put("videoId", videoId)
-            }
-
-            conn.outputStream.use { it.write(payload.toString().toByteArray()) }
-
-            if (conn.responseCode == 200) {
-                val resp = conn.inputStream.bufferedReader().use { it.readText() }
-                val root = JSONObject(resp)
-                val formats = root.optJSONObject("streamingData")?.optJSONArray("adaptiveFormats")
-                if (formats != null) {
-                    var bestUrl: String? = null
-                    var highestBitrate = 0
-                    for (i in 0 until formats.length()) {
-                        val fmt = formats.getJSONObject(i)
-                        val mime = fmt.optString("mimeType")
-                        if (mime.startsWith("audio/")) {
-                            val streamUrl = fmt.optString("url")
-                            val bitrate = fmt.optInt("bitrate", 0)
-                            if (streamUrl.isNotBlank() && bitrate >= highestBitrate) {
-                                highestBitrate = bitrate
-                                bestUrl = streamUrl
-                            }
-                        }
-                    }
-                    if (!bestUrl.isNullOrBlank()) {
-                        return@withContext bestUrl
-                    }
-                }
+            val vrUrl = queryInnerTube(
+                videoId = videoId,
+                clientName = "ANDROID_VR",
+                clientVersion = "1.61.48"
+            )
+            if (!vrUrl.isNullOrBlank()) {
+                return@withContext vrUrl
             }
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
+        // 3. Try InnerTube IOS direct player endpoint
+        try {
+            val iosUrl = queryInnerTube(
+                videoId = videoId,
+                clientName = "IOS",
+                clientVersion = "19.29.1",
+                userAgent = "com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X; en_US)",
+                deviceModel = "iPhone16,2"
+            )
+            if (!iosUrl.isNullOrBlank()) {
+                return@withContext iosUrl
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 4. Try InnerTube TVHTML5_SIMPLY_EMBEDDED_PLAYER endpoint
+        try {
+            val tvUrl = queryInnerTube(
+                videoId = videoId,
+                clientName = "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+                clientVersion = "2.0"
+            )
+            if (!tvUrl.isNullOrBlank()) {
+                return@withContext tvUrl
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 5. Try Invidious public mirror endpoints
+        val invidiousMirrors = listOf(
+            "https://inv.tux.pizza",
+            "https://invidious.nerdvpn.de",
+            "https://invidious.jing.rocks"
+        )
+        for (mirror in invidiousMirrors) {
+            try {
+                val invUrl = "$mirror/api/v1/videos/$videoId"
+                val conn = (URL(invUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                }
+                if (conn.responseCode == 200) {
+                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(resp)
+                    val formats = root.optJSONArray("adaptiveFormats")
+                    if (formats != null) {
+                        var bestUrl: String? = null
+                        var highestBitrate = 0
+                        for (i in 0 until formats.length()) {
+                            val fmt = formats.getJSONObject(i)
+                            val type = fmt.optString("type", "")
+                            if (type.contains("audio", ignoreCase = true)) {
+                                val u = fmt.optString("url", "")
+                                val bitrate = fmt.optInt("bitrate", 0)
+                                if (u.isNotBlank()) {
+                                    if (type.contains("mp4", ignoreCase = true)) {
+                                        return@withContext u
+                                    }
+                                    if (bitrate >= highestBitrate) {
+                                        highestBitrate = bitrate
+                                        bestUrl = u
+                                    }
+                                }
+                            }
+                        }
+                        if (!bestUrl.isNullOrBlank()) {
+                            return@withContext bestUrl
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+
         null
+    }
+
+    private fun queryInnerTube(
+        videoId: String,
+        clientName: String,
+        clientVersion: String,
+        userAgent: String = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        deviceModel: String? = null
+    ): String? {
+        val url = URL("https://www.youtube.com/youtubei/v1/player")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            connectTimeout = 8000
+            readTimeout = 8000
+            requestMethod = "POST"
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("User-Agent", userAgent)
+            doOutput = true
+        }
+
+        val clientObj = JSONObject().apply {
+            put("clientName", clientName)
+            put("clientVersion", clientVersion)
+            put("hl", "es")
+            put("gl", "US")
+            if (deviceModel != null) {
+                put("deviceModel", deviceModel)
+            }
+        }
+
+        val payload = JSONObject().apply {
+            put("context", JSONObject().apply {
+                put("client", clientObj)
+            })
+            put("videoId", videoId)
+        }
+
+        conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+
+        if (conn.responseCode == 200) {
+            val resp = conn.inputStream.bufferedReader().use { it.readText() }
+            val root = JSONObject(resp)
+            val streamingData = root.optJSONObject("streamingData") ?: return null
+            val formats = streamingData.optJSONArray("adaptiveFormats")
+                ?: streamingData.optJSONArray("formats")
+                ?: return null
+
+            var bestAacUrl: String? = null
+            var bestAacBitrate = 0
+            var bestAnyUrl: String? = null
+            var highestBitrate = 0
+
+            for (i in 0 until formats.length()) {
+                val fmt = formats.getJSONObject(i)
+                val mime = fmt.optString("mimeType", "")
+                val streamUrl = fmt.optString("url", "")
+                val bitrate = fmt.optInt("bitrate", 0)
+
+                if (mime.contains("audio", ignoreCase = true) && streamUrl.isNotBlank()) {
+                    if (mime.contains("mp4", ignoreCase = true) || mime.contains("m4a", ignoreCase = true)) {
+                        if (bitrate >= bestAacBitrate) {
+                            bestAacBitrate = bitrate
+                            bestAacUrl = streamUrl
+                        }
+                    }
+                    if (bitrate >= highestBitrate) {
+                        highestBitrate = bitrate
+                        bestAnyUrl = streamUrl
+                    }
+                }
+            }
+
+            return bestAacUrl ?: bestAnyUrl
+        }
+        return null
     }
 }

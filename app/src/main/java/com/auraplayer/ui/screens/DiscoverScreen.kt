@@ -424,15 +424,25 @@ fun DiscoverScreen(
                                 } else {
                                     Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
                                     scope.launch {
-                                        val validUrl = searchService.resolveValidAudioUrl(track)
-                                        val readyTrack = if (validUrl.isNotBlank() && validUrl != track.audioUrl) {
-                                            track.copy(audioUrl = validUrl)
-                                        } else {
-                                            track
-                                        }
-                                        downloadEngine.downloadTrack(readyTrack) {
-                                            Toast.makeText(context, "✓ Canción completa guardada en tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                            onDownloadComplete()
+                                        try {
+                                            val validUrl = searchService.resolveValidAudioUrl(track)
+                                            val readyTrack = if (validUrl.isNotBlank() && validUrl != track.audioUrl) {
+                                                track.copy(audioUrl = validUrl)
+                                            } else {
+                                                track
+                                            }
+                                            downloadEngine.downloadTrack(
+                                                track = readyTrack,
+                                                onComplete = {
+                                                    Toast.makeText(context, "✓ Canción completa guardada en tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
+                                                    onDownloadComplete()
+                                                },
+                                                onError = { errorMsg ->
+                                                    Toast.makeText(context, "Error al descargar: $errorMsg", Toast.LENGTH_LONG).show()
+                                                }
+                                            )
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.localizedMessage ?: "No se pudo descargar"}", Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 }
