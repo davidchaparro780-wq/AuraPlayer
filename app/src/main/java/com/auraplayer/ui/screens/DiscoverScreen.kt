@@ -108,7 +108,7 @@ fun DiscoverScreen(
         selectedGenre = "Trending"
         scope.launch {
             isLoading = true
-            trackList = searchService.getTrendingTracks()
+            trackList = searchService.getTrending("Trending", selectedSource)
             isLoading = false
         }
     }

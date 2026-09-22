@@ -207,6 +207,21 @@ fun AuraApp(
     var showVaultScreen by remember { mutableStateOf(false) }
     val vaultManager = remember { VaultManager(context) }
 
+    // In-App Auto Updater (DaVE Updater)
+    val updateManager = remember { UpdateManager(context) }
+    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val info = updateManager.checkForUpdate()
+        if (info != null) {
+            updateInfo = info
+            showUpdateDialog = true
+        }
+    }
+
     var showAppIntro by remember { mutableStateOf(true) }
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
 
@@ -251,21 +266,6 @@ fun AuraApp(
                     Toast.makeText(context, "Presiona de nuevo para salir", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
-    }
-
-    // In-App Auto Updater (DaVE Updater)
-    val updateManager = remember { UpdateManager(context) }
-    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
-    var isDownloadingUpdate by remember { mutableStateOf(false) }
-    var updateProgress by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        val info = updateManager.checkForUpdate()
-        if (info != null) {
-            updateInfo = info
-            showUpdateDialog = true
         }
     }
 
