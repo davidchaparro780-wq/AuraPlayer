@@ -102,8 +102,7 @@ fun DiscoverScreen(
 
     val sourceFilters = listOf(
         "Todas" to "🌐 Todas (Completas)",
-        "Jamendo" to "⚡ Jamendo (Full)",
-        "Archive" to "🏛️ Internet Archive"
+        "Jamendo" to "⚡ Jamendo (Full)"
     )
 
     val genres = listOf(
@@ -168,7 +167,7 @@ fun DiscoverScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "Omnibar global: Jamendo, Deezer, Archive y enlaces",
+                        text = "Música completa en MP3 con portadas HD",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -387,6 +386,7 @@ fun DiscoverScreen(
                             track = track,
                             status = status,
                             onPreview = {
+                                Toast.makeText(context, "Reproduciendo: ${track.title}", Toast.LENGTH_SHORT).show()
                                 onPreviewTrack(track)
                             },
                             onDownload = {

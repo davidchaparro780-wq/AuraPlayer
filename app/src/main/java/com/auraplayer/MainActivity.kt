@@ -386,7 +386,12 @@ fun AuraApp(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
-                    durationMs = mediaCtrl.duration.coerceAtLeast(0L)
+                    val d = mediaCtrl.duration
+                    if (d > 0L) {
+                        durationMs = d
+                    } else if ((currentMedia?.duration ?: 0L) > 0L) {
+                        durationMs = currentMedia!!.duration
+                    }
                 }
 
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
@@ -395,26 +400,32 @@ fun AuraApp(
                         val found = songs.find { it.id == mediaId }
                         if (found != null) {
                             currentMedia = found
+                            durationMs = found.duration
                             playlistManager.recordPlay(found.id)
                         }
                     } else if (item != null) {
                         val meta = item.mediaMetadata
+                        val extraDuration = meta.extras?.getLong("duration_ms", 0L) ?: 0L
+                        val fallbackDuration = if (extraDuration > 0L) extraDuration else (currentMedia?.takeIf { it.id == -1L }?.duration ?: 0L)
                         currentMedia = MediaModel(
                             id = -1L,
                             title = meta.title?.toString() ?: "Canción",
                             artist = meta.artist?.toString() ?: "Artista",
                             album = meta.albumTitle?.toString() ?: "Online",
-                            duration = 0L,
+                            duration = fallbackDuration,
                             uri = item.localConfiguration?.uri ?: Uri.EMPTY,
                             path = item.localConfiguration?.uri?.toString() ?: "",
                             artworkUri = meta.artworkUri
                         )
+                        if (fallbackDuration > 0L) {
+                            durationMs = fallbackDuration
+                        }
                     }
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                     error.printStackTrace()
-                    Toast.makeText(context, "Error de reproducción: ${error.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "No se pudo reproducir este audio. Intenta con otra canción.", Toast.LENGTH_SHORT).show()
                 }
             })
         }, MoreExecutors.directExecutor())
@@ -429,7 +440,12 @@ fun AuraApp(
         while (isActive && isPlaying) {
             controller?.let {
                 currentPositionMs = it.currentPosition
-                durationMs = it.duration.coerceAtLeast(0L)
+                val d = it.duration
+                if (d > 0L) {
+                    durationMs = d
+                } else if (durationMs <= 0L && (currentMedia?.duration ?: 0L) > 0L) {
+                    durationMs = currentMedia!!.duration
+                }
             }
             delay(400)
         }
@@ -553,7 +569,7 @@ fun AuraApp(
             currentMedia = currentMedia,
             isPlaying = isPlaying,
             currentPositionMs = currentPositionMs,
-            durationMs = durationMs,
+            durationMs = if (durationMs > 0L) durationMs else (currentMedia?.duration ?: 0L),
             isShuffle = isShuffle,
             repeatMode = repeatMode,
             isFavorite = isFav,
@@ -641,7 +657,8 @@ fun AuraApp(
         bottomBar = {
             androidx.compose.foundation.layout.Column {
                 // Mini Player
-                val progress = if (durationMs > 0) currentPositionMs.toFloat() / durationMs.toFloat() else 0f
+                val effectiveDuration = if (durationMs > 0L) durationMs else (currentMedia?.duration ?: 0L)
+                val progress = if (effectiveDuration > 0L) currentPositionMs.toFloat() / effectiveDuration.toFloat() else 0f
                 MiniPlayer(
                     currentMedia = currentMedia,
                     isPlaying = isPlaying,
@@ -823,6 +840,10 @@ fun AuraApp(
                 searchService = searchService,
                 downloadEngine = downloadEngine,
                 onPreviewTrack = { onlineTrack ->
+                    val trackDurationMs = onlineTrack.durationSec * 1000L
+                    val bundle = android.os.Bundle().apply {
+                        putLong("duration_ms", trackDurationMs)
+                    }
                     val previewItem = MediaItem.Builder()
                         .setUri(onlineTrack.audioUrl)
                         .setMediaId("online_${onlineTrack.id}")
@@ -832,24 +853,26 @@ fun AuraApp(
                                 .setArtist(onlineTrack.artist)
                                 .setAlbumTitle(onlineTrack.album)
                                 .setArtworkUri(if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null)
+                                .setExtras(bundle)
                                 .build()
                         )
                         .build()
-                    controller?.run {
-                        setMediaItem(previewItem)
-                        prepare()
-                        play()
-                    }
                     currentMedia = MediaModel(
                         id = -1L,
                         title = onlineTrack.title,
                         artist = onlineTrack.artist,
                         album = onlineTrack.album,
-                        duration = onlineTrack.durationSec * 1000L,
+                        duration = trackDurationMs,
                         uri = Uri.parse(onlineTrack.audioUrl),
                         path = onlineTrack.audioUrl,
                         artworkUri = if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null
                     )
+                    durationMs = trackDurationMs
+                    controller?.run {
+                        setMediaItem(previewItem)
+                        prepare()
+                        play()
+                    }
                 },
                 onDownloadComplete = {
                     scope.launch(Dispatchers.IO) {

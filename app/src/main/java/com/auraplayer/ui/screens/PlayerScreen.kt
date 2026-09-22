@@ -723,11 +723,14 @@ fun PlayerScreen(
 
                 // Seek Bar & Timeline
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    val sliderValue = if (durationMs > 0) (currentPositionMs.toFloat() / durationMs.toFloat()) else 0f
+                    val effectiveDurationMs = remember(durationMs, currentMedia.duration) {
+                        if (durationMs > 0L) durationMs else currentMedia.duration
+                    }
+                    val sliderValue = if (effectiveDurationMs > 0L) (currentPositionMs.toFloat() / effectiveDurationMs.toFloat()) else 0f
                     Slider(
                         value = sliderValue.coerceIn(0f, 1f),
                         onValueChange = { percent ->
-                            val targetMs = (percent * durationMs).toLong()
+                            val targetMs = (percent * effectiveDurationMs).toLong()
                             onSeek(targetMs)
                         },
                         colors = SliderDefaults.colors(
@@ -745,8 +748,9 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val remainingMs = (effectiveDurationMs - currentPositionMs).coerceAtLeast(0L)
                         Text(
-                            text = "-${formatTime(durationMs - currentPositionMs)}",
+                            text = if (effectiveDurationMs > 0L) "-${formatTime(remainingMs)}" else "--:--",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

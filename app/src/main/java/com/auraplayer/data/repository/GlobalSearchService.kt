@@ -30,7 +30,7 @@ class GlobalSearchService(
             return@withContext extractFromUrl(trimmed)
         }
 
-        // 2. Federated Multi-Source Search (100% Full-Length Songs)
+        // 2. Federated Search (100% Full-Length Songs with HD Artwork Enrichment)
         searchFederated(trimmed, selectedSource)
     }
 
@@ -123,33 +123,25 @@ class GlobalSearchService(
     }
 
     /**
-     * Executes parallel queries against Jamendo & Internet Archive for 100% full-length songs,
-     * then enriches each result with Spotify HD cover art + canonical album name.
-     * ZERO 30-second previews!
+     * Executes queries against Jamendo for 100% full-length songs with direct, working audio URLs,
+     * then enriches each result with Spotify / Deezer / iTunes HD cover art (up to 1000x1000)
+     * and canonical album name in parallel.
+     * ZERO broken links, ZERO 30-second previews!
      */
     private suspend fun searchFederated(query: String, selectedSource: String, isTrending: Boolean = false): List<OnlineTrack> = coroutineScope {
-        val results = mutableListOf<OnlineTrack>()
+        val rawResults = queryJamendo(query, isTrending)
 
-        val includeJamendo = selectedSource == "Todas" || selectedSource == "Jamendo"
-        val includeArchive = selectedSource == "Todas" || selectedSource == "Archive"
-
-        val jamendoDeferred = if (includeJamendo) async { queryJamendo(query, isTrending) } else null
-        val archiveDeferred = if (includeArchive && (query.isNotBlank() || isTrending)) async { queryArchive(query, isTrending) } else null
-
-        jamendoDeferred?.await()?.let { results.addAll(it) }
-        archiveDeferred?.await()?.let { results.addAll(it) }
-
-        // Enrich each track with Spotify HD metadata in parallel (best-effort, silent on failure)
-        val enriched = results.map { track ->
+        // Enrich each track with Spotify / Deezer / iTunes HD metadata in parallel
+        val enriched = rawResults.map { track ->
             async(Dispatchers.IO) {
                 val meta = try { spotifyService.fetchMeta(track.title, track.artist) } catch (_: Exception) { null }
                 if (meta != null && meta.coverUrl.isNotBlank()) {
                     track.copy(
-                        coverUrl = meta.coverUrl,           // 640x640 HD from Spotify CDN
+                        coverUrl = meta.coverUrl,
                         album = meta.albumName.ifBlank { track.album }
                     )
                 } else {
-                    track  // keep original if Spotify returns nothing
+                    track
                 }
             }
         }.awaitAll()
@@ -171,7 +163,7 @@ class GlobalSearchService(
                 connectTimeout = 9000
                 readTimeout = 9000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.6 (Android)")
+                setRequestProperty("User-Agent", "AuraPlayer/1.8.1 (Android)")
             }
 
             if (conn.responseCode == 200) {
@@ -182,12 +174,15 @@ class GlobalSearchService(
                     for (i in 0 until results.length()) {
                         val item = results.getJSONObject(i)
                         val allowed = item.optBoolean("audiodownload_allowed", true)
-                        val audioUrl = item.optString("audiodownload", "").ifBlank {
-                            item.optString("audio", "")
-                        }
+
+                        // Priority: 'audio' gives direct streaming MP3 URL with range support
+                        // 'audiodownload' gives direct download endpoint
+                        val streamAudioUrl = item.optString("audio", "")
+                        val downloadAudioUrl = item.optString("audiodownload", "")
+                        val audioUrl = streamAudioUrl.ifBlank { downloadAudioUrl }
                         val duration = item.optInt("duration", 0)
 
-                        // Only include full songs (at least 60 seconds) with direct audio streams
+                        // Only include full songs (at least 45 seconds) with direct audio streams
                         if (allowed && audioUrl.isNotBlank() && duration >= 45) {
                             val id = item.optString("id", System.currentTimeMillis().toString())
                             val name = item.optString("name", "Canción Completa").trim()
@@ -213,62 +208,6 @@ class GlobalSearchService(
                                     bitrateKbps = 320,
                                     license = "Canción Completa",
                                     source = "Jamendo",
-                                    isDownloadable = true
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-        return list
-    }
-
-    private fun queryArchive(query: String, isTrending: Boolean = false): List<OnlineTrack> {
-        val list = mutableListOf<OnlineTrack>()
-        try {
-            val searchTerm = if (query.isBlank()) "music" else query.trim()
-            val encoded = URLEncoder.encode(searchTerm, "UTF-8")
-            val urlStr = "https://archive.org/advancedsearch.php?q=mediatype:(audio)+AND+($encoded)&fl[]=identifier,title,creator,year&sort[]=downloads+desc&rows=25&page=1&output=json"
-
-            val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 9000
-                readTimeout = 9000
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.7.6 (Android)")
-            }
-
-            if (conn.responseCode == 200) {
-                val response = conn.inputStream.bufferedReader().use { it.readText() }
-                val root = JSONObject(response)
-                val docs = root.optJSONObject("response")?.optJSONArray("docs")
-                if (docs != null) {
-                    for (i in 0 until docs.length()) {
-                        val doc = docs.getJSONObject(i)
-                        val id = doc.optString("identifier", "")
-                        val title = doc.optString("title", "Audio Completo").trim()
-                        val creator = doc.optString("creator", "Artista Libre").trim()
-                        val year = doc.optString("year", "")
-
-                        if (id.isNotBlank()) {
-                            val audioUrl = "https://archive.org/download/$id/${id}_vbr.mp3"
-                            val coverUrl = "https://archive.org/services/img/$id"
-
-                            list.add(
-                                OnlineTrack(
-                                    id = "arc_$id",
-                                    title = title,
-                                    artist = creator.take(35),
-                                    album = if (year.isNotBlank()) "Archive ($year)" else "Internet Archive",
-                                    durationSec = 210, // Full track standard
-                                    audioUrl = audioUrl,
-                                    coverUrl = coverUrl,
-                                    format = "MP3 Completo",
-                                    bitrateKbps = 192,
-                                    license = "Canción Completa",
-                                    source = "Archive",
                                     isDownloadable = true
                                 )
                             )

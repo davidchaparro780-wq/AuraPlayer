@@ -1,8 +1,12 @@
 package com.auraplayer.data.repository
 
+import android.content.ContentValues
 import android.content.Context
 import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.OnlineTrack
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -43,18 +48,11 @@ class DownloadEngine(
         updateState(track.id, DownloadStatus.Downloading(0))
 
         try {
-            // 1. Prepare target directory in standard Music/AuraPlayer
-            val publicMusicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "AuraPlayer")
-            val targetDir = if (publicMusicDir.exists() || publicMusicDir.mkdirs()) {
-                publicMusicDir
-            } else {
-                File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "AuraPlayer").apply { mkdirs() }
-            }
+            val safeArtist = sanitize(track.artist).ifBlank { "Aura Artist" }
+            val safeTitle = sanitize(track.title).ifBlank { "Aura Song" }
+            val safeFileName = "$safeArtist - $safeTitle.mp3"
 
-            val safeFileName = "${sanitize(track.artist)} - ${sanitize(track.title)}.mp3"
-            val targetFile = File(targetDir, safeFileName)
-
-            // 2. Stream & Download Audio File with Progress & Multi-redirect support
+            // 1. Establish HTTP connection with multi-redirect support (CDNs, Storage)
             var currentUrl = track.audioUrl
             var connection: HttpURLConnection
             var redirectCount = 0
@@ -69,7 +67,7 @@ class DownloadEngine(
                     setRequestProperty("Accept", "*/*")
                 }
                 val code = connection.responseCode
-                if ((code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM || code == HttpURLConnection.HTTP_SEE_OTHER || code == 307 || code == 308) && redirectCount < 5) {
+                if ((code in 301..303 || code == 307 || code == 308) && redirectCount < 5) {
                     val newLocation = connection.getHeaderField("Location")
                     if (!newLocation.isNullOrBlank()) {
                         currentUrl = newLocation
@@ -86,23 +84,59 @@ class DownloadEngine(
 
             val contentLength = connection.contentLength
             val inputStream = connection.inputStream
-            val outputStream = FileOutputStream(targetFile)
 
-            val buffer = ByteArray(8192)
-            var bytesRead: Int
-            var totalBytesRead = 0L
+            var savedFileUri: Uri? = null
+            var savedFilePath: String? = null
 
-            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                outputStream.write(buffer, 0, bytesRead)
-                totalBytesRead += bytesRead
-                if (contentLength > 0) {
-                    val progress = ((totalBytesRead * 100) / contentLength).toInt().coerceIn(0, 99)
-                    updateState(track.id, DownloadStatus.Downloading(progress))
+            // 2. Write file using MediaStore on Android 10+ (Scoped Storage safe) or direct File
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Audio.Media.DISPLAY_NAME, safeFileName)
+                    put(MediaStore.Audio.Media.TITLE, track.title)
+                    put(MediaStore.Audio.Media.ARTIST, track.artist)
+                    put(MediaStore.Audio.Media.ALBUM, track.album)
+                    put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+                    put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/AuraPlayer")
+                    put(MediaStore.Audio.Media.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    savedFileUri = uri
+                    val outputStream = context.contentResolver.openOutputStream(uri)
+                    if (outputStream != null) {
+                        streamWithProgress(inputStream, outputStream, contentLength, track.id)
+                        outputStream.close()
+                    }
+                    values.clear()
+                    values.put(MediaStore.Audio.Media.IS_PENDING, 0)
+                    context.contentResolver.update(uri, values, null, null)
                 }
             }
 
-            outputStream.flush()
-            outputStream.close()
+            // Fallback for Android 9 or below, or if MediaStore insert failed
+            if (savedFileUri == null) {
+                val publicMusicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "AuraPlayer")
+                val targetDir = if (publicMusicDir.exists() || publicMusicDir.mkdirs()) {
+                    publicMusicDir
+                } else {
+                    File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), "AuraPlayer").apply { mkdirs() }
+                }
+                val targetFile = File(targetDir, safeFileName)
+                savedFilePath = targetFile.absolutePath
+                savedFileUri = Uri.fromFile(targetFile)
+
+                val outputStream = FileOutputStream(targetFile)
+                streamWithProgress(inputStream, outputStream, contentLength, track.id)
+                outputStream.close()
+
+                MediaScannerConnection.scanFile(
+                    context,
+                    arrayOf(targetFile.absolutePath),
+                    arrayOf("audio/mpeg"),
+                    null
+                )
+            }
+
             inputStream.close()
 
             updateState(track.id, DownloadStatus.Tagging)
@@ -119,24 +153,14 @@ class DownloadEngine(
                 artist = track.artist,
                 album = track.album,
                 duration = track.durationSec * 1000L,
-                uri = android.net.Uri.fromFile(targetFile),
-                artworkUri = if (track.coverUrl.isNotBlank()) android.net.Uri.parse(track.coverUrl) else null,
-                path = targetFile.absolutePath,
-                size = targetFile.length()
+                uri = savedFileUri ?: Uri.EMPTY,
+                artworkUri = if (track.coverUrl.isNotBlank()) Uri.parse(track.coverUrl) else null,
+                path = savedFilePath ?: "",
+                size = 0L
             )
             try {
                 lyricsManager.getLyrics(dummyMedia)
-            } catch (e: Exception) {
-                // Non-fatal
-            }
-
-            // 5. Notify MediaScanner to index track in Android MediaStore instantly
-            MediaScannerConnection.scanFile(
-                context,
-                arrayOf(targetFile.absolutePath),
-                null
-            ) { _, _ ->
-                // Media store scanned
+            } catch (_: Exception) {
             }
 
             updateState(track.id, DownloadStatus.Completed)
@@ -148,6 +172,27 @@ class DownloadEngine(
             e.printStackTrace()
             updateState(track.id, DownloadStatus.Error(e.localizedMessage ?: "Error de descarga"))
         }
+    }
+
+    private fun streamWithProgress(
+        inputStream: java.io.InputStream,
+        outputStream: OutputStream,
+        contentLength: Int,
+        trackId: String
+    ) {
+        val buffer = ByteArray(8192)
+        var bytesRead: Int
+        var totalBytesRead = 0L
+
+        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+            outputStream.write(buffer, 0, bytesRead)
+            totalBytesRead += bytesRead
+            if (contentLength > 0) {
+                val progress = ((totalBytesRead * 100) / contentLength).toInt().coerceIn(0, 99)
+                updateState(trackId, DownloadStatus.Downloading(progress))
+            }
+        }
+        outputStream.flush()
     }
 
     private fun downloadCoverArt(artist: String, title: String, coverUrl: String) {
