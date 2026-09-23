@@ -21,17 +21,36 @@ class SleepTimerManager {
     private val _isTimerActive = MutableStateFlow(false)
     val isTimerActive: StateFlow<Boolean> = _isTimerActive.asStateFlow()
 
+    private val _fadeVolumeFactor = MutableStateFlow(1.0f)
+    val fadeVolumeFactor: StateFlow<Float> = _fadeVolumeFactor.asStateFlow()
+
+    companion object {
+        @Volatile
+        var globalFadeFactor: Float = 1.0f
+    }
+
     fun startTimer(minutes: Int, onFinish: () -> Unit) {
         cancelTimer()
         _remainingSeconds.value = minutes * 60
+        _fadeVolumeFactor.value = 1.0f
+        globalFadeFactor = 1.0f
         _isTimerActive.value = true
 
         timerJob = scope.launch {
             while (isActive && _remainingSeconds.value > 0) {
                 delay(1000)
                 _remainingSeconds.value -= 1
+
+                // Zen Sleep Fade-Out in the last 120 seconds
+                if (_remainingSeconds.value in 1..120) {
+                    val factor = (_remainingSeconds.value.toFloat() / 120f).coerceIn(0.05f, 1.0f)
+                    _fadeVolumeFactor.value = factor
+                    globalFadeFactor = factor
+                }
             }
             if (_remainingSeconds.value <= 0) {
+                _fadeVolumeFactor.value = 1.0f
+                globalFadeFactor = 1.0f
                 _isTimerActive.value = false
                 onFinish()
             }
@@ -42,6 +61,8 @@ class SleepTimerManager {
         timerJob?.cancel()
         timerJob = null
         _remainingSeconds.value = 0
+        _fadeVolumeFactor.value = 1.0f
+        globalFadeFactor = 1.0f
         _isTimerActive.value = false
     }
 

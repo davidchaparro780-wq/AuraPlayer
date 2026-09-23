@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
+import android.media.audiofx.PresetReverb
 import android.media.audiofx.Virtualizer
 import android.os.Build
 
@@ -23,9 +24,13 @@ class EqualizerManager private constructor() {
     private var bassBoost: BassBoost? = null
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
+    private var presetReverb: PresetReverb? = null
     private var prefs: SharedPreferences? = null
 
     var isEnabled: Boolean = true
+        private set
+
+    var isSpatial8DEnabled: Boolean = false
         private set
 
     var bassStrength: Short = 400
@@ -50,6 +55,7 @@ class EqualizerManager private constructor() {
     private fun loadSavedSettings() {
         prefs?.let { p ->
             isEnabled = p.getBoolean("eq_enabled", true)
+            isSpatial8DEnabled = p.getBoolean("spatial_8d_enabled", false)
             bassStrength = p.getInt("bass_strength", 400).toShort()
             virtualizerStrength = p.getInt("virtualizer_strength", 300).toShort()
             loudnessGain = p.getInt("loudness_gain", 0)
@@ -62,6 +68,7 @@ class EqualizerManager private constructor() {
     private fun persistSettings() {
         prefs?.edit()?.apply {
             putBoolean("eq_enabled", isEnabled)
+            putBoolean("spatial_8d_enabled", isSpatial8DEnabled)
             putInt("bass_strength", bassStrength.toInt())
             putInt("virtualizer_strength", virtualizerStrength.toInt())
             putInt("loudness_gain", loudnessGain)
@@ -89,8 +96,18 @@ class EqualizerManager private constructor() {
             virtualizer = Virtualizer(0, audioSessionId).apply {
                 enabled = isEnabled
                 if (strengthSupported) {
-                    setStrength(virtualizerStrength)
+                    setStrength(if (isSpatial8DEnabled) 1000.toShort() else virtualizerStrength)
                 }
+            }
+            try {
+                presetReverb = PresetReverb(0, audioSessionId).apply {
+                    enabled = isEnabled && isSpatial8DEnabled
+                    if (isSpatial8DEnabled) {
+                        preset = PresetReverb.PRESET_CONCERTHALL
+                    }
+                }
+            } catch (e: Exception) {
+                presetReverb = null
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                 try {
@@ -128,6 +145,31 @@ class EqualizerManager private constructor() {
                 loudnessEnhancer?.enabled = loudnessGain > 0 && isEnabled
             }
         } catch (_: Exception) {}
+    }
+
+    fun setSpatial8DEnabled(enabled: Boolean) {
+        isSpatial8DEnabled = enabled
+        try {
+            presetReverb?.enabled = enabled
+            if (enabled) {
+                presetReverb?.preset = PresetReverb.PRESET_CONCERTHALL
+                virtualizer?.let {
+                    if (it.strengthSupported) {
+                        it.setStrength(1000.toShort())
+                    }
+                }
+            } else {
+                presetReverb?.preset = PresetReverb.PRESET_NONE
+                virtualizer?.let {
+                    if (it.strengthSupported) {
+                        it.setStrength(virtualizerStrength)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        persistSettings()
     }
 
     fun setBandLevel(bandIndex: Int, levelDb: Float) {
@@ -282,6 +324,8 @@ class EqualizerManager private constructor() {
         } catch (e: Exception) {
             e.printStackTrace()
         } finally {
+            presetReverb?.release()
+            presetReverb = null
             equalizer = null
             bassBoost = null
             virtualizer = null

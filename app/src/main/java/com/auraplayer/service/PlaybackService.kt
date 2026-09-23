@@ -15,6 +15,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.auraplayer.MainActivity
 import com.auraplayer.audio.EqualizerManager
+import com.auraplayer.audio.SleepTimerManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -83,10 +84,17 @@ class PlaybackService : MediaSessionService() {
             }
         })
 
-        // DJ Crossfade Real-time Volume Engine (Poweramp Style)
+        // DJ Crossfade & 8D Spatial Audio Real-time Volume Engine
         serviceScope.launch {
             while (isActive) {
                 val crossfadeSec = playlistManager.getCrossfadeSeconds()
+                val is8D = EqualizerManager.instance.isSpatial8DEnabled
+                val spatialFactor = if (is8D && player.isPlaying) {
+                    0.92f + 0.08f * kotlin.math.sin(System.currentTimeMillis() / 950.0).toFloat()
+                } else 1.0f
+                val sleepFade = SleepTimerManager.globalFadeFactor
+                val effectiveFactor = (spatialFactor * sleepFade).coerceIn(0.0f, 1.0f)
+
                 if (crossfadeSec > 0 && player.isPlaying && player.duration > 0L) {
                     val fadeWindowMs = crossfadeSec * 1000L
                     val pos = player.currentPosition
@@ -96,16 +104,16 @@ class PlaybackService : MediaSessionService() {
                     if (rem in 0L..fadeWindowMs) {
                         // Fade out towards track end
                         val factor = (rem.toFloat() / fadeWindowMs.toFloat()).coerceIn(0.08f, 1.0f)
-                        player.volume = factor
+                        player.volume = factor * effectiveFactor
                     } else if (pos in 0L..(fadeWindowMs / 2)) {
                         // Fade in at track beginning
                         val factor = (pos.toFloat() / (fadeWindowMs / 2).toFloat()).coerceIn(0.15f, 1.0f)
-                        player.volume = factor
-                    } else if (player.volume < 1.0f) {
-                        player.volume = 1.0f
+                        player.volume = factor * effectiveFactor
+                    } else {
+                        player.volume = effectiveFactor
                     }
-                } else if (player.volume < 1.0f) {
-                    player.volume = 1.0f
+                } else {
+                    player.volume = effectiveFactor
                 }
                 delay(150)
             }

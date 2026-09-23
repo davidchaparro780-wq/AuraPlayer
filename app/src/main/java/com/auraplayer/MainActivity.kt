@@ -108,8 +108,10 @@ import com.auraplayer.data.repository.UpdateManager
 import com.auraplayer.data.repository.UpdateInfo
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.data.repository.VaultManager
+import com.auraplayer.sensor.WaveGestureManager
 import com.auraplayer.service.PlaybackService
 import com.auraplayer.ui.components.DaveSplashIntro
+import com.auraplayer.ui.components.DaveWrappedDialog
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
 import com.auraplayer.ui.screens.CarModeScreen
@@ -238,6 +240,7 @@ fun AuraApp(
     var showPlayerScreen by remember { mutableStateOf(false) }
     var showCarModeScreen by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showWrappedDialog by remember { mutableStateOf(false) }
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
     var showVaultScreen by remember { mutableStateOf(false) }
     val vaultManager = remember { VaultManager(context) }
@@ -285,6 +288,9 @@ fun AuraApp(
             }
             showSleepTimerDialog -> {
                 showSleepTimerDialog = false
+            }
+            showWrappedDialog -> {
+                showWrappedDialog = false
             }
             activeVideo != null -> {
                 activeVideo = null
@@ -353,6 +359,31 @@ fun AuraApp(
         shakeDetector.isEnabled = isShakeEnabled
         onDispose {
             shakeDetector.stop()
+        }
+    }
+
+    // Wave Gesture Control (Hand wave over proximity sensor to skip song)
+    val waveGestureManager = remember {
+        WaveGestureManager(context) {
+            controller?.seekToNextMediaItem()
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator?.vibrate(VibrationEffect.createOneShot(45, VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator?.vibrate(45)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    var isWaveEnabled by remember { mutableStateOf(waveGestureManager.isEnabled) }
+
+    DisposableEffect(isWaveEnabled) {
+        waveGestureManager.isEnabled = isWaveEnabled
+        onDispose {
+            waveGestureManager.stop()
         }
     }
 
@@ -734,6 +765,15 @@ fun AuraApp(
             onFinish = {
                 controller?.pause()
             }
+        )
+    }
+
+    // DaVE Wrapped Dialog (Personal Music Stats)
+    if (showWrappedDialog) {
+        DaveWrappedDialog(
+            playlistManager = playlistManager,
+            allSongs = songs,
+            onDismiss = { showWrappedDialog = false }
         )
     }
 
@@ -1189,6 +1229,15 @@ fun AuraApp(
                     isShakeEnabled = !isShakeEnabled
                     val msg = if (isShakeEnabled) "Agitar para saltar canción: ACTIVADO" else "Agitar para saltar canción: DESACTIVADO"
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                },
+                isWaveEnabled = isWaveEnabled,
+                onToggleWave = {
+                    isWaveEnabled = !isWaveEnabled
+                    val msg = if (isWaveEnabled) "🌊 Control por gestos (Wave Control): ACTIVADO" else "Control por gestos (Wave Control): DESACTIVADO"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                },
+                onOpenWrapped = {
+                    showWrappedDialog = true
                 },
                 onAudioFxChange = { speed, pitch ->
                     playbackSpeed = speed

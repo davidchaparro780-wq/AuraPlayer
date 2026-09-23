@@ -1,7 +1,8 @@
 {
-  "versionCode": 40,
-  "versionName": "2.0.4",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.0.4/app-debug.apk",
-  "changelog": "⚡ DaVE v2.0.4: Corrección visual del espacio superior y botón volver en Bóveda Privada y Modo Coche con ajuste perfecto de notch y barra de estado.",
-  "fileSizeMb": 23.4
+  "versionCode": 41,
+  "versionName": "2.1.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.1.0/app-debug.apk",
+  "changelog": "🚀 DaVE v2.1.0 Epic Pro Suite:\n• 🌈 Luces de Borde Neón (Edge Lighting) perimetral al ritmo del beat.\n• 🎧 Sonido Espacial 8D / 360° Circular con paneo y reverb.\n• 🌊 Wave Control: Salto de canción pasando la mano sin tocar la pantalla.\n• ⏱️ Tap-to-Seek en letras sincronizadas.\n• 💿 Selector de Vinilo Clásico vs Espectro Cyber de 20 barras reactivas.\n• 📢 DJ Soundboard en vivo con sintetizador de audio nativo.\n• 📸 Generador de Historias 9:16 HD para WhatsApp e Instagram.\n• 🏆 DaVE Wrapped: Tus estadísticas de escucha privadas.\n• 😴 Sleep Timer con Desvanecimiento Zen acústico en los últimos 2 minutos.",
+  "fileSizeMb": 23.5
 }
+

@@ -24,6 +24,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -43,14 +45,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
-import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Flare
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Waves
+import com.auraplayer.audio.EqualizerManager
 import com.auraplayer.ui.components.AudioCutterDialog
+import com.auraplayer.ui.components.EdgeLighting
+import com.auraplayer.ui.components.SoundboardDialog
+import com.auraplayer.ui.components.StoryShareHelper
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -142,6 +152,7 @@ fun PlayerScreen(
     playbackSpeed: Float,
     playbackPitch: Float,
     isShakeEnabled: Boolean,
+    isWaveEnabled: Boolean = false,
     lyrics: SongLyrics?,
     isLoadingLyrics: Boolean,
     queueSongs: List<MediaModel> = emptyList(),
@@ -155,6 +166,9 @@ fun PlayerScreen(
     onRepeatToggle: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleShake: () -> Unit,
+    onToggleWave: () -> Unit = {},
+    onOpenSoundboard: () -> Unit = {},
+    onOpenWrapped: () -> Unit = {},
     onAudioFxChange: (speed: Float, pitch: Float) -> Unit,
     onOpenSleepTimer: () -> Unit,
     onOpenCarMode: () -> Unit = {},
@@ -167,6 +181,11 @@ fun PlayerScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+
+    var isEdgeLightingEnabled by remember { mutableStateOf(false) }
+    var isSpatial8D by remember { mutableStateOf(EqualizerManager.instance.isSpatial8DEnabled) }
+    var centerVisualizerMode by remember { mutableIntStateOf(0) } // 0: Vinyl disc, 1: Live Spectrum Waves
+    var showSoundboardDialog by remember { mutableStateOf(false) }
 
     var showFxDialog by remember { mutableStateOf(false) }
     var showCutterDialog by remember { mutableStateOf(false) }
@@ -333,6 +352,9 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .background(Brush.verticalGradient(dynamicBg))
         ) {
+            if (isEdgeLightingEnabled) {
+                EdgeLighting(isPlaying = isPlaying)
+            }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -461,82 +483,146 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     if (!showLyricsView) {
-                        // Glowing Ambient Aura Disc with Vinyl Record Grooves
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(0.84f)
-                                .aspectRatio(1f)
-                                .shadow(
-                                    elevation = if (isPlaying) 28.dp else 16.dp,
-                                    shape = CircleShape,
-                                    spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.65f else 0.25f),
-                                    ambientColor = Color(0xFF8B5CF6).copy(alpha = if (isPlaying) 0.5f else 0.2f)
-                                )
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.radialGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.35f else 0.2f),
-                                            Color(0xFF14192A),
-                                            Color(0xFF080B12)
-                                        )
-                                    )
-                                )
-                                .border(
-                                    2.5.dp,
-                                    Brush.sweepGradient(
-                                        listOf(
-                                            MaterialTheme.colorScheme.primary,
-                                            Color(0xFF38BDF8),
-                                            Color(0xFFEC4899),
-                                            MaterialTheme.colorScheme.primary
-                                        )
-                                    ),
-                                    CircleShape
-                                )
-                                .graphicsLayer {
-                                    rotationZ = vinylRotation.value
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // Concentric Vinyl Record Grooves
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val radiusStep = size.minDimension / 14f
-                                for (i in 3..6) {
-                                    drawCircle(
-                                        color = Color.White.copy(alpha = 0.045f),
-                                        radius = radiusStep * i,
-                                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f)
-                                    )
-                                }
-                            }
-
-                            if (currentMedia.artworkUri != null) {
-                                AsyncImage(
-                                    model = currentMedia.artworkUri,
-                                    contentDescription = "Carátula",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize(0.68f)
-                                        .clip(CircleShape)
-                                )
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.MusicNote,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(80.dp),
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-
-                            // Center hole
+                        if (centerVisualizerMode == 0) {
+                            // Glowing Ambient Aura Disc with Vinyl Record Grooves
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
+                                    .fillMaxWidth(0.84f)
+                                    .aspectRatio(1f)
+                                    .shadow(
+                                        elevation = if (isPlaying) 28.dp else 16.dp,
+                                        shape = CircleShape,
+                                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.65f else 0.25f),
+                                        ambientColor = Color(0xFF8B5CF6).copy(alpha = if (isPlaying) 0.5f else 0.2f)
+                                    )
                                     .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.background)
-                                    .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                            )
+                                    .clickable { centerVisualizerMode = 1 }
+                                    .background(
+                                        Brush.radialGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.35f else 0.2f),
+                                                Color(0xFF14192A),
+                                                Color(0xFF080B12)
+                                            )
+                                        )
+                                    )
+                                    .border(
+                                        2.5.dp,
+                                        Brush.sweepGradient(
+                                            listOf(
+                                                MaterialTheme.colorScheme.primary,
+                                                Color(0xFF38BDF8),
+                                                Color(0xFFEC4899),
+                                                MaterialTheme.colorScheme.primary
+                                            )
+                                        ),
+                                        CircleShape
+                                    )
+                                    .graphicsLayer {
+                                        rotationZ = vinylRotation.value
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                // Concentric Vinyl Record Grooves
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val radiusStep = size.minDimension / 14f
+                                    for (i in 3..6) {
+                                        drawCircle(
+                                            color = Color.White.copy(alpha = 0.045f),
+                                            radius = radiusStep * i,
+                                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f)
+                                        )
+                                    }
+                                }
+
+                                if (currentMedia.artworkUri != null) {
+                                    AsyncImage(
+                                        model = currentMedia.artworkUri,
+                                        contentDescription = "Carátula",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize(0.68f)
+                                            .clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.MusicNote,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(80.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                // Center hole
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.background)
+                                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                )
+                            }
+                        } else {
+                            // Live Cyber Spectrum Waveform Visualizer
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.88f)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(28.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color(0xFF131A2E).copy(alpha = 0.95f), Color(0xFF090D18).copy(alpha = 0.95f))
+                                        )
+                                    )
+                                    .border(
+                                        1.5.dp,
+                                        Brush.sweepGradient(listOf(Color(0xFF00F0FF), Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF))),
+                                        RoundedCornerShape(28.dp)
+                                    )
+                                    .clickable { centerVisualizerMode = 0 }
+                                    .padding(20.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val numBars = 20
+                                    val spacing = size.width / numBars
+                                    val barWidth = spacing * 0.65f
+                                    val maxHeight = size.height * 0.72f
+                                    val midY = size.height / 2f
+
+                                    for (i in 0 until numBars) {
+                                        val wave = if (isPlaying) {
+                                            val phase = visualizerPhase + (i * 0.42f)
+                                            val base = (sin(phase) + 1f) / 2f
+                                            val harmonic = (sin(phase * 2.2f) + 1f) / 2f
+                                            (base * 0.65f + harmonic * 0.35f).coerceIn(0.12f, 1.0f)
+                                        } else 0.08f
+
+                                        val barHeight = maxHeight * wave
+                                        val x = i * spacing + (spacing - barWidth) / 2f
+                                        val y = midY - (barHeight / 2f)
+
+                                        drawRoundRect(
+                                            brush = Brush.verticalGradient(
+                                                listOf(Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF)),
+                                                startY = y,
+                                                endY = y + barHeight
+                                            ),
+                                            topLeft = Offset(x, y),
+                                            size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                        )
+                                    }
+                                }
+
+                                Text(
+                                    text = "⚡ ESPECTRO CYBER EN VIVO (Toca para Vinilo)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFF00F0FF).copy(alpha = 0.85f),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp)
+                                )
+                            }
                         }
                     } else {
                         // Karaoke Synced & Plain Lyrics View
@@ -936,6 +1022,89 @@ fun PlayerScreen(
                             modifier = Modifier.size(22.dp)
                         )
                     }
+                }
+
+                // VIP Pro Suite Quick Action Chips Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // 8D Audio Chip
+                    FilterChip(
+                        selected = isSpatial8D,
+                        onClick = {
+                            val newState = !isSpatial8D
+                            isSpatial8D = newState
+                            EqualizerManager.instance.setSpatial8DEnabled(newState)
+                            val msg = if (newState) "🎧 Sonido Espacial 8D: ACTIVADO" else "Sonido Espacial 8D: DESACTIVADO"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = { Text("🎧 8D Espacial", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF00F0FF).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF00F0FF)
+                        )
+                    )
+
+                    // Wave Control Chip
+                    FilterChip(
+                        selected = isWaveEnabled,
+                        onClick = onToggleWave,
+                        label = { Text("🌊 Wave Control", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF10B981).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF10B981)
+                        )
+                    )
+
+                    // Neon Edge Lighting Chip
+                    FilterChip(
+                        selected = isEdgeLightingEnabled,
+                        onClick = {
+                            isEdgeLightingEnabled = !isEdgeLightingEnabled
+                            val msg = if (isEdgeLightingEnabled) "🌈 Borde Neón: ACTIVADO" else "Borde Neón: DESACTIVADO"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = { Text("🌈 Borde Neón", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFFF0055).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFFF0055)
+                        )
+                    )
+
+                    // Share Story Card Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { StoryShareHelper.shareMusicStory(context, currentMedia) },
+                        label = { Text("📸 Estado / Historia", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFFEC4899)
+                        )
+                    )
+
+                    // DJ Soundboard Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showSoundboardDialog = true },
+                        label = { Text("📢 DJ Soundboard", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFFFFD700)
+                        )
+                    )
+
+                    // Wrapped Stats Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = onOpenWrapped,
+                        label = { Text("🏆 Wrapped", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF38BDF8)
+                        )
+                    )
                 }
 
                 // Primary Playback Controls
@@ -1367,6 +1536,13 @@ fun PlayerScreen(
         AudioCutterDialog(
             song = currentMedia,
             onDismiss = { showCutterDialog = false }
+        )
+    }
+
+    // Party Soundboard Dialog
+    if (showSoundboardDialog) {
+        SoundboardDialog(
+            onDismiss = { showSoundboardDialog = false }
         )
     }
 }
