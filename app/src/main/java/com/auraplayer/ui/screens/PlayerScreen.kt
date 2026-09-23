@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Waves
+import androidx.compose.material.icons.filled.Brightness6
 import com.auraplayer.audio.EqualizerManager
 import com.auraplayer.ui.components.AudioCutterDialog
 import com.auraplayer.ui.components.EdgeLighting
@@ -324,7 +325,7 @@ fun PlayerScreen(
                                 params.screenBrightness = newBrightness
                                 window.attributes = params
 
-                                hudIcon = Icons.Default.BrightnessMedium
+                                hudIcon = Icons.Default.Brightness6
                                 hudText = "Brillo: ${(newBrightness * 100).toInt()}%"
                                 isHudVisible = true
                             }

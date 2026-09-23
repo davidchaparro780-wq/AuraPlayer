@@ -103,7 +103,7 @@ class EqualizerManager private constructor() {
                 presetReverb = PresetReverb(0, audioSessionId).apply {
                     enabled = isEnabled && isSpatial8DEnabled
                     if (isSpatial8DEnabled) {
-                        preset = PresetReverb.PRESET_CONCERTHALL
+                        preset = 6 // PresetReverb.PRESET_CONCERTHALL (Concert Hall)
                     }
                 }
             } catch (e: Exception) {
@@ -152,7 +152,7 @@ class EqualizerManager private constructor() {
         try {
             presetReverb?.enabled = enabled
             if (enabled) {
-                presetReverb?.preset = PresetReverb.PRESET_CONCERTHALL
+                presetReverb?.preset = 6 // PresetReverb.PRESET_CONCERTHALL (Concert Hall)
                 virtualizer?.let {
                     if (it.strengthSupported) {
                         it.setStrength(1000.toShort())
