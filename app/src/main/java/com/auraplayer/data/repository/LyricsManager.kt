@@ -111,6 +111,15 @@ class LyricsManager(private val context: Context) {
         }
     }
 
+    fun hasCachedLyricsMatching(songId: Long, query: String): Boolean {
+        if (query.isBlank() || query.length < 3) return false
+        val file = File(cacheDir, "$songId.json")
+        if (!file.exists()) return false
+        return try {
+            file.readText().contains(query, ignoreCase = true)
+        } catch (_: Exception) { false }
+    }
+
     private fun saveToCache(songId: Long, jsonStr: String) {
         try {
             File(cacheDir, "$songId.json").writeText(jsonStr)

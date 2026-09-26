@@ -241,6 +241,20 @@ fun AuraApp(
     var showCarModeScreen by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var showWrappedDialog by remember { mutableStateOf(false) }
+    var showRouletteDialog by remember { mutableStateOf(false) }
+    var showDiagnosticDialog by remember { mutableStateOf(false) }
+    var showAlarmDialog by remember { mutableStateOf(false) }
+    var showOracleCard by remember { mutableStateOf(false) }
+    var showTournamentDialog by remember { mutableStateOf(false) }
+    var showJukeboxScreen by remember { mutableStateOf(false) }
+
+    val alarmManager = remember { com.auraplayer.audio.MusicAlarmManager(context) }
+    val wifiServer = remember { com.auraplayer.service.LocalMusicServer() }
+    var isWifiServerRunning by remember { mutableStateOf(false) }
+    val hapticBassManager = remember { com.auraplayer.audio.HapticBassManager(context) }
+    var isHapticBass by remember { mutableStateOf(hapticBassManager.isEnabled) }
+    var vibeMode by remember { mutableStateOf(com.auraplayer.audio.VibeModeManager.currentVibe) }
+
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
     var showVaultScreen by remember { mutableStateOf(false) }
     val vaultManager = remember { VaultManager(context) }
@@ -291,6 +305,24 @@ fun AuraApp(
             }
             showWrappedDialog -> {
                 showWrappedDialog = false
+            }
+            showJukeboxScreen -> {
+                showJukeboxScreen = false
+            }
+            showTournamentDialog -> {
+                showTournamentDialog = false
+            }
+            showRouletteDialog -> {
+                showRouletteDialog = false
+            }
+            showDiagnosticDialog -> {
+                showDiagnosticDialog = false
+            }
+            showAlarmDialog -> {
+                showAlarmDialog = false
+            }
+            showOracleCard -> {
+                showOracleCard = false
             }
             activeVideo != null -> {
                 activeVideo = null
@@ -777,6 +809,84 @@ fun AuraApp(
         )
     }
 
+    // Music Roulette Dialog
+    if (showRouletteDialog) {
+        com.auraplayer.ui.components.MusicRouletteDialog(
+            songs = songs,
+            onSongSelected = { song ->
+                controller?.let { c ->
+                    val idx = songs.indexOfFirst { it.id == song.id }
+                    if (idx >= 0) {
+                        c.seekTo(idx, 0L)
+                        c.play()
+                    }
+                }
+            },
+            onDismiss = { showRouletteDialog = false }
+        )
+    }
+
+    // Library Diagnostic Dialog
+    if (showDiagnosticDialog) {
+        com.auraplayer.ui.components.LibraryDiagnosticDialog(
+            songs = songs,
+            onDeleteFiles = { toDelete ->
+                toDelete.forEach { handleDeleteSong(it) }
+                Toast.makeText(context, "${toDelete.size} archivos limpiados", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showDiagnosticDialog = false }
+        )
+    }
+
+    // Gentle Music Alarm Dialog
+    if (showAlarmDialog) {
+        com.auraplayer.ui.components.AlarmSetupDialog(
+            alarmManager = alarmManager,
+            onDismiss = { showAlarmDialog = false }
+        )
+    }
+
+    // Oracle Daily Card
+    if (showOracleCard) {
+        val prediction = com.auraplayer.ui.components.predictDailySong(songs, context.getSharedPreferences("dave_oracle", Context.MODE_PRIVATE))
+        if (prediction != null) {
+            com.auraplayer.ui.components.OracleCard(
+                predictedSong = prediction.first,
+                confidencePercent = prediction.second,
+                onPlay = {
+                    controller?.let { c ->
+                        val idx = songs.indexOfFirst { it.id == prediction.first.id }
+                        if (idx >= 0) {
+                            c.seekTo(idx, 0L)
+                            c.play()
+                        }
+                    }
+                },
+                onDismiss = { showOracleCard = false }
+            )
+        } else {
+            showOracleCard = false
+            Toast.makeText(context, "El Oráculo necesita canciones en tu biblioteca", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Song Tournament Bracket Dialog
+    if (showTournamentDialog) {
+        com.auraplayer.ui.components.SongTournamentDialog(
+            songs = songs,
+            onPlaySong = { song ->
+                controller?.let { c ->
+                    val idx = songs.indexOfFirst { it.id == song.id }
+                    if (idx >= 0) {
+                        c.seekTo(idx, 0L)
+                        c.play()
+                    }
+                }
+            },
+            onDismiss = { showTournamentDialog = false }
+        )
+    }
+
     // Main Container with Animated Fullscreen Player & Update Dialog
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -999,6 +1109,24 @@ fun AuraApp(
                             }
                         }
                     },
+                    onOpenRoulette = { showRouletteDialog = true },
+                    onOpenDiagnostic = { showDiagnosticDialog = true },
+                    onOpenTournament = { showTournamentDialog = true },
+                    onOpenJukebox = { showJukeboxScreen = true },
+                    onOpenOracle = { showOracleCard = true },
+                    onOpenAlarm = { showAlarmDialog = true },
+                    onToggleWifiServer = {
+                        if (isWifiServerRunning) {
+                            wifiServer.stop()
+                            isWifiServerRunning = false
+                            Toast.makeText(context, "Servidor WiFi detenido", Toast.LENGTH_SHORT).show()
+                        } else {
+                            wifiServer.start(songs, scope)
+                            isWifiServerRunning = true
+                            Toast.makeText(context, "🌐 Servidor WiFi activo en puerto 8080", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    isWifiServerRunning = isWifiServerRunning,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -1239,6 +1367,20 @@ fun AuraApp(
                 onOpenWrapped = {
                     showWrappedDialog = true
                 },
+                vibeMode = vibeMode,
+                onCycleVibe = {
+                    val next = com.auraplayer.audio.VibeModeManager.cycleNext(controller)
+                    vibeMode = next
+                    next
+                },
+                isHapticBass = isHapticBass,
+                onToggleHapticBass = {
+                    isHapticBass = !isHapticBass
+                    hapticBassManager.isEnabled = isHapticBass
+                    if (isHapticBass) hapticBassManager.triggerBassPulse()
+                    val msg = if (isHapticBass) "📳 Bajos Hápticos: ACTIVADO" else "Bajos Hápticos: DESACTIVADO"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                },
                 onAudioFxChange = { speed, pitch ->
                     playbackSpeed = speed
                     playbackPitch = pitch
@@ -1306,6 +1448,44 @@ fun AuraApp(
             onPlayHiddenVideo = { hiddenVideo ->
                 activeVideo = hiddenVideo
             }
+        )
+    }
+
+    // Animated Fullscreen Retro Jukebox Screen
+    AnimatedVisibility(
+        visible = showJukeboxScreen,
+        enter = scaleIn(initialScale = 0.93f, animationSpec = tween(220)) + fadeIn(animationSpec = tween(200)),
+        exit = scaleOut(targetScale = 0.93f, animationSpec = tween(180)) + fadeOut(animationSpec = tween(160))
+    ) {
+        com.auraplayer.ui.screens.JukeboxScreen(
+            songs = songs,
+            currentSong = currentMedia,
+            isPlaying = isPlaying,
+            onSongClick = { song ->
+                currentMedia = song
+                playlistManager.recordPlay(song.id)
+                controller?.run {
+                    val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
+                    val mediaItemList = songs.map { s ->
+                        MediaItem.Builder()
+                            .setUri(s.uri)
+                            .setMediaId(s.id.toString())
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(s.title)
+                                    .setArtist(s.artist)
+                                    .setAlbumTitle(s.album)
+                                    .setArtworkUri(s.artworkUri)
+                                    .build()
+                            )
+                            .build()
+                    }
+                    setMediaItems(mediaItemList, songIndex, 0L)
+                    prepare()
+                    play()
+                }
+            },
+            onBack = { showJukeboxScreen = false }
         )
     }
 

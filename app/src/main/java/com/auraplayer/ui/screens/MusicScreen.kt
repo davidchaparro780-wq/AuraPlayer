@@ -138,6 +138,14 @@ fun MusicScreen(
     onFetchCover: (MediaModel) -> Unit,
     onOpenSleepTimer: () -> Unit,
     onCheckUpdates: () -> Unit = {},
+    onOpenRoulette: () -> Unit = {},
+    onOpenDiagnostic: () -> Unit = {},
+    onOpenTournament: () -> Unit = {},
+    onOpenJukebox: () -> Unit = {},
+    onOpenOracle: () -> Unit = {},
+    onOpenAlarm: () -> Unit = {},
+    onToggleWifiServer: () -> Unit = {},
+    isWifiServerRunning: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -149,6 +157,8 @@ fun MusicScreen(
     var selectedFilterIndex by remember { mutableIntStateOf(0) } // 0: Todas, 1: HD/Lossless, 2: Favoritas, 3: Cortas, 4: Largas
     var selectedSortMode by remember { mutableIntStateOf(0) } // 0: Título, 1: Artista, 2: Duración, 3: Más Escuchadas
     var showSortMenu by remember { mutableStateOf(false) }
+    var showToolsMenu by remember { mutableStateOf(false) }
+    val lyricsManager = remember { com.auraplayer.data.repository.LyricsManager(context) }
 
     var selectedSongForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var songToDelete by remember { mutableStateOf<MediaModel?>(null) }
@@ -182,7 +192,8 @@ fun MusicScreen(
         else songs.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
             it.artist.contains(searchQuery, ignoreCase = true) ||
-            it.album.contains(searchQuery, ignoreCase = true)
+            it.album.contains(searchQuery, ignoreCase = true) ||
+            lyricsManager.hasCachedLyricsMatching(it.id, searchQuery)
         }
 
         // Apply quick filter
@@ -384,6 +395,72 @@ fun MusicScreen(
                     tint = Color(0xFFEC4899),
                     modifier = Modifier.size(22.dp)
                 )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Magic Tools Button (Suite Épica Dropdown)
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF13182E))
+                        .border(
+                            1.dp,
+                            Color(0xFFFFD700).copy(alpha = 0.5f),
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { showToolsMenu = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Herramientas Pro",
+                        tint = Color(0xFFFFD700),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showToolsMenu,
+                    onDismissRequest = { showToolsMenu = false },
+                    modifier = Modifier.background(Color(0xFF0F172A))
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("🎲 Ruleta Musical", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
+                        onClick = { showToolsMenu = false; onOpenRoulette() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🧰 Diagnóstico de Biblioteca", color = Color(0xFF00F0FF)) },
+                        onClick = { showToolsMenu = false; onOpenDiagnostic() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🎰 Modo Jukebox Retro", color = Color(0xFFFF6600)) },
+                        onClick = { showToolsMenu = false; onOpenJukebox() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🏆 Torneo de Canciones", color = Color(0xFFFFD700)) },
+                        onClick = { showToolsMenu = false; onOpenTournament() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🔮 El Oráculo de DaVE", color = Color(0xFFE040FB)) },
+                        onClick = { showToolsMenu = false; onOpenOracle() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🌅 Alarma Musical Suave", color = Color(0xFF10B981)) },
+                        onClick = { showToolsMenu = false; onOpenAlarm() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isWifiServerRunning) "🌐 Servidor WiFi: ACTIVO (8080)" else "🌐 Activar Servidor WiFi",
+                                color = if (isWifiServerRunning) Color(0xFF00FF00) else Color.White
+                            )
+                        },
+                        onClick = { showToolsMenu = false; onToggleWifiServer() }
+                    )
+                }
             }
         }
 

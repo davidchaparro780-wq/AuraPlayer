@@ -174,6 +174,10 @@ fun PlayerScreen(
     onOpenSleepTimer: () -> Unit,
     onOpenCarMode: () -> Unit = {},
     onDeleteSong: (MediaModel) -> Unit,
+    vibeMode: com.auraplayer.audio.AudioVibe = com.auraplayer.audio.AudioVibe.NORMAL,
+    onCycleVibe: () -> com.auraplayer.audio.AudioVibe = { com.auraplayer.audio.AudioVibe.NORMAL },
+    isHapticBass: Boolean = false,
+    onToggleHapticBass: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -225,7 +229,9 @@ fun PlayerScreen(
     }
 
     BackHandler {
-        if (showCutterDialog) {
+        if (showStickerDialog) {
+            showStickerDialog = false
+        } else if (showCutterDialog) {
             showCutterDialog = false
         } else if (showQueueSheet) {
             showQueueSheet = false
@@ -240,6 +246,12 @@ fun PlayerScreen(
         } else {
             onDismiss()
         }
+    }
+
+    var showStickerDialog by remember { mutableStateOf(false) }
+    var qualityInfo by remember(currentMedia.path) { mutableStateOf<com.auraplayer.data.repository.AudioQualityInfo?>(null) }
+    LaunchedEffect(currentMedia.path) {
+        qualityInfo = com.auraplayer.data.repository.AudioQualityAnalyzer.analyze(currentMedia)
     }
 
     // Dynamic Atmospheric Gradient Background
@@ -785,6 +797,22 @@ fun PlayerScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    qualityInfo?.let { q ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            color = Color(q.qualityColor).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(50),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(q.qualityColor).copy(alpha = 0.4f))
+                        ) {
+                            Text(
+                                text = "${q.codec} • ${q.bitrateKbps} kbps • ${q.qualityLabel}",
+                                color = Color(q.qualityColor),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -1104,6 +1132,41 @@ fun PlayerScreen(
                         label = { Text("🏆 Wrapped", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
                             labelColor = Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // Audio Vibe Mode Chip (Slowed+Reverb / Nightcore / Normal)
+                    FilterChip(
+                        selected = vibeMode != com.auraplayer.audio.AudioVibe.NORMAL,
+                        onClick = {
+                            val next = onCycleVibe()
+                            Toast.makeText(context, "${next.icon} Modo: ${next.label}", Toast.LENGTH_SHORT).show()
+                        },
+                        label = { Text("${vibeMode.icon} ${vibeMode.label}", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFA855F7).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFA855F7)
+                        )
+                    )
+
+                    // Bass Haptics Chip
+                    FilterChip(
+                        selected = isHapticBass,
+                        onClick = onToggleHapticBass,
+                        label = { Text("📳 Bajos Hápticos", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFF59E0B).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFF59E0B)
+                        )
+                    )
+
+                    // WhatsApp Sticker Generator Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showStickerDialog = true },
+                        label = { Text("💬 Crear Sticker", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF25D366)
                         )
                     )
                 }
@@ -1544,6 +1607,14 @@ fun PlayerScreen(
     if (showSoundboardDialog) {
         SoundboardDialog(
             onDismiss = { showSoundboardDialog = false }
+        )
+    }
+
+    // WhatsApp Sticker Generator Dialog
+    if (showStickerDialog) {
+        com.auraplayer.ui.components.StickerGeneratorDialog(
+            song = currentMedia,
+            onDismiss = { showStickerDialog = false }
         )
     }
 }
