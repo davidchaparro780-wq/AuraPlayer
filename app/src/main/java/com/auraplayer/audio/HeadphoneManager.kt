@@ -275,7 +275,7 @@ class HeadphoneManager(private val context: Context) {
             lower.contains("galaxy") || lower.contains("buds") -> Pair(10, "Samsung Galaxy Buds")
             lower.contains("jbl") -> Pair(11, "JBL Tune Series")
             lower.contains("kz") || lower.contains("iem") || lower.contains("moondrop") || isWired -> Pair(12, "Monitores In-Ear (KZ / IEM Studio)")
-            else -> null
+            else -> Pair(null, null)
         }
     }
 
