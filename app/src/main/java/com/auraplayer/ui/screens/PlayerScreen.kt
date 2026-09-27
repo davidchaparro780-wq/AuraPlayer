@@ -601,7 +601,7 @@ fun PlayerScreen(
                         if (centerVisualizerMode == 0) {
                             // Glowing Ambient Aura Disc with Vinyl Record Grooves (100% Opaque solid)
                             val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
-                            val dynamicElevation = if (isPlaying) (18.dp + (bassEnergy * 22.dp)) else 12.dp
+                            val dynamicElevation = if (isPlaying) (18.dp + (22.dp * bassEnergy)) else 12.dp
                             val dynamicGlowAlpha = if (isPlaying) (0.35f + (bassEnergy * 0.55f)).coerceIn(0.2f, 0.95f) else 0.2f
 
                             Box(
@@ -1022,7 +1022,7 @@ fun PlayerScreen(
                             val barProgress = i.toFloat() / barCount
                             val isPassed = sliderValue >= barProgress
                             val energy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, barCount, isPlaying)
-                            val baseHeight = 3.dp + (energy * 11.dp)
+                            val baseHeight = 3.dp + (11.dp * energy)
                             Box(
                                 modifier = Modifier
                                     .width(3.dp)
