@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.auraplayer.data.model.MediaModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class TournamentStage { SETUP, BRACKET, WINNER }
 
@@ -217,7 +218,7 @@ private fun TournamentSongCard(song: MediaModel, label: String, accentColor: Col
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable {
-            scope.kotlinx.coroutines.launch {
+            scope.launch {
                 scale.animateTo(0.95f, tween(80))
                 scale.animateTo(1f, tween(120))
                 onVote()

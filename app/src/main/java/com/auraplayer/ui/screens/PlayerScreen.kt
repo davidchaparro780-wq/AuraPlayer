@@ -228,6 +228,12 @@ fun PlayerScreen(
         }
     }
 
+    var showStickerDialog by remember { mutableStateOf(false) }
+    var qualityInfo by remember(currentMedia.path) { mutableStateOf<com.auraplayer.data.repository.AudioQualityInfo?>(null) }
+    LaunchedEffect(currentMedia.path) {
+        qualityInfo = com.auraplayer.data.repository.AudioQualityAnalyzer.analyze(currentMedia)
+    }
+
     BackHandler {
         if (showStickerDialog) {
             showStickerDialog = false
@@ -246,12 +252,6 @@ fun PlayerScreen(
         } else {
             onDismiss()
         }
-    }
-
-    var showStickerDialog by remember { mutableStateOf(false) }
-    var qualityInfo by remember(currentMedia.path) { mutableStateOf<com.auraplayer.data.repository.AudioQualityInfo?>(null) }
-    LaunchedEffect(currentMedia.path) {
-        qualityInfo = com.auraplayer.data.repository.AudioQualityAnalyzer.analyze(currentMedia)
     }
 
     // Dynamic Atmospheric Gradient Background

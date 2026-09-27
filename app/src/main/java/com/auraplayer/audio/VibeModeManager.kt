@@ -3,7 +3,7 @@ package com.auraplayer.audio
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.media3.common.PlaybackParameters
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
 
 enum class AudioVibe(val label: String, val icon: String, val speed: Float, val pitch: Float) {
     NORMAL("Normal", "🎵", 1.0f, 1.0f),
@@ -26,7 +26,7 @@ object VibeModeManager {
         currentVibe = try { AudioVibe.valueOf(saved) } catch (_: Exception) { AudioVibe.NORMAL }
     }
 
-    fun setVibe(vibe: AudioVibe, player: ExoPlayer?) {
+    fun setVibe(vibe: AudioVibe, player: Player?) {
         currentVibe = vibe
         prefs?.edit()?.putString(KEY_VIBE, vibe.name)?.apply()
 
@@ -38,7 +38,7 @@ object VibeModeManager {
         }
     }
 
-    fun cycleNext(player: ExoPlayer?): AudioVibe {
+    fun cycleNext(player: Player?): AudioVibe {
         val next = when (currentVibe) {
             AudioVibe.NORMAL -> AudioVibe.SLOWED_REVERB
             AudioVibe.SLOWED_REVERB -> AudioVibe.NIGHTCORE

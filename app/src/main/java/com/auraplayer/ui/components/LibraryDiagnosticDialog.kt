@@ -195,8 +195,8 @@ private fun runDiagnostic(songs: List<MediaModel>): DiagnosticResult {
             if (!f.exists() || f.length() == 0L) corruptFiles.add(song)
         } catch (_: Exception) { corruptFiles.add(song) }
 
-        // No cover: albumArtUri is null/empty
-        if (song.albumArtUri.isNullOrBlank()) noCover.add(song)
+        // No cover: artworkUri is null
+        if (song.artworkUri == null) noCover.add(song)
     }
 
     return DiagnosticResult(

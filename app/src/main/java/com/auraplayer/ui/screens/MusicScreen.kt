@@ -415,7 +415,7 @@ fun MusicScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AutoAwesome,
+                        imageVector = Icons.Default.Whatshot,
                         contentDescription = "Herramientas Pro",
                         tint = Color(0xFFFFD700),
                         modifier = Modifier.size(22.dp)
