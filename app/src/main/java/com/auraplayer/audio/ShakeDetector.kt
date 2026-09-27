@@ -21,18 +21,24 @@ class ShakeDetector(
     private var lastShakeTime = 0L
 
     var isEnabled: Boolean = false
-        private set
+        set(value) {
+            if (field == value) return
+            field = value
+            if (value) {
+                if (accelerometer != null) {
+                    sensorManager?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
+                }
+            } else {
+                sensorManager?.unregisterListener(this)
+            }
+        }
 
     fun start() {
-        if (isEnabled || accelerometer == null) return
         isEnabled = true
-        sensorManager?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
     }
 
     fun stop() {
-        if (!isEnabled) return
         isEnabled = false
-        sensorManager?.unregisterListener(this)
     }
 
     override fun onSensorChanged(event: SensorEvent?) {

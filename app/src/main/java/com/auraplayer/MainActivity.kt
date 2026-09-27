@@ -255,6 +255,8 @@ fun AuraApp(
     var showTimeCapsuleDialog by remember { mutableStateOf(false) }
     var showBatchCleanerDialog by remember { mutableStateOf(false) }
 
+    var controller by remember { mutableStateOf<MediaController?>(null) }
+
     val achievementManager = remember { com.auraplayer.audio.AchievementManager(context) }
     val virtualDjManager = remember { com.auraplayer.audio.VirtualDjManager(context) }
     val flashlightManager = remember { com.auraplayer.audio.FlashlightBeatManager(context) }
@@ -262,27 +264,17 @@ fun AuraApp(
         com.auraplayer.audio.AirGestureManager(
             context,
             onNext = { controller?.seekToNextMediaItem() },
-            onPlayPause = { controller?.let { if (it.isPlaying) it.pause() else it.play() } }
-        )
-    }
-    val shakeDetector = remember {
-        com.auraplayer.audio.ShakeDetector(context) {
-            controller?.let { c ->
-                val nextRandom = songs.shuffled().firstOrNull()
-                if (nextRandom != null) {
-                    val idx = songs.indexOfFirst { it.id == nextRandom.id }
-                    if (idx >= 0) {
-                        c.seekTo(idx, 0L)
-                        c.play()
-                    }
+            onPlayPause = {
+                val c = controller
+                if (c != null) {
+                    if (c.isPlaying) c.pause() else c.play()
                 }
             }
-        }
+        )
     }
 
     var isBubbleActive by remember { mutableStateOf(false) }
     var isAirGesturesActive by remember { mutableStateOf(false) }
-    var isShakeActive by remember { mutableStateOf(false) }
     var isFlashlightActive by remember { mutableStateOf(false) }
     var isVirtualDjActive by remember { mutableStateOf(false) }
 
@@ -427,8 +419,6 @@ fun AuraApp(
             context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         }
     }
-
-    var controller by remember { mutableStateOf<MediaController?>(null) }
 
     val shakeDetector = remember {
         ShakeDetector(context) {
@@ -1327,16 +1317,11 @@ fun AuraApp(
                     },
                     isAirGesturesActive = isAirGesturesActive,
                     onToggleShake = {
-                        isShakeActive = !isShakeActive
-                        if (isShakeActive) {
-                            shakeDetector.start()
-                            Toast.makeText(context, "📳 Agitar para cambiar pista ACTIVADO", Toast.LENGTH_SHORT).show()
-                        } else {
-                            shakeDetector.stop()
-                            Toast.makeText(context, "📳 Agitar para cambiar pista DESACTIVADO", Toast.LENGTH_SHORT).show()
-                        }
+                        isShakeEnabled = !isShakeEnabled
+                        val msg = if (isShakeEnabled) "📳 Agitar para cambiar pista ACTIVADO" else "📳 Agitar para cambiar pista DESACTIVADO"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     },
-                    isShakeActive = isShakeActive,
+                    isShakeActive = isShakeEnabled,
                     onToggleFlashlight = {
                         isFlashlightActive = flashlightManager.toggle()
                         Toast.makeText(context, if (isFlashlightActive) "🔦 Linterna Rítmica ACTIVADA" else "🔦 Linterna Rítmica DESACTIVADA", Toast.LENGTH_SHORT).show()
