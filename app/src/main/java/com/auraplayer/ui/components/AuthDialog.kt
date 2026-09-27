@@ -330,7 +330,7 @@ fun AuthDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancelar", color = Color(0xFF64748B))
+                Text("Omitir por ahora", color = Color(0xFF94A3B8), fontSize = 12.sp)
             }
         }
     )

@@ -255,10 +255,10 @@ fun AuraApp(
     var showTimeCapsuleDialog by remember { mutableStateOf(false) }
     var showBatchCleanerDialog by remember { mutableStateOf(false) }
     var showHeadphonesDialog by remember { mutableStateOf(false) }
+    val userManager = remember { com.auraplayer.data.repository.UserManager(context) }
     var showAuthDialog by remember { mutableStateOf(false) }
     var showProfileDialog by remember { mutableStateOf(false) }
-
-    val userManager = remember { com.auraplayer.data.repository.UserManager(context) }
+    var hasPromptedStartupAuth by remember { mutableStateOf(false) }
 
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
@@ -331,11 +331,22 @@ fun AuraApp(
     var showAppIntro by remember { mutableStateOf(true) }
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
 
+    LaunchedEffect(showAppIntro) {
+        if (!showAppIntro && !userManager.isLoggedIn && !hasPromptedStartupAuth) {
+            hasPromptedStartupAuth = true
+            showAuthDialog = true
+        }
+    }
+
     // Global Back Navigation Handler (Cascade return to Main screen / prevent accidental exit)
     BackHandler(enabled = true) {
         when {
             showAppIntro -> {
                 showAppIntro = false
+                if (!userManager.isLoggedIn && !hasPromptedStartupAuth) {
+                    hasPromptedStartupAuth = true
+                    showAuthDialog = true
+                }
             }
             showPlayerScreen -> {
                 showPlayerScreen = false
@@ -1854,7 +1865,13 @@ fun AuraApp(
     // Opening cinematic splash and animated aura
     if (showAppIntro) {
         DaveSplashIntro(
-            onFinish = { showAppIntro = false }
+            onFinish = {
+                showAppIntro = false
+                if (!userManager.isLoggedIn && !hasPromptedStartupAuth) {
+                    hasPromptedStartupAuth = true
+                    showAuthDialog = true
+                }
+            }
         )
     }
 }
