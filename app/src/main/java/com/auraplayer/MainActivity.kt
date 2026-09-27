@@ -1121,9 +1121,26 @@ fun AuraApp(
                             isWifiServerRunning = false
                             Toast.makeText(context, "Servidor WiFi detenido", Toast.LENGTH_SHORT).show()
                         } else {
-                            wifiServer.start(songs, scope)
+                            val serverCtrl = com.auraplayer.service.ServerController(
+                                getCurrentSong = { currentMedia },
+                                isPlaying = { isPlaying },
+                                onPlayPause = {
+                                    controller?.let { if (it.isPlaying) it.pause() else it.play() }
+                                },
+                                onNext = { controller?.seekToNextMediaItem() },
+                                onPrev = { controller?.seekToPreviousMediaItem() },
+                                onPlaySongById = { id ->
+                                    val idx = songs.indexOfFirst { s -> s.id == id }
+                                    if (idx >= 0) {
+                                        controller?.seekTo(idx, 0L)
+                                        controller?.play()
+                                    }
+                                }
+                            )
+                            wifiServer.start(songs, serverCtrl, scope)
+                            val ip = wifiServer.getLocalIpAddress(context)
                             isWifiServerRunning = true
-                            Toast.makeText(context, "🌐 Servidor WiFi activo en puerto 8080", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "🌐 Servidor activo en http://$ip:8080", Toast.LENGTH_LONG).show()
                         }
                     },
                     isWifiServerRunning = isWifiServerRunning,

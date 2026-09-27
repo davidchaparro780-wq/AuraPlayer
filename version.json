@@ -1,7 +1,7 @@
 {
-  "versionCode": 42,
-  "versionName": "2.2.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.2.0/app-debug.apk",
-  "changelog": "🔥 DaVE v2.2.0 Legendary Edition:\n• 🌙 Modo Slowed + Reverb & ⚡ Nightcore en 1-tap con Tape Crackle.\n• 📳 Motor Háptico de Sub-bajos: Siente la vibración del beat en tus manos.\n• 🎲 Ruleta Musical con físicas para elegir canción aleatoria.\n• 🧰 Diagnóstico & Limpiador de Biblioteca (duplicados y corruptos).\n• 🎰 Modo Jukebox Retro de los 50 con iluminación LED de neón.\n• 🏆 Torneo de Canciones: Brackets de duelos 1v1 eliminatorios.\n• 🔮 El Oráculo de DaVE: Predicción mística de la canción del día.\n• 🌅 Alarma Musical Suave con encendido progresivo de volumen.\n• 🌐 Servidor WiFi Local: Escucha tu música en tu PC o navegador.\n• 💬 Generador de Stickers HD para WhatsApp.\n• 📊 Analizador de Calidad de Audio (Lossless / 320kbps / Codecs).\n• 🔍 Búsqueda profunda en letras de canciones en el buscador principal.",
+  "versionCode": 43,
+  "versionName": "2.2.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.2.1/app-debug.apk",
+  "changelog": "🌐 DaVE v2.2.1 WiFi Remote Controller Fix:\n• Muestra la IP exacta de tu teléfono (ej. http://192.168.x.x:8080) al activar el servidor.\n• Consola web interactiva con botones Play, Pausa, Siguiente, Anterior y selección de canción desde el navegador de tu PC.",
   "fileSizeMb": 23.8
 }
