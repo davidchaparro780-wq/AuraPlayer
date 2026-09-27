@@ -18,15 +18,17 @@ import kotlin.math.pow
 
 @Composable
 fun PitchSpeedDialog(
-    player: Player?,
+    initialSpeed: Float = 1.0f,
+    initialPitch: Float = 1.0f,
+    onApply: (speed: Float, pitch: Float) -> Unit,
     onDismiss: () -> Unit
 ) {
     var semitones by remember { mutableIntStateOf(0) }
-    var speed by remember { mutableFloatStateOf(player?.playbackParameters?.speed ?: 1.0f) }
+    var speed by remember { mutableFloatStateOf(initialSpeed) }
 
     fun updatePlayback() {
         val pitchMultiplier = (2.0.pow(semitones / 12.0)).toFloat()
-        player?.playbackParameters = PlaybackParameters(speed, pitchMultiplier)
+        onApply(speed, pitchMultiplier)
     }
 
     AlertDialog(
@@ -102,7 +104,7 @@ fun PitchSpeedDialog(
                 onClick = {
                     semitones = 0
                     speed = 1.0f
-                    player?.playbackParameters = PlaybackParameters(1.0f, 1.0f)
+                    onApply(1.0f, 1.0f)
                 },
                 colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF94A3B8))
             ) {

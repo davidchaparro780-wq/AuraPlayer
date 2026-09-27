@@ -210,6 +210,7 @@ class LocalMusicServer {
                 return
             }
 
+            when {
                 path == "/" || path == "/index.html" -> serveIndex(socket)
                 path == "/party" -> serveParty(socket)
                 path == "/favicon.ico" -> sendNoContent(socket)

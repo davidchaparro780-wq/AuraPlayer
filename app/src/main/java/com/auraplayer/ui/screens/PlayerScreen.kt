@@ -1231,11 +1231,11 @@ fun PlayerScreen(
                         selected = looper.isEnabled,
                         onClick = {
                             if (looper.pointAMs == null) {
-                                looper.setPointA(currentPosition)
-                                Toast.makeText(context, "Punto A marcado en ${formatTime(currentPosition)}", Toast.LENGTH_SHORT).show()
+                                looper.setPointA(currentPositionMs)
+                                Toast.makeText(context, "Punto A marcado en ${formatTime(currentPositionMs)}", Toast.LENGTH_SHORT).show()
                             } else if (looper.pointBMs == null) {
-                                looper.setPointB(currentPosition)
-                                Toast.makeText(context, "Punto B marcado en ${formatTime(currentPosition)} (Bucle activo)", Toast.LENGTH_SHORT).show()
+                                looper.setPointB(currentPositionMs)
+                                Toast.makeText(context, "Punto B marcado en ${formatTime(currentPositionMs)} (Bucle activo)", Toast.LENGTH_SHORT).show()
                             } else {
                                 looper.clear()
                                 Toast.makeText(context, "Bucle A-B reiniciado", Toast.LENGTH_SHORT).show()
@@ -1710,7 +1710,9 @@ fun PlayerScreen(
     // Pitch & Speed Shifter Dialog
     if (showPitchSpeedDialog) {
         com.auraplayer.ui.components.PitchSpeedDialog(
-            player = player,
+            initialSpeed = playbackSpeed,
+            initialPitch = playbackPitch,
+            onApply = onAudioFxChange,
             onDismiss = { showPitchSpeedDialog = false }
         )
     }
