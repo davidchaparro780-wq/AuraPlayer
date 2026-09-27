@@ -576,10 +576,10 @@ fun PlayerScreen(
                                 onDragEnd = {
                                     if (totalDragX < -60f) {
                                         AuraHaptic.tick(view)
-                                        onNext()
+                                        onNextClick()
                                     } else if (totalDragX > 60f) {
                                         AuraHaptic.tick(view)
-                                        onPrevious()
+                                        onPreviousClick()
                                     }
                                     totalDragX = 0f
                                 },
