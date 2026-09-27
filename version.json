@@ -1,7 +1,7 @@
 {
-  "versionCode": 45,
-  "versionName": "2.3.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.3.0/app-debug.apk",
-  "changelog": "👑 DaVE v2.3.0 Ultimate God Tier Edition:\n• 🎤 Modo Karaoke: atenuador de voz en tiempo real.\n• 🫧 Burbuja Flotante Multitarea sobre cualquier aplicación.\n• 🧠 Sintetizador de Ondas Binaurales (432Hz, 528Hz, Alpha, Theta) y Ruido Relajante.\n• 🎮 DaVE Music Quiz: trivia musical con fragmentos misteriosos.\n• 🎧 Calibrador Acústico de Auriculares (AirPods, Sony XM4/XM5, Galaxy Buds, JBL, IEM KZ).\n• 🎚️ Pitch Shifter (-6 a +6 semitonos) y velocidad continua (0.5x a 2.0x).\n• ✋ Gestos en el Aire (sensor de proximidad) y 📳 Agitar para cambiar pista.\n• 🔦 Linterna Rítmica al golpe del bajo.\n• 📻 Locutor de Radio Virtual DJ DaVE.\n• 🔂 Repetidor en Bucle A-B para músicos.\n• 📱 Generador de Tarjetas de Letras 9:16 para Stories de Instagram y WhatsApp.\n• ⏳ Cápsula del Tiempo Musical y 🏆 Sistema de Nivel de Oyente & Trofeos.\n• 🏃 Playlists inteligentes por ritmo BPM (Cardio, Gimnasio, Relax).\n• ✂️ Creador de Tonos de Llamada con selector visual.\n• 🌌 Visualizadores 3D en pantalla completa y Modo Ahorro Extremo OLED Pure Black.",
+  "versionCode": 46,
+  "versionName": "2.3.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.3.1/app-debug.apk",
+  "changelog": "🎧 DaVE v2.3.1 — Hub de Audífonos & Audio:\n• 🎧 Mis Audífonos & Dispositivos: visualiza el modelo conectado (AirPods, Sony, Galaxy Buds, cable 3.5mm, USB DAC, etc.).\n• 🔋 Nivel de batería en tiempo real para auriculares Bluetooth.\n• 🔊 Prueba de Canales Estéreo (L / R) con tono armónico puro para comprobar el balance.\n• 🎚️ Control de volumen de salida directo y calibración acústica automática recomendada.\n• 🎤 Modo Karaoke, Burbuja Flotante, Ondas Binaurales y 19 superpoderes God Tier.",
   "fileSizeMb": 23.9
 }

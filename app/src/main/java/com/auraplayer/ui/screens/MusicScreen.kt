@@ -162,6 +162,7 @@ fun MusicScreen(
     isVirtualDjActive: Boolean = false,
     onToggleBubble: () -> Unit = {},
     isBubbleActive: Boolean = false,
+    onOpenHeadphones: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -544,6 +545,10 @@ fun MusicScreen(
                             )
                         },
                         onClick = { showToolsMenu = false; onToggleWifiServer() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                        onClick = { showToolsMenu = false; onOpenHeadphones() }
                     )
                 }
             }

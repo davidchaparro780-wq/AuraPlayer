@@ -178,6 +178,8 @@ fun PlayerScreen(
     onCycleVibe: () -> com.auraplayer.audio.AudioVibe = { com.auraplayer.audio.AudioVibe.NORMAL },
     isHapticBass: Boolean = false,
     onToggleHapticBass: () -> Unit = {},
+    onOpenHeadphones: () -> Unit = {},
+    isHeadphonesConnected: Boolean = false,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -427,6 +429,16 @@ fun PlayerScreen(
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Headphones Hub Button
+                        IconButton(onClick = onOpenHeadphones) {
+                            Icon(
+                                imageVector = Icons.Default.Headphones,
+                                contentDescription = "Mis Audífonos & Audio",
+                                tint = if (isHeadphonesConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
                         // Car Mode Button (Spotify Style)
                         IconButton(onClick = onOpenCarMode) {
                             Icon(
@@ -1256,6 +1268,18 @@ fun PlayerScreen(
                             selectedContainerColor = Color(0xFFFFD700).copy(alpha = 0.25f),
                             selectedLabelColor = Color(0xFFFFD700),
                             labelColor = Color(0xFFFFD700)
+                        )
+                    )
+
+                    // Audífonos Hub Chip
+                    FilterChip(
+                        selected = isHeadphonesConnected,
+                        onClick = onOpenHeadphones,
+                        label = { Text(if (isHeadphonesConnected) "🎧 Audífonos" else "🔊 Salida de Audio", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF10B981).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF10B981),
+                            labelColor = if (isHeadphonesConnected) Color(0xFF10B981) else Color(0xFF38BDF8)
                         )
                     )
                 }

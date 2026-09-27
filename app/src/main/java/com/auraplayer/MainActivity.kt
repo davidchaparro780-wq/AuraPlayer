@@ -254,8 +254,17 @@ fun AuraApp(
     var showBinauralDialog by remember { mutableStateOf(false) }
     var showTimeCapsuleDialog by remember { mutableStateOf(false) }
     var showBatchCleanerDialog by remember { mutableStateOf(false) }
+    var showHeadphonesDialog by remember { mutableStateOf(false) }
 
     var controller by remember { mutableStateOf<MediaController?>(null) }
+
+    val headphoneManager = remember { com.auraplayer.audio.HeadphoneManager(context) }
+    DisposableEffect(Unit) {
+        headphoneManager.startListening()
+        onDispose {
+            headphoneManager.stopListening()
+        }
+    }
 
     val achievementManager = remember { com.auraplayer.audio.AchievementManager(context) }
     val virtualDjManager = remember { com.auraplayer.audio.VirtualDjManager(context) }
@@ -371,6 +380,9 @@ fun AuraApp(
             }
             showBatchCleanerDialog -> {
                 showBatchCleanerDialog = false
+            }
+            showHeadphonesDialog -> {
+                showHeadphonesDialog = false
             }
             showOracleCard -> {
                 showOracleCard = false
@@ -982,6 +994,14 @@ fun AuraApp(
         )
     }
 
+    // Mis Audífonos & Audio Hub Dialog
+    if (showHeadphonesDialog) {
+        com.auraplayer.ui.components.HeadphonesDialog(
+            headphoneManager = headphoneManager,
+            onDismiss = { showHeadphonesDialog = false }
+        )
+    }
+
     // Oracle Daily Card
     if (showOracleCard) {
         val prediction = com.auraplayer.ui.components.predictDailySong(songs, context.getSharedPreferences("dave_oracle", Context.MODE_PRIVATE))
@@ -1333,6 +1353,7 @@ fun AuraApp(
                         Toast.makeText(context, if (isVirtualDjActive) "📻 Locutor DJ DaVE ACTIVADO" else "📻 Locutor DJ DaVE DESACTIVADO", Toast.LENGTH_SHORT).show()
                     },
                     isVirtualDjActive = isVirtualDjActive,
+                    onOpenHeadphones = { showHeadphonesDialog = true },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -1597,6 +1618,8 @@ fun AuraApp(
                 onDeleteSong = { song ->
                     handleDeleteSong(song)
                 },
+                onOpenHeadphones = { showHeadphonesDialog = true },
+                isHeadphonesConnected = headphoneManager.isHeadphonesConnected,
                 onDismiss = { showPlayerScreen = false }
             )
         }
