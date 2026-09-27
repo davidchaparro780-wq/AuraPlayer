@@ -234,6 +234,7 @@ fun PlayerScreen(
     var showPitchSpeedDialog by remember { mutableStateOf(false) }
     var showStoryCardDialog by remember { mutableStateOf(false) }
     var showFullscreenVisualizer by remember { mutableStateOf(false) }
+    var showQuickEqDialog by remember { mutableStateOf(false) }
     var isKaraokeActive by remember { mutableStateOf(com.auraplayer.audio.KaraokeVocalManager.instance.isKaraokeEnabled) }
     val looper = remember { com.auraplayer.audio.AbLooperManager.instance }
 
@@ -243,7 +244,9 @@ fun PlayerScreen(
     }
 
     BackHandler {
-        if (showFullscreenVisualizer) {
+        if (showQuickEqDialog) {
+            showQuickEqDialog = false
+        } else if (showFullscreenVisualizer) {
             showFullscreenVisualizer = false
         } else if (showStoryCardDialog) {
             showStoryCardDialog = false
@@ -937,6 +940,34 @@ fun PlayerScreen(
                         if (durationMs > 0L) durationMs else currentMedia.duration
                     }
                     val sliderValue = if (effectiveDurationMs > 0L) (currentPositionMs.toFloat() / effectiveDurationMs.toFloat()) else 0f
+
+                    // Dynamic Rhythmic Audio Waveform Track
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(14.dp)
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        val barCount = 36
+                        for (i in 0 until barCount) {
+                            val barProgress = i.toFloat() / barCount
+                            val isPassed = sliderValue >= barProgress
+                            val baseHeight = 4.dp + (((kotlin.math.sin((i * 0.45f) + (if (isPlaying) visualizerPhase else 0f)) + 1f) * 4.5f).dp)
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .height(baseHeight)
+                                    .clip(RoundedCornerShape(1.5.dp))
+                                    .background(
+                                        if (isPassed) Brush.verticalGradient(listOf(Color(0xFF38BDF8), Color(0xFF8B5CF6)))
+                                        else Brush.verticalGradient(listOf(Color(0xFF334155), Color(0xFF1E293B)))
+                                    )
+                            )
+                        }
+                    }
+
                     Slider(
                         value = sliderValue.coerceIn(0f, 1f),
                         onValueChange = { percent ->
@@ -944,9 +975,9 @@ fun PlayerScreen(
                             onSeek(targetMs)
                         },
                         colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                            thumbColor = Color(0xFF38BDF8),
+                            activeTrackColor = Color(0xFF38BDF8),
+                            inactiveTrackColor = Color(0xFF1E293B)
                         )
                     )
                     Row(
@@ -1280,6 +1311,16 @@ fun PlayerScreen(
                             selectedContainerColor = Color(0xFF10B981).copy(alpha = 0.25f),
                             selectedLabelColor = Color(0xFF10B981),
                             labelColor = if (isHeadphonesConnected) Color(0xFF10B981) else Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // Quick EQ Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showQuickEqDialog = true },
+                        label = { Text("🎚️ EQ Rápido", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF38BDF8)
                         )
                     )
                 }
@@ -1755,6 +1796,13 @@ fun PlayerScreen(
             song = currentMedia,
             isPlaying = isPlaying,
             onDismiss = { showFullscreenVisualizer = false }
+        )
+    }
+
+    // Quick 3-Band Equalizer Dialog
+    if (showQuickEqDialog) {
+        com.auraplayer.ui.components.QuickEqDialog(
+            onDismiss = { showQuickEqDialog = false }
         )
     }
 }

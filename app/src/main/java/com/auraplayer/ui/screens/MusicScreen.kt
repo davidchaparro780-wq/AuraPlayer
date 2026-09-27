@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
@@ -163,6 +164,9 @@ fun MusicScreen(
     onToggleBubble: () -> Unit = {},
     isBubbleActive: Boolean = false,
     onOpenHeadphones: () -> Unit = {},
+    userManager: com.auraplayer.data.repository.UserManager,
+    onOpenAuth: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -550,6 +554,51 @@ fun MusicScreen(
                         text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
                         onClick = { showToolsMenu = false; onOpenHeadphones() }
                     )
+                    val currentUser = userManager.currentUser
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (currentUser != null) "👤 Mi Perfil (${currentUser.name})" else "👤 Iniciar Sesión con Correo",
+                                color = Color(0xFFFFD700),
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        onClick = {
+                            showToolsMenu = false
+                            if (currentUser != null) onOpenProfile() else onOpenAuth()
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // User Profile / Auth Button (Aesthetic Neon Squircle)
+            val activeUser = userManager.currentUser
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF13182E))
+                    .border(
+                        1.dp,
+                        if (activeUser != null) Color(0xFFFFD700).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.4f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable {
+                        if (activeUser != null) onOpenProfile() else onOpenAuth()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (activeUser != null) {
+                    Text(activeUser.avatarEmoji, fontSize = 22.sp)
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = "Iniciar Sesión",
+                        tint = Color(0xFF8B5CF6),
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -621,6 +670,36 @@ fun MusicScreen(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) Color.White else Color(0xFF94A3B8)
                         )
+                    }
+                }
+                item {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFF0EA5E9), Color(0xFF6366F1))
+                                )
+                            )
+                            .clickable { onOpenHeadphones() }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Headphones,
+                                contentDescription = "Mis Audífonos",
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Mis Audífonos",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
                     }
                 }
             }

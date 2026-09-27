@@ -1,7 +1,7 @@
 {
-  "versionCode": 46,
-  "versionName": "2.3.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.3.1/app-debug.apk",
-  "changelog": "🎧 DaVE v2.3.1 — Hub de Audífonos & Audio:\n• 🎧 Mis Audífonos & Dispositivos: visualiza el modelo conectado (AirPods, Sony, Galaxy Buds, cable 3.5mm, USB DAC, etc.).\n• 🔋 Nivel de batería en tiempo real para auriculares Bluetooth.\n• 🔊 Prueba de Canales Estéreo (L / R) con tono armónico puro para comprobar el balance.\n• 🎚️ Control de volumen de salida directo y calibración acústica automática recomendada.\n• 🎤 Modo Karaoke, Burbuja Flotante, Ondas Binaurales y 19 superpoderes God Tier.",
-  "fileSizeMb": 23.9
+  "versionCode": 47,
+  "versionName": "2.4.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.4.0/app-debug.apk",
+  "changelog": "✨ DaVE v2.4.0 — Inicio de Sesión con Correo, Perfil VIP & EQ Rápido:\n• 👤 Iniciar Sesión con Correo & Contraseña: Crea tu cuenta DaVE VIP, personaliza tu avatar con emojis legendarios o ingresa en Modo Invitado.\n• ☁️ Nube & Respaldo DaVE Cloud: Guarda y sincroniza tus Playlists y canciones favoritas al instante.\n• 🎚️ Ecualizador Rápido de 3 Bandas: Ajuste inmediato de Sub-Bass Turbo, Sonido Espacial 3D y Nivel Maestro sin salir de tu música.\n• 🌊 Barra Rítmica de Onda de Audio: 36 barras micro-reactivas al compás de la música en el reproductor principal.\n• 🎧 Acceso Directo 'Mis Audífonos': Chip rápido en la pestaña de canciones para ver el estado, batería y prueba de canales L/R.",
+  "fileSizeMb": 24.2
 }

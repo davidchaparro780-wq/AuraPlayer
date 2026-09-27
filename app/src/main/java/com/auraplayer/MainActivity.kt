@@ -255,6 +255,10 @@ fun AuraApp(
     var showTimeCapsuleDialog by remember { mutableStateOf(false) }
     var showBatchCleanerDialog by remember { mutableStateOf(false) }
     var showHeadphonesDialog by remember { mutableStateOf(false) }
+    var showAuthDialog by remember { mutableStateOf(false) }
+    var showProfileDialog by remember { mutableStateOf(false) }
+
+    val userManager = remember { com.auraplayer.data.repository.UserManager(context) }
 
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
@@ -383,6 +387,12 @@ fun AuraApp(
             }
             showHeadphonesDialog -> {
                 showHeadphonesDialog = false
+            }
+            showAuthDialog -> {
+                showAuthDialog = false
+            }
+            showProfileDialog -> {
+                showProfileDialog = false
             }
             showOracleCard -> {
                 showOracleCard = false
@@ -1002,6 +1012,26 @@ fun AuraApp(
         )
     }
 
+    // Iniciar Sesión / Crear Cuenta con Correo Dialog
+    if (showAuthDialog) {
+        com.auraplayer.ui.components.AuthDialog(
+            userManager = userManager,
+            onSuccess = { showAuthDialog = false },
+            onDismiss = { showAuthDialog = false }
+        )
+    }
+
+    // Perfil de Usuario DaVE VIP Dialog
+    if (showProfileDialog) {
+        com.auraplayer.ui.components.UserProfileDialog(
+            userManager = userManager,
+            favoritesManager = favoritesManager,
+            playlistManager = playlistManager,
+            totalPlaysCount = achievementManager.songsPlayed,
+            onDismiss = { showProfileDialog = false }
+        )
+    }
+
     // Oracle Daily Card
     if (showOracleCard) {
         val prediction = com.auraplayer.ui.components.predictDailySong(songs, context.getSharedPreferences("dave_oracle", Context.MODE_PRIVATE))
@@ -1354,6 +1384,9 @@ fun AuraApp(
                     },
                     isVirtualDjActive = isVirtualDjActive,
                     onOpenHeadphones = { showHeadphonesDialog = true },
+                    userManager = userManager,
+                    onOpenAuth = { showAuthDialog = true },
+                    onOpenProfile = { showProfileDialog = true },
                     modifier = Modifier.fillMaxSize()
                 )
             }

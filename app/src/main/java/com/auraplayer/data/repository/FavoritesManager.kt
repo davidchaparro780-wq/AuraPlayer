@@ -21,4 +21,11 @@ class FavoritesManager(context: Context) {
             .mapNotNull { it.key.removePrefix("fav_").toLongOrNull() }
             .toSet()
     }
+
+    fun setFavorites(ids: Set<Long>) {
+        val editor = prefs.edit()
+        prefs.all.keys.filter { it.startsWith("fav_") }.forEach { editor.remove(it) }
+        ids.forEach { editor.putBoolean("fav_$it", true) }
+        editor.apply()
+    }
 }

@@ -50,6 +50,8 @@ class AchievementManager(context: Context) {
 
     val totalExp: Int get() = prefs.getInt("total_exp", 0)
 
+    val songsPlayed: Int get() = prefs.getInt("songs_played", 0)
+
     val listenerLevel: Int get() = (totalExp / 100) + 1
 
     val levelTitle: String get() = when {

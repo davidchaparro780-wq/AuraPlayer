@@ -143,7 +143,7 @@ class PlaylistManager(context: Context) {
         }
     }
 
-    private fun savePlaylists(playlists: List<Playlist>) {
+    fun savePlaylists(playlists: List<Playlist>) {
         val jsonArray = JSONArray()
         playlists.forEach { pl ->
             val obj = JSONObject()
