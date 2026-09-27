@@ -247,6 +247,7 @@ fun AuraApp(
     var showOracleCard by remember { mutableStateOf(false) }
     var showTournamentDialog by remember { mutableStateOf(false) }
     var showJukeboxScreen by remember { mutableStateOf(false) }
+    var showWifiServerDialog by remember { mutableStateOf(false) }
 
     val alarmManager = remember { com.auraplayer.audio.MusicAlarmManager(context) }
     val wifiServer = remember { com.auraplayer.service.LocalMusicServer() }
@@ -320,6 +321,9 @@ fun AuraApp(
             }
             showAlarmDialog -> {
                 showAlarmDialog = false
+            }
+            showWifiServerDialog -> {
+                showWifiServerDialog = false
             }
             showOracleCard -> {
                 showOracleCard = false
@@ -846,6 +850,20 @@ fun AuraApp(
         )
     }
 
+    // WiFi Remote Control Dialog
+    if (showWifiServerDialog) {
+        com.auraplayer.ui.components.WifiServerDialog(
+            wifiServer = wifiServer,
+            onStopServer = {
+                wifiServer.stop()
+                isWifiServerRunning = false
+                showWifiServerDialog = false
+                Toast.makeText(context, "Servidor WiFi apagado", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showWifiServerDialog = false }
+        )
+    }
+
     // Oracle Daily Card
     if (showOracleCard) {
         val prediction = com.auraplayer.ui.components.predictDailySong(songs, context.getSharedPreferences("dave_oracle", Context.MODE_PRIVATE))
@@ -1117,9 +1135,7 @@ fun AuraApp(
                     onOpenAlarm = { showAlarmDialog = true },
                     onToggleWifiServer = {
                         if (isWifiServerRunning) {
-                            wifiServer.stop()
-                            isWifiServerRunning = false
-                            Toast.makeText(context, "Servidor WiFi detenido", Toast.LENGTH_SHORT).show()
+                            showWifiServerDialog = true
                         } else {
                             val serverCtrl = com.auraplayer.service.ServerController(
                                 getCurrentSong = { currentMedia },
@@ -1137,10 +1153,9 @@ fun AuraApp(
                                     }
                                 }
                             )
-                            wifiServer.start(songs, serverCtrl, scope)
-                            val ip = wifiServer.getLocalIpAddress(context)
+                            wifiServer.start(songs, serverCtrl, context)
                             isWifiServerRunning = true
-                            Toast.makeText(context, "🌐 Servidor activo en http://$ip:8080", Toast.LENGTH_LONG).show()
+                            showWifiServerDialog = true
                         }
                     },
                     isWifiServerRunning = isWifiServerRunning,

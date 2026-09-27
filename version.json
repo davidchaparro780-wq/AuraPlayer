@@ -1,7 +1,7 @@
 {
-  "versionCode": 43,
-  "versionName": "2.2.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.2.1/app-debug.apk",
-  "changelog": "🌐 DaVE v2.2.1 WiFi Remote Controller Fix:\n• Muestra la IP exacta de tu teléfono (ej. http://192.168.x.x:8080) al activar el servidor.\n• Consola web interactiva con botones Play, Pausa, Siguiente, Anterior y selección de canción desde el navegador de tu PC.",
+  "versionCode": 44,
+  "versionName": "2.2.2",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.2.2/app-debug.apk",
+  "changelog": "🌐 DaVE v2.2.2 WiFi Remote Definitivo:\n• Solución al error de carga en navegador (corrección TCP RST y cabeceras HTTP).\n• Detección inteligente de IP Wi-Fi y Zona Wi-Fi (Hotspot), ignorando datos móviles.\n• Nuevo cuadro de diálogo interactivo con botones de Copiar y Compartir enlace para PC.\n• Buscador instantáneo de canciones y soporte para reproducción directa en navegador.",
   "fileSizeMb": 23.8
 }
