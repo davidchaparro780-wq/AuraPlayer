@@ -65,8 +65,8 @@ fun VisualizerFullscreenDialog(
                         val centerY = size.height * 0.55f
 
                         for (i in 0 until barCount) {
-                            val wave = if (isPlaying) (sin(phase + i * 0.35) * 0.5 + 0.5).toFloat() else 0.08f
-                            val h = (wave * maxBarHeight).coerceAtLeast(10f)
+                            val wave = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, barCount, isPlaying)
+                            val h = (wave * maxBarHeight).coerceIn(8f, maxBarHeight)
                             val x = i * (barWidth * 1.5f) + (barWidth * 0.25f)
 
                             drawRoundRect(
@@ -89,7 +89,7 @@ fun VisualizerFullscreenDialog(
 
                         for (i in 0 until particleCount) {
                             val angle = (i.toFloat() / particleCount) * 2 * Math.PI + phase
-                            val pulsate = if (isPlaying) sin(phase * 2 + i) * 25f else 0f
+                            val pulsate = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, particleCount, isPlaying) * 45f
                             val r = baseRadius + pulsate
                             val x = center.x + (cos(angle) * r).toFloat()
                             val y = center.y + (sin(angle) * r).toFloat()

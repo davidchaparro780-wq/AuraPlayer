@@ -309,21 +309,27 @@ fun PlayerScreen(
         }
     }
 
-    // Dynamic Atmospheric Gradient Background
+    // Dynamic Atmospheric Gradient Background (100% Opaque, zero bleed-through)
     val dynamicBg = remember(currentMedia.id, dynamicArtworkColor) {
         val baseColor = dynamicArtworkColor
         if (baseColor != null) {
+            val topColor = Color(
+                red = (baseColor.red * 0.45f + 0.05f).coerceIn(0f, 1f),
+                green = (baseColor.green * 0.45f + 0.06f).coerceIn(0f, 1f),
+                blue = (baseColor.blue * 0.45f + 0.10f).coerceIn(0f, 1f),
+                alpha = 1.0f
+            )
             listOf(
-                baseColor.copy(alpha = 0.38f),
-                Color(0xFF14192A),
-                Color(0xFF080B12)
+                topColor,
+                Color(0xFF101524),
+                Color(0xFF070A12)
             )
         } else {
             val hash = Math.abs((currentMedia.artist + currentMedia.title).hashCode())
             val hue = (hash % 360).toFloat()
-            val col1 = Color.hsl(hue, 0.50f, 0.14f)
-            val col2 = Color.hsl((hue + 45) % 360, 0.35f, 0.07f)
-            val col3 = Color(0xFF09090B)
+            val col1 = Color.hsl(hue, 0.45f, 0.12f)
+            val col2 = Color.hsl((hue + 45) % 360, 0.30f, 0.08f)
+            val col3 = Color(0xFF070A12)
             listOf(col1, col2, col3)
         }
     }
@@ -422,7 +428,7 @@ fun PlayerScreen(
                     }
                 )
             },
-        color = Color.Transparent
+        color = Color(0xFF070A12)
     ) {
         Box(
             modifier = Modifier
@@ -593,25 +599,29 @@ fun PlayerScreen(
                 ) {
                     if (!showLyricsView) {
                         if (centerVisualizerMode == 0) {
-                            // Glowing Ambient Aura Disc with Vinyl Record Grooves
+                            // Glowing Ambient Aura Disc with Vinyl Record Grooves (100% Opaque solid)
+                            val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
+                            val dynamicElevation = if (isPlaying) (18.dp + (bassEnergy * 22.dp)) else 12.dp
+                            val dynamicGlowAlpha = if (isPlaying) (0.35f + (bassEnergy * 0.55f)).coerceIn(0.2f, 0.95f) else 0.2f
+
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(0.84f)
                                     .aspectRatio(1f)
                                     .shadow(
-                                        elevation = if (isPlaying) 28.dp else 16.dp,
+                                        elevation = dynamicElevation,
                                         shape = CircleShape,
-                                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.65f else 0.25f),
-                                        ambientColor = Color(0xFF8B5CF6).copy(alpha = if (isPlaying) 0.5f else 0.2f)
+                                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = dynamicGlowAlpha),
+                                        ambientColor = Color(0xFF8B5CF6).copy(alpha = dynamicGlowAlpha * 0.7f)
                                     )
                                     .clip(CircleShape)
                                     .clickable { centerVisualizerMode = 1 }
                                     .background(
                                         Brush.radialGradient(
                                             listOf(
-                                                MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.35f else 0.2f),
-                                                Color(0xFF14192A),
-                                                Color(0xFF080B12)
+                                                Color(0xFF222B40),
+                                                Color(0xFF131828),
+                                                Color(0xFF090D18)
                                             )
                                         )
                                     )
@@ -662,17 +672,17 @@ fun PlayerScreen(
                                     )
                                 }
 
-                                // Center hole
+                                // Center hole (100% opaque solid, zero bleed)
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.background)
+                                        .background(Color(0xFF070A12))
                                         .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
                                 )
                             }
                         } else {
-                            // Live Cyber Spectrum Waveform Visualizer
+                            // Live Cyber Spectrum Waveform Visualizer (Real-time FFT audio engine)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(0.88f)
@@ -680,7 +690,7 @@ fun PlayerScreen(
                                     .clip(RoundedCornerShape(28.dp))
                                     .background(
                                         Brush.verticalGradient(
-                                            listOf(Color(0xFF131A2E).copy(alpha = 0.95f), Color(0xFF090D18).copy(alpha = 0.95f))
+                                            listOf(Color(0xFF131A2E), Color(0xFF090D18))
                                         )
                                     )
                                     .border(
@@ -700,14 +710,8 @@ fun PlayerScreen(
                                     val midY = size.height / 2f
 
                                     for (i in 0 until numBars) {
-                                        val wave = if (isPlaying) {
-                                            val phase = visualizerPhase + (i * 0.42f)
-                                            val base = (sin(phase) + 1f) / 2f
-                                            val harmonic = (sin(phase * 2.2f) + 1f) / 2f
-                                            (base * 0.65f + harmonic * 0.35f).coerceIn(0.12f, 1.0f)
-                                        } else 0.08f
-
-                                        val barHeight = maxHeight * wave
+                                        val wave = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, numBars, isPlaying)
+                                        val barHeight = (maxHeight * wave).coerceIn(6f, maxHeight)
                                         val x = i * spacing + (spacing - barWidth) / 2f
                                         val y = midY - (barHeight / 2f)
 
@@ -932,17 +936,12 @@ fun PlayerScreen(
                         val midY = height / 2f
 
                         when (visualizerMode) {
-                            0 -> { // Spectrum Bars
+                            0 -> { // Spectrum Bars (Real FFT Frequency Spectrum)
                                 val barCount = 28
                                 val barWidth = width / (barCount * 1.6f)
                                 for (i in 0 until barCount) {
-                                    val factor = if (isPlaying) {
-                                        val wave = (sin(visualizerPhase + (i * 0.45f)) + 1f) / 2f
-                                        val harmonic = (sin(visualizerPhase * 2f + (i * 0.9f)) + 1f) / 2f
-                                        (wave * 0.7f + harmonic * 0.3f).coerceIn(0.1f, 1f)
-                                    } else 0.05f
-
-                                    val barHeight = height * factor
+                                    val factor = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, barCount, isPlaying)
+                                    val barHeight = (height * factor).coerceIn(4f, height)
                                     val x = i * (barWidth * 1.6f) + (barWidth * 0.3f)
                                     val y = midY - (barHeight / 2f)
 
@@ -954,16 +953,14 @@ fun PlayerScreen(
                                     )
                                 }
                             }
-                            1 -> { // Neon Wave
+                            1 -> { // Neon Wave (Real Audio Waveform Oscilloscope)
                                 val path = Path()
                                 path.moveTo(0f, midY)
                                 val points = 80
                                 for (i in 0..points) {
                                     val x = (i.toFloat() / points) * width
-                                    val wave = if (isPlaying) {
-                                        sin(visualizerPhase * 1.5f + (i * 0.2f)) * (height * 0.4f)
-                                    } else 0f
-                                    val y = midY + wave.toFloat()
+                                    val wave = com.auraplayer.audio.RealtimeVisualizerManager.instance.getWaveform(i, points, isPlaying)
+                                    val y = midY + (wave * (height * 0.45f))
                                     path.lineTo(x, y)
                                 }
                                 drawPath(
@@ -972,29 +969,30 @@ fun PlayerScreen(
                                     style = Stroke(width = 3.dp.toPx())
                                 )
                             }
-                            2 -> { // Dual Laser Pulse
+                            2 -> { // Dual Laser Pulse (Real Bass and Treble Modulated)
                                 val path1 = Path()
                                 val path2 = Path()
                                 path1.moveTo(0f, midY)
                                 path2.moveTo(0f, midY)
                                 val points = 60
+                                val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
+                                val trebleEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getTrebleEnergy(isPlaying)
                                 for (i in 0..points) {
                                     val x = (i.toFloat() / points) * width
-                                    val wave1 = if (isPlaying) sin(visualizerPhase * 2f + (i * 0.3f)) * (height * 0.35f) else 0f
-                                    val wave2 = if (isPlaying) -sin(visualizerPhase * 1.8f + (i * 0.25f)) * (height * 0.35f) else 0f
-                                    path1.lineTo(x, midY + wave1.toFloat())
-                                    path2.lineTo(x, midY + wave2.toFloat())
+                                    val wave1 = com.auraplayer.audio.RealtimeVisualizerManager.instance.getWaveform(i, points, isPlaying) * (height * 0.42f) * (0.5f + bassEnergy)
+                                    val wave2 = -com.auraplayer.audio.RealtimeVisualizerManager.instance.getWaveform(points - i, points, isPlaying) * (height * 0.42f) * (0.5f + trebleEnergy)
+                                    path1.lineTo(x, midY + wave1)
+                                    path2.lineTo(x, midY + wave2)
                                 }
                                 drawPath(path1, Brush.horizontalGradient(listOf(primaryColor, tertiaryColor)), style = Stroke(width = 2.dp.toPx()))
                                 drawPath(path2, Brush.horizontalGradient(listOf(secondaryColor, primaryColor)), style = Stroke(width = 2.dp.toPx()))
                             }
-                            3 -> { // Starfield Beat Dots
+                            3 -> { // Starfield Beat Dots (Real Frequency Pulsing)
                                 val dotCount = 20
                                 for (i in 0 until dotCount) {
                                     val x = (i.toFloat() / dotCount) * width + (width / (dotCount * 2))
-                                    val radius = if (isPlaying) {
-                                        (sin(visualizerPhase * 2.5f + (i * 0.6f)) + 1f) * 4.dp.toPx() + 2.dp.toPx()
-                                    } else 2.dp.toPx()
+                                    val factor = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, dotCount, isPlaying)
+                                    val radius = 3.dp.toPx() + (factor * 7.dp.toPx())
                                     val color = if (i % 2 == 0) primaryColor else secondaryColor
                                     drawCircle(color = color, radius = radius, center = Offset(x, midY))
                                 }
@@ -1010,7 +1008,7 @@ fun PlayerScreen(
                     }
                     val sliderValue = if (effectiveDurationMs > 0L) (currentPositionMs.toFloat() / effectiveDurationMs.toFloat()) else 0f
 
-                    // Dynamic Rhythmic Audio Waveform Track
+                    // Dynamic Rhythmic Audio Waveform Track (Reactive to real audio frequencies)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1023,7 +1021,8 @@ fun PlayerScreen(
                         for (i in 0 until barCount) {
                             val barProgress = i.toFloat() / barCount
                             val isPassed = sliderValue >= barProgress
-                            val baseHeight = 4.dp + (((kotlin.math.sin((i * 0.45f) + (if (isPlaying) visualizerPhase else 0f)) + 1f) * 4.5f).dp)
+                            val energy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, barCount, isPlaying)
+                            val baseHeight = 3.dp + (energy * 11.dp)
                             Box(
                                 modifier = Modifier
                                     .width(3.dp)

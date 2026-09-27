@@ -74,6 +74,7 @@ class PlaybackService : MediaSessionService() {
 
         EqualizerManager.instance.initPrefs(this)
         EqualizerManager.instance.attachToAudioSession(player.audioSessionId)
+        com.auraplayer.audio.RealtimeVisualizerManager.instance.attachToAudioSession(player.audioSessionId)
 
         val playlistManager = com.auraplayer.data.repository.PlaylistManager(this)
         EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
@@ -159,6 +160,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        com.auraplayer.audio.RealtimeVisualizerManager.instance.release()
         mediaSession?.run {
             player.release()
             release()

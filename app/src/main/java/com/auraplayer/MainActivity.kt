@@ -1664,7 +1664,8 @@ fun AuraApp(
                 },
                 onOpenHeadphones = { showHeadphonesDialog = true },
                 isHeadphonesConnected = headphoneManager.isHeadphonesConnected,
-                onDismiss = { showPlayerScreen = false }
+                onDismiss = { showPlayerScreen = false },
+                modifier = Modifier.fillMaxSize().background(Color(0xFF070A12))
             )
         }
     }

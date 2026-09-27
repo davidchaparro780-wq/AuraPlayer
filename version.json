@@ -1,7 +1,7 @@
 {
-  "versionCode": 49,
-  "versionName": "2.5.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.5.0/app-debug.apk",
-  "changelog": "✨ DaVE v2.5.0 — Super Overhaul de Experiencia de Usuario (UX):\n• 🌧️ Mezclador de Ruido Ambiente & Relax: Lluvia real, fogata crepitante, olas del mar, viento y ruido marrón con síntesis en tiempo real y volumen independiente para escuchar junto a tu música favorita.\n• 📳 Gestos Táctiles con Respuesta Háptica: Desliza horizontalmente en el MiniPlayer o en el vinilo para cambiar de canción, y desliza hacia arriba para expandir, con vibración táctil ultra-precisa.\n• 🎨 Resplandor y Fondo Dinámico Inteligente: El fondo y las barras rítmicas extraen automáticamente los colores de la carátula de tu álbum actual.\n• 🔤 Barra Rápida de Desplazamiento A-Z: Navega instantáneamente por cientos de canciones con la barra alfabética táctil lateral.\n• 🕒 Filtro 'Recientes': Acceso rápido a las canciones que acabas de escuchar en orden cronológico exacto.\n• 🎙️ Búsqueda por Voz: Toca el micrófono en el buscador para buscar canciones o artistas al instante hablando.",
+  "versionCode": 50,
+  "versionName": "2.5.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.5.1/app-debug.apk",
+  "changelog": "✨ DaVE v2.5.1 — Visualizador de Audio Real & Mejoras Visuales:\n• 🌊 Ondas y Barras Rítmicas en Tiempo Real: Las ondas ahora se mueven fielmente con la música real analizando el espectro de frecuencias (FFT) y graves del audio en reproducción.\n• 💿 Reproductor 100% Sólido y Opaco: Fondo y vinilo completamente opacos sin transparencias ni elementos de la lista de canciones filtrándose por detrás.\n• 🔍 Escritura Clara en Búsquedas: El texto que escribes en la barra de búsqueda ahora se ve nítido y legible en todo momento.\n• ⚡ Buscador Simplificado: Se removió la búsqueda por audio para una interfaz más directa y limpia.",
   "fileSizeMb": 24.3
 }
