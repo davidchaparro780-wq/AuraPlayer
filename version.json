@@ -1,7 +1,7 @@
 {
-  "versionCode": 48,
-  "versionName": "2.4.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.4.1/app-debug.apk",
-  "changelog": "✨ DaVE v2.4.1 — Inicio de Sesión Automático al Entrar:\n• 👤 Modal de Inicio de Sesión Automático: Al abrir la app, si no has iniciado sesión, te aparecerá directamente la pantalla de inicio de sesión o creación de cuenta DaVE VIP sin tener que buscarla.\n• ⚡ Opción de Omitir o Modo Invitado en 1 toque para acceder de inmediato a tu música.\n• ☁️ Respaldo en la Nube y Sincronización de Favoritos y Listas.\n• 🎚️ Ecualizador Rápido de 3 Bandas y Barra Rítmica con Onda de Audio.\n• 🎧 Acceso Directo 'Mis Audífonos' con estado de batería y prueba estéreo L/R.",
-  "fileSizeMb": 24.2
+  "versionCode": 49,
+  "versionName": "2.5.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.5.0/app-debug.apk",
+  "changelog": "✨ DaVE v2.5.0 — Super Overhaul de Experiencia de Usuario (UX):\n• 🌧️ Mezclador de Ruido Ambiente & Relax: Lluvia real, fogata crepitante, olas del mar, viento y ruido marrón con síntesis en tiempo real y volumen independiente para escuchar junto a tu música favorita.\n• 📳 Gestos Táctiles con Respuesta Háptica: Desliza horizontalmente en el MiniPlayer o en el vinilo para cambiar de canción, y desliza hacia arriba para expandir, con vibración táctil ultra-precisa.\n• 🎨 Resplandor y Fondo Dinámico Inteligente: El fondo y las barras rítmicas extraen automáticamente los colores de la carátula de tu álbum actual.\n• 🔤 Barra Rápida de Desplazamiento A-Z: Navega instantáneamente por cientos de canciones con la barra alfabética táctil lateral.\n• 🕒 Filtro 'Recientes': Acceso rápido a las canciones que acabas de escuchar en orden cronológico exacto.\n• 🎙️ Búsqueda por Voz: Toca el micrófono en el buscador para buscar canciones o artistas al instante hablando.",
+  "fileSizeMb": 24.3
 }

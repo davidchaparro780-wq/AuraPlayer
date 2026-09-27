@@ -57,6 +57,14 @@ import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.platform.LocalView
+import com.auraplayer.audio.AuraHaptic
+import com.auraplayer.audio.DynamicPaletteManager
+import com.auraplayer.audio.RelaxAmbienceManager
+import com.auraplayer.ui.components.RelaxAmbienceDialog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.auraplayer.audio.EqualizerManager
 import com.auraplayer.ui.components.AudioCutterDialog
 import com.auraplayer.ui.components.EdgeLighting
@@ -234,7 +242,9 @@ fun PlayerScreen(
     var showPitchSpeedDialog by remember { mutableStateOf(false) }
     var showStoryCardDialog by remember { mutableStateOf(false) }
     var showFullscreenVisualizer by remember { mutableStateOf(false) }
+    val view = LocalView.current
     var showQuickEqDialog by remember { mutableStateOf(false) }
+    var showRelaxAmbienceDialog by remember { mutableStateOf(false) }
     var isKaraokeActive by remember { mutableStateOf(com.auraplayer.audio.KaraokeVocalManager.instance.isKaraokeEnabled) }
     val looper = remember { com.auraplayer.audio.AbLooperManager.instance }
 
@@ -243,8 +253,36 @@ fun PlayerScreen(
         qualityInfo = com.auraplayer.data.repository.AudioQualityAnalyzer.analyze(currentMedia)
     }
 
+    var dynamicArtworkColor by remember { mutableStateOf<Color?>(null) }
+    LaunchedEffect(currentMedia.artworkUri, currentMedia.id) {
+        val uri = currentMedia.artworkUri
+        if (uri != null) {
+            withContext(Dispatchers.IO) {
+                try {
+                    val loader = coil.ImageLoader(context)
+                    val req = coil.request.ImageRequest.Builder(context)
+                        .data(uri)
+                        .allowHardware(false)
+                        .build()
+                    val result = (loader.execute(req) as? coil.request.SuccessResult)?.drawable
+                    val bmp = (result as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                    if (bmp != null) {
+                        val color = DynamicPaletteManager.extractAccentColor(bmp)
+                        withContext(Dispatchers.Main) {
+                            dynamicArtworkColor = color
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        } else {
+            dynamicArtworkColor = null
+        }
+    }
+
     BackHandler {
-        if (showQuickEqDialog) {
+        if (showRelaxAmbienceDialog) {
+            showRelaxAmbienceDialog = false
+        } else if (showQuickEqDialog) {
             showQuickEqDialog = false
         } else if (showFullscreenVisualizer) {
             showFullscreenVisualizer = false
@@ -272,13 +310,22 @@ fun PlayerScreen(
     }
 
     // Dynamic Atmospheric Gradient Background
-    val dynamicBg = remember(currentMedia.id, currentMedia.title) {
-        val hash = Math.abs((currentMedia.artist + currentMedia.title).hashCode())
-        val hue = (hash % 360).toFloat()
-        val col1 = Color.hsl(hue, 0.50f, 0.14f)
-        val col2 = Color.hsl((hue + 45) % 360, 0.35f, 0.07f)
-        val col3 = Color(0xFF09090B)
-        listOf(col1, col2, col3)
+    val dynamicBg = remember(currentMedia.id, dynamicArtworkColor) {
+        val baseColor = dynamicArtworkColor
+        if (baseColor != null) {
+            listOf(
+                baseColor.copy(alpha = 0.38f),
+                Color(0xFF14192A),
+                Color(0xFF080B12)
+            )
+        } else {
+            val hash = Math.abs((currentMedia.artist + currentMedia.title).hashCode())
+            val hue = (hash % 360).toFloat()
+            val col1 = Color.hsl(hue, 0.50f, 0.14f)
+            val col2 = Color.hsl((hue + 45) % 360, 0.35f, 0.07f)
+            val col3 = Color(0xFF09090B)
+            listOf(col1, col2, col3)
+        }
     }
 
     // On-Screen HUD for Gestures (Volume & Brightness)
@@ -493,7 +540,10 @@ fun PlayerScreen(
                         }
 
                         // Favorite Toggle
-                        IconButton(onClick = onToggleFavorite) {
+                        IconButton(onClick = {
+                            AuraHaptic.click(view)
+                            onToggleFavorite()
+                        }) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Favorito",
@@ -514,12 +564,31 @@ fun PlayerScreen(
                     }
                 }
 
-                // Center Display: Either Glowing Vinyl OR Synced Karaoke Lyrics
+                // Center Display: Either Glowing Vinyl OR Synced Karaoke Lyrics (Swipe to change track)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 10.dp)
+                        .pointerInput(Unit) {
+                            var totalDragX = 0f
+                            detectHorizontalDragGestures(
+                                onDragEnd = {
+                                    if (totalDragX < -60f) {
+                                        AuraHaptic.tick(view)
+                                        onNext()
+                                    } else if (totalDragX > 60f) {
+                                        AuraHaptic.tick(view)
+                                        onPrevious()
+                                    }
+                                    totalDragX = 0f
+                                },
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    totalDragX += dragAmount
+                                }
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     if (!showLyricsView) {
@@ -1317,9 +1386,36 @@ fun PlayerScreen(
                     // Quick EQ Chip
                     FilterChip(
                         selected = false,
-                        onClick = { showQuickEqDialog = true },
+                        onClick = {
+                            AuraHaptic.click(view)
+                            showQuickEqDialog = true
+                        },
                         label = { Text("🎚️ EQ Rápido", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
                         colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // Relax Ambience Chip
+                    val ambienceMgr = remember { RelaxAmbienceManager.instance }
+                    FilterChip(
+                        selected = ambienceMgr.currentSound != com.auraplayer.audio.AmbienceSound.NONE,
+                        onClick = {
+                            AuraHaptic.click(view)
+                            showRelaxAmbienceDialog = true
+                        },
+                        label = {
+                            Text(
+                                if (ambienceMgr.currentSound != com.auraplayer.audio.AmbienceSound.NONE)
+                                    "${ambienceMgr.currentSound.emoji} ${ambienceMgr.currentSound.title}"
+                                else "🌧️ Relax & Ambiente",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF38BDF8).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF38BDF8),
                             labelColor = Color(0xFF38BDF8)
                         )
                     )
@@ -1332,7 +1428,10 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Shuffle
-                    IconButton(onClick = onShuffleToggle) {
+                    IconButton(onClick = {
+                        AuraHaptic.click(view)
+                        onShuffleToggle()
+                    }) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = "Aleatorio",
@@ -1342,7 +1441,10 @@ fun PlayerScreen(
 
                     // Previous
                     IconButton(
-                        onClick = onPreviousClick,
+                        onClick = {
+                            AuraHaptic.tick(view)
+                            onPreviousClick()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
@@ -1355,7 +1457,10 @@ fun PlayerScreen(
 
                     // Aesthetic Glowing Play / Pause
                     IconButton(
-                        onClick = onPlayPauseClick,
+                        onClick = {
+                            AuraHaptic.heavy(view)
+                            onPlayPauseClick()
+                        },
                         modifier = Modifier
                             .size(74.dp)
                             .clip(CircleShape)
@@ -1379,7 +1484,10 @@ fun PlayerScreen(
 
                     // Next
                     IconButton(
-                        onClick = onNextClick,
+                        onClick = {
+                            AuraHaptic.tick(view)
+                            onNextClick()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
@@ -1803,6 +1911,13 @@ fun PlayerScreen(
     if (showQuickEqDialog) {
         com.auraplayer.ui.components.QuickEqDialog(
             onDismiss = { showQuickEqDialog = false }
+        )
+    }
+
+    // Relax & Ambience Mixer Dialog
+    if (showRelaxAmbienceDialog) {
+        RelaxAmbienceDialog(
+            onDismiss = { showRelaxAmbienceDialog = false }
         )
     }
 }

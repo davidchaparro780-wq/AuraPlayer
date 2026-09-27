@@ -50,12 +50,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.data.model.MediaModel
 
 @Composable
@@ -80,6 +81,7 @@ fun MiniPlayer(
         label = "glowAlpha"
     )
 
+    val view = LocalView.current
     var dragOffset by remember { mutableFloatStateOf(0f) }
 
     AnimatedVisibility(
@@ -108,9 +110,11 @@ fun MiniPlayer(
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragEnd = {
-                                if (dragOffset < -60f) {
+                                if (dragOffset < -50f) {
+                                    AuraHaptic.tick(view)
                                     onNextClick()
-                                } else if (dragOffset > 60f) {
+                                } else if (dragOffset > 50f) {
+                                    AuraHaptic.tick(view)
                                     onPreviousClick()
                                 }
                                 dragOffset = 0f
@@ -119,12 +123,16 @@ fun MiniPlayer(
                                 change.consume()
                                 dragOffset += dragAmount.x
                                 if (dragAmount.y < -25f) {
+                                    AuraHaptic.click(view)
                                     onClick()
                                 }
                             }
                         )
                     }
-                    .clickable { onClick() },
+                    .clickable {
+                        AuraHaptic.click(view)
+                        onClick()
+                    },
                 tonalElevation = 10.dp,
                 shadowElevation = 10.dp,
                 color = MaterialTheme.colorScheme.surfaceVariant
@@ -204,7 +212,10 @@ fun MiniPlayer(
 
                         // Previous Track Button
                         IconButton(
-                            onClick = onPreviousClick,
+                            onClick = {
+                                AuraHaptic.click(view)
+                                onPreviousClick()
+                            },
                             modifier = Modifier.size(34.dp)
                         ) {
                             Icon(
@@ -219,7 +230,10 @@ fun MiniPlayer(
 
                         // Play/Pause Button with gradient
                         IconButton(
-                            onClick = onPlayPauseClick,
+                            onClick = {
+                                AuraHaptic.click(view)
+                                onPlayPauseClick()
+                            },
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
@@ -244,7 +258,10 @@ fun MiniPlayer(
 
                         // Next Track Button
                         IconButton(
-                            onClick = onNextClick,
+                            onClick = {
+                                AuraHaptic.click(view)
+                                onNextClick()
+                            },
                             modifier = Modifier.size(34.dp)
                         ) {
                             Icon(

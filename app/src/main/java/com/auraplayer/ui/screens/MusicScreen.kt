@@ -1,8 +1,20 @@
 package com.auraplayer.ui.screens
 
+import android.app.Activity
 import android.content.Intent
+import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalView
+import com.auraplayer.audio.AuraHaptic
+import com.auraplayer.ui.components.AlphabetFastScroller
+import com.auraplayer.ui.components.RelaxAmbienceDialog
+import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -171,15 +183,36 @@ fun MusicScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    val scope = rememberCoroutineScope()
+    val songsListState = rememberLazyListState()
+
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Canciones", "Playlists 📂", "Favoritos ❤️", "Carpetas", "Artistas")
 
+    // Voice Search Launcher
+    val speechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spokenText = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                searchQuery = spokenText
+                AuraHaptic.click(view)
+            }
+        }
+    }
+
     // Filter & Sort States
-    var selectedFilterIndex by remember { mutableIntStateOf(0) } // 0: Todas, 1: HD/Lossless, 2: Favoritas, 3: Cortas, 4: Largas
+    // 0: Todas, 1: Recientes, 2: Más Escuchadas, 3: HD/Lossless, 4: Favoritas, 5: Cortas, 6: Largas
+    var selectedFilterIndex by remember { mutableIntStateOf(0) }
     var selectedSortMode by remember { mutableIntStateOf(0) } // 0: Título, 1: Artista, 2: Duración, 3: Más Escuchadas
     var showSortMenu by remember { mutableStateOf(false) }
     var showToolsMenu by remember { mutableStateOf(false) }
+    var showRelaxDialog by remember { mutableStateOf(false) }
     val lyricsManager = remember { com.auraplayer.data.repository.LyricsManager(context) }
 
     var selectedSongForMenu by remember { mutableStateOf<MediaModel?>(null) }
@@ -220,26 +253,35 @@ fun MusicScreen(
 
         // Apply quick filter
         list = when (selectedFilterIndex) {
-            1 -> playlistManager.getMostPlayedSongs(list)
-            2 -> list.filter {
+            1 -> {
+                val recentIds = playlistManager.getRecentlyPlayedIds()
+                val idMap = list.associateBy { it.id }
+                recentIds.mapNotNull { idMap[it] }
+            }
+            2 -> playlistManager.getMostPlayedSongs(list)
+            3 -> list.filter {
                 val ext = File(it.path).extension.lowercase()
                 ext in listOf("flac", "wav", "m4a", "alac", "dsf", "dff")
             }
-            3 -> {
+            4 -> {
                 val favs = favoritesManager.getFavoriteIds()
                 list.filter { favs.contains(it.id) }
             }
-            4 -> list.filter { it.duration in 1..150000L } // < 2.5 min
-            5 -> list.filter { it.duration >= 240000L } // > 4 min
+            5 -> list.filter { it.duration in 1..150000L } // < 2.5 min
+            6 -> list.filter { it.duration >= 240000L } // > 4 min
             else -> list
         }
 
-        // Apply sort
-        when (selectedSortMode) {
-            1 -> list.sortedBy { it.artist.lowercase() }
-            2 -> list.sortedByDescending { it.duration }
-            3 -> list.sortedByDescending { playlistManager.getPlayCount(it.id) }
-            else -> list.sortedBy { it.title.lowercase() }
+        // Apply sort (keep chronological order for Recientes)
+        if (selectedFilterIndex == 1) {
+            list
+        } else {
+            when (selectedSortMode) {
+                1 -> list.sortedBy { it.artist.lowercase() }
+                2 -> list.sortedByDescending { it.duration }
+                3 -> list.sortedByDescending { playlistManager.getPlayCount(it.id) }
+                else -> list.sortedBy { it.title.lowercase() }
+            }
         }
     }
 
@@ -301,16 +343,46 @@ fun MusicScreen(
                         )
                     },
                     trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = {
+                                        searchQuery = ""
+                                        AuraHaptic.click(view)
+                                    },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = "Limpiar",
+                                        tint = Color(0xFF94A3B8),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                             IconButton(
-                                onClick = { searchQuery = "" },
+                                onClick = {
+                                    AuraHaptic.click(view)
+                                    try {
+                                        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(
+                                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                            )
+                                            putExtra(RecognizerIntent.EXTRA_PROMPT, "Di una canción o artista...")
+                                        }
+                                        speechLauncher.launch(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Búsqueda por voz no disponible", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Limpiar",
-                                    tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(16.dp)
+                                    imageVector = Icons.Default.Mic,
+                                    contentDescription = "Búsqueda por voz",
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
@@ -490,6 +562,10 @@ fun MusicScreen(
                         onClick = { showToolsMenu = false; onOpenBinaural() }
                     )
                     DropdownMenuItem(
+                        text = { Text("🌧️ Modo Ambiente & Relax", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                        onClick = { showToolsMenu = false; showRelaxDialog = true }
+                    )
+                    DropdownMenuItem(
                         text = { Text("⏳ Cápsula del Tiempo", color = Color(0xFFFFD700)) },
                         onClick = { showToolsMenu = false; onOpenTimeCapsule() }
                     )
@@ -639,7 +715,7 @@ fun MusicScreen(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val filters = listOf("Todas", "🔥 Más Escuchadas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
+                val filters = listOf("Todas", "🕒 Recientes", "🔥 Más Escuchadas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
                 itemsIndexed(filters) { index, label ->
                     val isSelected = selectedFilterIndex == index
                     Box(
@@ -661,7 +737,10 @@ fun MusicScreen(
                                 if (isSelected) Color.Transparent else Color(0xFF8B5CF6).copy(alpha = 0.25f),
                                 RoundedCornerShape(16.dp)
                             )
-                            .clickable { selectedFilterIndex = index }
+                            .clickable {
+                                AuraHaptic.tick(view)
+                                selectedFilterIndex = index
+                            }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -682,7 +761,10 @@ fun MusicScreen(
                                     listOf(Color(0xFF0EA5E9), Color(0xFF6366F1))
                                 )
                             )
-                            .clickable { onOpenHeadphones() }
+                            .clickable {
+                                AuraHaptic.tick(view)
+                                onOpenHeadphones()
+                            }
                             .padding(horizontal = 12.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -741,45 +823,73 @@ fun MusicScreen(
             ) { currentTab ->
                 when (currentTab) {
                     0 -> { // Canciones
-                    if (filteredSongs.isEmpty()) {
-                        EmptyListMessage(if (searchQuery.isEmpty()) "No se encontraron canciones en el dispositivo." else "Sin resultados")
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            item {
-                                // Stats Bar
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 18.dp, vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                        if (filteredSongs.isEmpty()) {
+                            EmptyListMessage(if (searchQuery.isEmpty()) "No se encontraron canciones en el dispositivo." else "Sin resultados")
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    state = songsListState,
+                                    modifier = Modifier.fillMaxSize()
                                 ) {
-                                    Text(
-                                        text = "${filteredSongs.size} canciones • $totalDurationFormatted",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = "100% Offline • 0 Ads",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
+                                    item {
+                                        // Stats Bar
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 18.dp, vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "${filteredSongs.size} canciones • $totalDurationFormatted",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "100% Offline • 0 Ads",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                    items(filteredSongs, key = { it.id }, contentType = { "song" }) { song ->
+                                        val isSelected = currentMedia?.id == song.id
+                                        SongListItem(
+                                            song = song,
+                                            isSelected = isSelected,
+                                            isFavorite = favoritesManager.isFavorite(song.id),
+                                            onClick = { onSongClick(song) },
+                                            onLongClick = { selectedSongForMenu = song },
+                                            onOptionsClick = { selectedSongForMenu = song }
+                                        )
+                                    }
+                                }
+
+                                if (searchQuery.isBlank() && selectedFilterIndex != 1 && filteredSongs.size > 10) {
+                                    AlphabetFastScroller(
+                                        onLetterSelected = { char ->
+                                            val targetIdx = filteredSongs.indexOfFirst {
+                                                if (char == '#') {
+                                                    val firstChar = it.title.firstOrNull()
+                                                    firstChar == null || !firstChar.isLetter()
+                                                } else {
+                                                    it.title.startsWith(char, ignoreCase = true)
+                                                }
+                                            }
+                                            if (targetIdx >= 0) {
+                                                scope.launch {
+                                                    songsListState.scrollToItem(targetIdx + 1)
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.CenterEnd)
+                                            .padding(end = 4.dp)
                                     )
                                 }
                             }
-                            items(filteredSongs, key = { it.id }, contentType = { "song" }) { song ->
-                                val isSelected = currentMedia?.id == song.id
-                                SongListItem(
-                                    song = song,
-                                    isSelected = isSelected,
-                                    isFavorite = favoritesManager.isFavorite(song.id),
-                                    onClick = { onSongClick(song) },
-                                    onLongClick = { selectedSongForMenu = song },
-                                    onOptionsClick = { selectedSongForMenu = song }
-                                )
-                            }
                         }
                     }
-                }
                 1 -> { // Playlists 📂 (Smart Playlists & Custom)
                     if (selectedPlaylistForView != null) {
                         // Inside a specific playlist
@@ -1464,6 +1574,13 @@ fun MusicScreen(
         AudioCutterDialog(
             song = songToCut!!,
             onDismiss = { songToCut = null }
+        )
+    }
+
+    // Relax Ambience Dialog
+    if (showRelaxDialog) {
+        RelaxAmbienceDialog(
+            onDismiss = { showRelaxDialog = false }
         )
     }
 }
