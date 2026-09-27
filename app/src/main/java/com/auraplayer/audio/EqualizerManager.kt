@@ -307,6 +307,41 @@ class EqualizerManager private constructor() {
                 virtualizerStrength = 400
                 loudnessGain = 100
             }
+            8 -> { // AirPods / AirPods Pro
+                val preset = floatArrayOf(4f, 3f, 2f, 0f, -1f, 1f, 2f, 3f, 4f, 5f)
+                System.arraycopy(preset, 0, bandLevels, 0, 10)
+                bassStrength = 450
+                virtualizerStrength = 550
+                loudnessGain = 150
+            }
+            9 -> { // Sony WH/WF-1000XM4 & XM5
+                val preset = floatArrayOf(5f, 4f, 1f, -2f, -1f, 2f, 3f, 4f, 5f, 6f)
+                System.arraycopy(preset, 0, bandLevels, 0, 10)
+                bassStrength = 600
+                virtualizerStrength = 650
+                loudnessGain = 200
+            }
+            10 -> { // Samsung Galaxy Buds
+                val preset = floatArrayOf(3f, 2f, 1f, 1f, 0f, 1f, 2f, 3f, 4f, 4f)
+                System.arraycopy(preset, 0, bandLevels, 0, 10)
+                bassStrength = 400
+                virtualizerStrength = 500
+                loudnessGain = 120
+            }
+            11 -> { // JBL Tune Series
+                val preset = floatArrayOf(6f, 5f, 2f, 0f, -1f, 1f, 3f, 5f, 6f, 7f)
+                System.arraycopy(preset, 0, bandLevels, 0, 10)
+                bassStrength = 650
+                virtualizerStrength = 550
+                loudnessGain = 220
+            }
+            12 -> { // Monitores In-Ear (KZ / IEM Studio)
+                val preset = floatArrayOf(1f, 1f, 0f, -1f, 0f, 1f, 1f, 2f, 2f, 3f)
+                System.arraycopy(preset, 0, bandLevels, 0, 10)
+                bassStrength = 250
+                virtualizerStrength = 750
+                loudnessGain = 50
+            }
         }
         applyBandsToHardware()
         setBassBoostStrength(bassStrength)

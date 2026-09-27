@@ -229,13 +229,25 @@ fun PlayerScreen(
     }
 
     var showStickerDialog by remember { mutableStateOf(false) }
+    var showPitchSpeedDialog by remember { mutableStateOf(false) }
+    var showStoryCardDialog by remember { mutableStateOf(false) }
+    var showFullscreenVisualizer by remember { mutableStateOf(false) }
+    var isKaraokeActive by remember { mutableStateOf(com.auraplayer.audio.KaraokeVocalManager.instance.isKaraokeEnabled) }
+    val looper = remember { com.auraplayer.audio.AbLooperManager.instance }
+
     var qualityInfo by remember(currentMedia.path) { mutableStateOf<com.auraplayer.data.repository.AudioQualityInfo?>(null) }
     LaunchedEffect(currentMedia.path) {
         qualityInfo = com.auraplayer.data.repository.AudioQualityAnalyzer.analyze(currentMedia)
     }
 
     BackHandler {
-        if (showStickerDialog) {
+        if (showFullscreenVisualizer) {
+            showFullscreenVisualizer = false
+        } else if (showStoryCardDialog) {
+            showStoryCardDialog = false
+        } else if (showPitchSpeedDialog) {
+            showPitchSpeedDialog = false
+        } else if (showStickerDialog) {
             showStickerDialog = false
         } else if (showCutterDialog) {
             showCutterDialog = false
@@ -1169,6 +1181,83 @@ fun PlayerScreen(
                             labelColor = Color(0xFF25D366)
                         )
                     )
+
+                    // Karaoke Vocal Remover Chip
+                    FilterChip(
+                        selected = isKaraokeActive,
+                        onClick = {
+                            isKaraokeActive = com.auraplayer.audio.KaraokeVocalManager.instance.toggleKaraoke(context)
+                        },
+                        label = { Text(if (isKaraokeActive) "🎤 Karaoke: ACTIVO" else "🎤 Modo Karaoke", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFE040FB).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFE040FB),
+                            labelColor = Color(0xFFE040FB)
+                        )
+                    )
+
+                    // Pitch & Speed Shifter Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showPitchSpeedDialog = true },
+                        label = { Text("🎚️ Tono & Temp", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // 9:16 Story Lyric Card Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showStoryCardDialog = true },
+                        label = { Text("📱 Historia 9:16", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFFEC4899)
+                        )
+                    )
+
+                    // 3D Fullscreen Visualizer & OLED Saver Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showFullscreenVisualizer = true },
+                        label = { Text("🌌 Visualizador 3D", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF00F0FF)
+                        )
+                    )
+
+                    // A-B Looper Chip
+                    FilterChip(
+                        selected = looper.isEnabled,
+                        onClick = {
+                            if (looper.pointAMs == null) {
+                                looper.setPointA(currentPosition)
+                                Toast.makeText(context, "Punto A marcado en ${formatTime(currentPosition)}", Toast.LENGTH_SHORT).show()
+                            } else if (looper.pointBMs == null) {
+                                looper.setPointB(currentPosition)
+                                Toast.makeText(context, "Punto B marcado en ${formatTime(currentPosition)} (Bucle activo)", Toast.LENGTH_SHORT).show()
+                            } else {
+                                looper.clear()
+                                Toast.makeText(context, "Bucle A-B reiniciado", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        label = {
+                            Text(
+                                when {
+                                    looper.pointAMs == null -> "🔂 Marcar A-B"
+                                    looper.pointBMs == null -> "🔂 Marcar Fin B"
+                                    else -> "🔂 Bucle Activo [A-B]"
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFFFD700).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFFFD700),
+                            labelColor = Color(0xFFFFD700)
+                        )
+                    )
                 }
 
                 // Primary Playback Controls
@@ -1615,6 +1704,31 @@ fun PlayerScreen(
         com.auraplayer.ui.components.StickerGeneratorDialog(
             song = currentMedia,
             onDismiss = { showStickerDialog = false }
+        )
+    }
+
+    // Pitch & Speed Shifter Dialog
+    if (showPitchSpeedDialog) {
+        com.auraplayer.ui.components.PitchSpeedDialog(
+            player = player,
+            onDismiss = { showPitchSpeedDialog = false }
+        )
+    }
+
+    // 9:16 Story Lyric Card Generator
+    if (showStoryCardDialog) {
+        com.auraplayer.ui.components.StoryCardDialog(
+            song = currentMedia,
+            onDismiss = { showStoryCardDialog = false }
+        )
+    }
+
+    // 3D Fullscreen Visualizer & OLED Pure Black
+    if (showFullscreenVisualizer) {
+        com.auraplayer.ui.components.VisualizerFullscreenDialog(
+            song = currentMedia,
+            isPlaying = isPlaying,
+            onDismiss = { showFullscreenVisualizer = false }
         )
     }
 }

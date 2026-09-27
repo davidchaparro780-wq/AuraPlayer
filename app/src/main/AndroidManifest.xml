@@ -31,6 +31,8 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <queries>
         <intent>
@@ -91,6 +93,11 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <!-- Floating Bubble Service -->
+        <service
+            android:name="com.auraplayer.service.FloatingBubbleService"
+            android:exported="false" />
 
         <!-- FileProvider for In-App APK Updates and File Sharing -->
         <provider

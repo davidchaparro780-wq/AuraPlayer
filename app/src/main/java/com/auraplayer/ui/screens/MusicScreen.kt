@@ -146,6 +146,22 @@ fun MusicScreen(
     onOpenAlarm: () -> Unit = {},
     onToggleWifiServer: () -> Unit = {},
     isWifiServerRunning: Boolean = false,
+    onOpenQuiz: () -> Unit = {},
+    onOpenAchievements: () -> Unit = {},
+    onOpenBpmWorkout: () -> Unit = {},
+    onOpenBinaural: () -> Unit = {},
+    onOpenTimeCapsule: () -> Unit = {},
+    onOpenBatchCleaner: () -> Unit = {},
+    onToggleAirGestures: () -> Unit = {},
+    isAirGesturesActive: Boolean = false,
+    onToggleShake: () -> Unit = {},
+    isShakeActive: Boolean = false,
+    onToggleFlashlight: () -> Unit = {},
+    isFlashlightActive: Boolean = false,
+    onToggleVirtualDj: () -> Unit = {},
+    isVirtualDjActive: Boolean = false,
+    onToggleBubble: () -> Unit = {},
+    isBubbleActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -450,6 +466,75 @@ fun MusicScreen(
                     DropdownMenuItem(
                         text = { Text("🌅 Alarma Musical Suave", color = Color(0xFF10B981)) },
                         onClick = { showToolsMenu = false; onOpenAlarm() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🎮 DaVE Music Quiz", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
+                        onClick = { showToolsMenu = false; onOpenQuiz() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🏆 Nivel & Logros", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
+                        onClick = { showToolsMenu = false; onOpenAchievements() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🏃 Playlists por Ritmo BPM", color = Color(0xFF00F0FF)) },
+                        onClick = { showToolsMenu = false; onOpenBpmWorkout() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🧠 Ondas Binaurales & Ruido", color = Color(0xFF38BDF8)) },
+                        onClick = { showToolsMenu = false; onOpenBinaural() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("⏳ Cápsula del Tiempo", color = Color(0xFFFFD700)) },
+                        onClick = { showToolsMenu = false; onOpenTimeCapsule() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("🪄 Limpiador de Nombres", color = Color(0xFF10B981)) },
+                        onClick = { showToolsMenu = false; onOpenBatchCleaner() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isBubbleActive) "🫧 Burbuja Flotante: ACTIVA" else "🫧 Burbuja Flotante",
+                                color = if (isBubbleActive) Color(0xFF00FF00) else Color.White
+                            )
+                        },
+                        onClick = { showToolsMenu = false; onToggleBubble() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isAirGesturesActive) "✋ Gestos en el Aire: ACTIVOS" else "✋ Gestos en el Aire",
+                                color = if (isAirGesturesActive) Color(0xFF00FF00) else Color.White
+                            )
+                        },
+                        onClick = { showToolsMenu = false; onToggleAirGestures() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isShakeActive) "📳 Agitar Canción: ACTIVO" else "📳 Agitar para Aleatorio",
+                                color = if (isShakeActive) Color(0xFF00FF00) else Color.White
+                            )
+                        },
+                        onClick = { showToolsMenu = false; onToggleShake() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isFlashlightActive) "🔦 Linterna Rítmica: ACTIVA" else "🔦 Linterna al Ritmo",
+                                color = if (isFlashlightActive) Color(0xFF00FF00) else Color.White
+                            )
+                        },
+                        onClick = { showToolsMenu = false; onToggleFlashlight() }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isVirtualDjActive) "📻 Locutor DJ: ACTIVO" else "📻 Locutor Radio Virtual",
+                                color = if (isVirtualDjActive) Color(0xFF00FF00) else Color.White
+                            )
+                        },
+                        onClick = { showToolsMenu = false; onToggleVirtualDj() }
                     )
                     DropdownMenuItem(
                         text = {

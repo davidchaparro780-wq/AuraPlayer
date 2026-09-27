@@ -248,6 +248,43 @@ fun AuraApp(
     var showTournamentDialog by remember { mutableStateOf(false) }
     var showJukeboxScreen by remember { mutableStateOf(false) }
     var showWifiServerDialog by remember { mutableStateOf(false) }
+    var showQuizDialog by remember { mutableStateOf(false) }
+    var showAchievementsDialog by remember { mutableStateOf(false) }
+    var showBpmDialog by remember { mutableStateOf(false) }
+    var showBinauralDialog by remember { mutableStateOf(false) }
+    var showTimeCapsuleDialog by remember { mutableStateOf(false) }
+    var showBatchCleanerDialog by remember { mutableStateOf(false) }
+
+    val achievementManager = remember { com.auraplayer.audio.AchievementManager(context) }
+    val virtualDjManager = remember { com.auraplayer.audio.VirtualDjManager(context) }
+    val flashlightManager = remember { com.auraplayer.audio.FlashlightBeatManager(context) }
+    val airGestureManager = remember {
+        com.auraplayer.audio.AirGestureManager(
+            context,
+            onNext = { controller?.seekToNextMediaItem() },
+            onPlayPause = { controller?.let { if (it.isPlaying) it.pause() else it.play() } }
+        )
+    }
+    val shakeDetector = remember {
+        com.auraplayer.audio.ShakeDetector(context) {
+            controller?.let { c ->
+                val nextRandom = songs.shuffled().firstOrNull()
+                if (nextRandom != null) {
+                    val idx = songs.indexOfFirst { it.id == nextRandom.id }
+                    if (idx >= 0) {
+                        c.seekTo(idx, 0L)
+                        c.play()
+                    }
+                }
+            }
+        }
+    }
+
+    var isBubbleActive by remember { mutableStateOf(false) }
+    var isAirGesturesActive by remember { mutableStateOf(false) }
+    var isShakeActive by remember { mutableStateOf(false) }
+    var isFlashlightActive by remember { mutableStateOf(false) }
+    var isVirtualDjActive by remember { mutableStateOf(false) }
 
     val alarmManager = remember { com.auraplayer.audio.MusicAlarmManager(context) }
     val wifiServer = remember { com.auraplayer.service.LocalMusicServer() }
@@ -324,6 +361,24 @@ fun AuraApp(
             }
             showWifiServerDialog -> {
                 showWifiServerDialog = false
+            }
+            showQuizDialog -> {
+                showQuizDialog = false
+            }
+            showAchievementsDialog -> {
+                showAchievementsDialog = false
+            }
+            showBpmDialog -> {
+                showBpmDialog = false
+            }
+            showBinauralDialog -> {
+                showBinauralDialog = false
+            }
+            showTimeCapsuleDialog -> {
+                showTimeCapsuleDialog = false
+            }
+            showBatchCleanerDialog -> {
+                showBatchCleanerDialog = false
             }
             showOracleCard -> {
                 showOracleCard = false
@@ -423,10 +478,12 @@ fun AuraApp(
         }
     }
 
-    // Auto-fetch lyrics whenever track changes
+    // Auto-fetch lyrics and trigger DJ/achievement hooks whenever track changes
     LaunchedEffect(currentMedia?.id) {
         val song = currentMedia
         if (song != null) {
+            virtualDjManager.announceSong(song)
+            achievementManager.recordSongPlayed(song.path.endsWith(".flac", true))
             isLoadingLyrics = true
             lyrics = null
             lyrics = lyricsManager.getLyrics(song)
@@ -704,6 +761,9 @@ fun AuraApp(
         while (isActive && isPlaying) {
             controller?.let {
                 currentPositionMs = it.currentPosition
+                com.auraplayer.audio.AbLooperManager.instance.checkAndLoop(currentPositionMs) { target ->
+                    it.seekTo(target)
+                }
                 val d = it.duration
                 if (d > 0L) {
                     durationMs = d
@@ -861,6 +921,74 @@ fun AuraApp(
                 Toast.makeText(context, "Servidor WiFi apagado", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { showWifiServerDialog = false }
+        )
+    }
+
+    // DaVE Music Quiz Dialog
+    if (showQuizDialog) {
+        com.auraplayer.ui.components.MusicQuizDialog(
+            songs = songs,
+            achievementManager = achievementManager,
+            onPlaySnippet = { song, startMs ->
+                controller?.let { c ->
+                    val idx = songs.indexOfFirst { it.id == song.id }
+                    if (idx >= 0) {
+                        c.seekTo(idx, startMs)
+                        c.play()
+                    }
+                }
+            },
+            onStopSnippet = { controller?.pause() },
+            onDismiss = { showQuizDialog = false }
+        )
+    }
+
+    // Achievements & Listener Level Dialog
+    if (showAchievementsDialog) {
+        com.auraplayer.ui.components.AchievementsDialog(
+            achievementManager = achievementManager,
+            onDismiss = { showAchievementsDialog = false }
+        )
+    }
+
+    // BPM Workout Playlists Dialog
+    if (showBpmDialog) {
+        com.auraplayer.ui.components.BpmWorkoutDialog(
+            songs = songs,
+            onPlayPlaylist = { workoutSongs ->
+                controller?.let { c ->
+                    val first = workoutSongs.firstOrNull() ?: return@let
+                    val idx = songs.indexOfFirst { it.id == first.id }
+                    if (idx >= 0) {
+                        c.seekTo(idx, 0L)
+                        c.play()
+                    }
+                }
+            },
+            onDismiss = { showBpmDialog = false }
+        )
+    }
+
+    // Binaural Beats & Sleep Synthesizer Dialog
+    if (showBinauralDialog) {
+        com.auraplayer.ui.components.BinauralNoiseDialog(
+            onDismiss = { showBinauralDialog = false }
+        )
+    }
+
+    // Music Time Capsule Dialog
+    if (showTimeCapsuleDialog) {
+        com.auraplayer.ui.components.TimeCapsuleDialog(
+            songs = songs,
+            onDismiss = { showTimeCapsuleDialog = false }
+        )
+    }
+
+    // Smart Batch Metadata Cleaner Dialog
+    if (showBatchCleanerDialog) {
+        com.auraplayer.ui.components.BatchMetadataDialog(
+            songs = songs,
+            onDismiss = { showBatchCleanerDialog = false }
         )
     }
 
@@ -1159,6 +1287,67 @@ fun AuraApp(
                         }
                     },
                     isWifiServerRunning = isWifiServerRunning,
+                    onOpenQuiz = { showQuizDialog = true },
+                    onOpenAchievements = { showAchievementsDialog = true },
+                    onOpenBpmWorkout = { showBpmDialog = true },
+                    onOpenBinaural = { showBinauralDialog = true },
+                    onOpenTimeCapsule = { showTimeCapsuleDialog = true },
+                    onOpenBatchCleaner = { showBatchCleanerDialog = true },
+                    onToggleBubble = {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(context)) {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                android.net.Uri.parse("package:${context.packageName}")
+                            )
+                            context.startActivity(intent)
+                            Toast.makeText(context, "Concede el permiso de superposición para la burbuja", Toast.LENGTH_LONG).show()
+                        } else {
+                            val intent = android.content.Intent(context, com.auraplayer.service.FloatingBubbleService::class.java)
+                            if (isBubbleActive) {
+                                context.stopService(intent)
+                                isBubbleActive = false
+                                Toast.makeText(context, "Burbuja flotante desactivada", Toast.LENGTH_SHORT).show()
+                            } else {
+                                androidx.core.content.ContextCompat.startForegroundService(context, intent)
+                                isBubbleActive = true
+                                Toast.makeText(context, "Burbuja flotante activada", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    isBubbleActive = isBubbleActive,
+                    onToggleAirGestures = {
+                        isAirGesturesActive = !isAirGesturesActive
+                        if (isAirGesturesActive) {
+                            airGestureManager.start()
+                            Toast.makeText(context, "✋ Gestos en el Aire ACTIVADOS (Pasa la mano para pasar canción)", Toast.LENGTH_LONG).show()
+                        } else {
+                            airGestureManager.stop()
+                            Toast.makeText(context, "✋ Gestos en el Aire DESACTIVADOS", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    isAirGesturesActive = isAirGesturesActive,
+                    onToggleShake = {
+                        isShakeActive = !isShakeActive
+                        if (isShakeActive) {
+                            shakeDetector.start()
+                            Toast.makeText(context, "📳 Agitar para cambiar pista ACTIVADO", Toast.LENGTH_SHORT).show()
+                        } else {
+                            shakeDetector.stop()
+                            Toast.makeText(context, "📳 Agitar para cambiar pista DESACTIVADO", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    isShakeActive = isShakeActive,
+                    onToggleFlashlight = {
+                        isFlashlightActive = flashlightManager.toggle()
+                        Toast.makeText(context, if (isFlashlightActive) "🔦 Linterna Rítmica ACTIVADA" else "🔦 Linterna Rítmica DESACTIVADA", Toast.LENGTH_SHORT).show()
+                    },
+                    isFlashlightActive = isFlashlightActive,
+                    onToggleVirtualDj = {
+                        isVirtualDjActive = !isVirtualDjActive
+                        virtualDjManager.setDjEnabled(isVirtualDjActive)
+                        Toast.makeText(context, if (isVirtualDjActive) "📻 Locutor DJ DaVE ACTIVADO" else "📻 Locutor DJ DaVE DESACTIVADO", Toast.LENGTH_SHORT).show()
+                    },
+                    isVirtualDjActive = isVirtualDjActive,
                     modifier = Modifier.fillMaxSize()
                 )
             }

@@ -210,8 +210,8 @@ class LocalMusicServer {
                 return
             }
 
-            when {
                 path == "/" || path == "/index.html" -> serveIndex(socket)
+                path == "/party" -> serveParty(socket)
                 path == "/favicon.ico" -> sendNoContent(socket)
                 path.startsWith("/api/status") -> serveStatusApi(socket)
                 path.startsWith("/api/playpause") -> {
@@ -230,6 +230,11 @@ class LocalMusicServer {
                     val id = path.removePrefix("/api/playid/").toLongOrNull()
                     if (id != null) controller?.onPlaySongById(id)
                     serveJsonSuccess(socket, "playing_$id")
+                }
+                path == "/stream/current" -> {
+                    val song = controller?.getCurrentSong()
+                    if (song != null) streamSong(socket, song)
+                    else serve404(socket)
                 }
                 path.startsWith("/stream/") -> {
                     val id = path.removePrefix("/stream/").toLongOrNull()
@@ -409,6 +414,66 @@ updateStatus();
 </body>
 </html>"""
 
+        sendResponse(socket, "200 OK", "text/html; charset=UTF-8", html.toByteArray(Charsets.UTF_8))
+    }
+
+    private fun serveParty(socket: Socket) {
+        val html = """<!DOCTYPE html>
+<html lang='es'>
+<head>
+<meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>🎉 DaVE Party Sync — Discoteca Silenciosa</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05070e;color:#fff;font-family:system-ui,sans-serif;text-align:center;padding:30px 20px}
+.disco-card{background:linear-gradient(135deg,#3b0764,#0f172a);border:2px solid #e040fb;border-radius:28px;padding:36px;max-width:500px;margin:20px auto;box-shadow:0 0 50px rgba(224,64,251,0.3)}
+h1{color:#00f0ff;font-size:26px;margin-bottom:8px}
+.sub{color:#cbd5e1;font-size:14px;margin-bottom:24px}
+.song-box{background:#1e1b4b;padding:16px;border-radius:18px;margin-bottom:24px}
+.title{font-size:20px;font-weight:800;color:#fff}
+.artist{font-size:14px;color:#c084fc;margin-top:4px}
+.btn-join{background:linear-gradient(135deg,#e040fb,#00f0ff);color:#000;font-size:18px;font-weight:900;border:none;border-radius:50px;padding:16px 40px;cursor:pointer;box-shadow:0 0 30px rgba(0,240,255,0.5);transition:all 0.2s}
+.btn-join:hover{transform:scale(1.05)}
+audio{width:100%;margin-top:20px;outline:none}
+</style>
+</head>
+<body>
+<div class='disco-card'>
+<h1>🎉 DaVE Party Sync</h1>
+<p class='sub'>Discoteca Silenciosa WiFi • Sintonizado con el DJ</p>
+<div class='song-box'>
+<div class='title' id='title'>Cargando pista...</div>
+<div class='artist' id='artist'>DaVE Player</div>
+</div>
+<button class='btn-join' id='btnJoin' onclick='joinParty()'>🔊 Unirse al Audio en Vivo</button>
+<audio id='partyAudio' controls style='display:none'></audio>
+</div>
+<script>
+var audio = document.getElementById('partyAudio');
+var currentId = -1;
+function joinParty(){
+  audio.style.display = 'block';
+  audio.src = '/stream/current?t=' + Date.now();
+  audio.play();
+  document.getElementById('btnJoin').innerText = '🟢 En Sintonía';
+}
+function checkSong(){
+  fetch('/api/status').then(r=>r.json()).then(data=>{
+    document.getElementById('title').innerText = data.title;
+    document.getElementById('artist').innerText = data.artist;
+    if(currentId !== -1 && currentId !== data.id && audio.src){
+      audio.src = '/stream/current?t=' + Date.now();
+      audio.play();
+    }
+    currentId = data.id;
+  }).catch(()=>{});
+}
+setInterval(checkSong, 2000);
+checkSong();
+</script>
+</body>
+</html>"""
         sendResponse(socket, "200 OK", "text/html; charset=UTF-8", html.toByteArray(Charsets.UTF_8))
     }
 
