@@ -1,10 +1,17 @@
 package com.auraplayer.ui.screens
 
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +22,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,13 +46,17 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,6 +92,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.repository.DownloadEngine
 import com.auraplayer.data.repository.DownloadStatus
@@ -92,9 +106,13 @@ fun DiscoverScreen(
     downloadEngine: DownloadEngine,
     onPreviewTrack: (OnlineTrack) -> Unit,
     onDownloadComplete: () -> Unit,
+    currentPlayingTitle: String? = null,
+    isPlaying: Boolean = false,
+    onAddToQueue: ((OnlineTrack) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
@@ -177,50 +195,89 @@ fun DiscoverScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Header Title (Protected with notch & status bar padding)
+            // 1. Compact Header Row with Integrated Quality Pill (Saves ~50dp vertical space)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8)))
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "Explorar y Descargar",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 16.sp
+                        )
+                        Text(
+                            text = "Top TikTok, Pop y MP3 HD",
+                            fontSize = 11.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                }
+
+                // Compact Glassmorphic Quality Toggle Pill
+                val is320 = downloadQuality == "320"
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.linearGradient(listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8)))
-                        ),
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF13182E))
+                        .border(
+                            1.dp,
+                            Brush.horizontalGradient(
+                                if (is320) listOf(Color(0xFF38BDF8).copy(alpha = 0.8f), Color(0xFF8B5CF6).copy(alpha = 0.8f))
+                                else listOf(Color(0xFFF59E0B).copy(alpha = 0.8f), Color(0xFFE11D48).copy(alpha = 0.8f))
+                            ),
+                            RoundedCornerShape(20.dp)
+                        )
+                        .clickable {
+                            AuraHaptic.tick(view)
+                            val next = if (is320) "160" else "320"
+                            downloadQuality = next
+                            appPrefs.edit().putString("download_quality", next).apply()
+                            val msg = if (next == "320") "💎 Calidad: 320 kbps (Hi-Fi)" else "⚡ Calidad: 160 kbps (Rápido)"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudDownload,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
                     Text(
-                        text = "Explorar y Descargar",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = if (is320) "💎 320k Hi-Fi" else "⚡ 160k Rápido",
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "Top TikTok y música completa en MP3 HD",
-                        fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
+                        color = if (is320) Color(0xFF38BDF8) else Color(0xFFF59E0B)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Omnibar Global Input (Aesthetic Neon Glow)
+            // 2. Omnibar Global Input (Aesthetic Neon Glow)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(48.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color(0xFF13182E))
                     .border(
@@ -241,7 +298,7 @@ fun DiscoverScreen(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
                         Text(
-                            "Buscar canción, artista o pegar enlace (TikTok/Web)...",
+                            "Buscar canción, artista o pegar enlace...",
                             color = Color(0xFF94A3B8).copy(alpha = 0.7f),
                             fontSize = 12.sp,
                             maxLines = 1,
@@ -249,7 +306,10 @@ fun DiscoverScreen(
                         )
                     },
                     leadingIcon = {
-                        IconButton(onClick = { executeSearch() }) {
+                        IconButton(onClick = {
+                            AuraHaptic.click(view)
+                            executeSearch()
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = "Buscar",
@@ -262,6 +322,7 @@ fun DiscoverScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = {
+                                    AuraHaptic.click(view)
                                     searchQuery = ""
                                     scope.launch {
                                         isLoading = true
@@ -279,6 +340,7 @@ fun DiscoverScreen(
                             } else {
                                 // Quick Paste Button from Clipboard
                                 IconButton(onClick = {
+                                    AuraHaptic.click(view)
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
                                     val clip = clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
                                     if (!clip.isNullOrBlank()) {
@@ -309,13 +371,16 @@ fun DiscoverScreen(
                         unfocusedTextColor = Color.White
                     ),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { executeSearch() })
+                    keyboardActions = KeyboardActions(onSearch = {
+                        AuraHaptic.click(view)
+                        executeSearch()
+                    })
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Category & Genre Filter Chips
+            // 3. Category & Genre Filter Chips
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -340,16 +405,17 @@ fun DiscoverScreen(
                             )
                             .border(
                                 1.dp,
-                                if (isSelected) Color.Transparent else Color(0xFF8B5CF6).copy(alpha = 0.25f),
+                                if (isSelected) Color(0xFF38BDF8).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.2f),
                                 RoundedCornerShape(16.dp)
                             )
                             .clickable {
+                                AuraHaptic.tick(view)
                                 selectedGenre = key
                                 if (searchQuery.isNotBlank()) {
                                     searchQuery = ""
                                 }
                             }
-                            .padding(horizontal = 14.dp, vertical = 7.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -362,185 +428,133 @@ fun DiscoverScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Download Quality Selector Bar (320 kbps Hi-Fi vs 160 kbps Fast)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Calidad de Descarga:",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val is320 = downloadQuality == "320"
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (is320) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF13182E))
-                            .border(1.dp, if (is320) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                            .clickable {
-                                downloadQuality = "320"
-                                appPrefs.edit().putString("download_quality", "320").apply()
-                                Toast.makeText(context, "Calidad: 320 kbps (Hi-Fi)", Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("💎 320k Hi-Fi", fontSize = 11.sp, fontWeight = if (is320) FontWeight.Bold else FontWeight.Normal, color = if (is320) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8))
-                    }
-                    val is160 = downloadQuality == "160"
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (is160) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else Color(0xFF13182E))
-                            .border(1.dp, if (is160) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                            .clickable {
-                                downloadQuality = "160"
-                                appPrefs.edit().putString("download_quality", "160").apply()
-                                Toast.makeText(context, "Calidad: 160 kbps (Rápido)", Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text("⚡ 160k Rápido", fontSize = 11.sp, fontWeight = if (is160) FontWeight.Bold else FontWeight.Normal, color = if (is160) MaterialTheme.colorScheme.primary else Color(0xFF94A3B8))
-                    }
-                }
-            }
-
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Batch Download Card & Results Header
+            // 4. Compact Results & Batch Download Action Bar (Replaces bulky 80dp box)
             if (!isLoading && trackList.isNotEmpty()) {
                 val downloadableTracks = remember(trackList) { trackList.filter { it.isDownloadable } }
                 val downloadableCount = downloadableTracks.size
 
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF1E1B4B).copy(alpha = 0.85f),
-                                    Color(0xFF0F172A).copy(alpha = 0.95f)
-                                )
-                            )
-                        )
-                        .border(
-                            1.dp,
-                            Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFF8B5CF6).copy(alpha = 0.6f),
-                                    Color(0xFF38BDF8).copy(alpha = 0.4f)
-                                )
-                            ),
-                            RoundedCornerShape(16.dp)
-                        )
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .padding(vertical = 4.dp)
                 ) {
-                    Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (searchQuery.isNotBlank()) "Resultados" else "Tendencias ($selectedGenre)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.25f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
                                 Text(
-                                    text = if (searchQuery.isNotBlank()) "Resultados / Álbum" else "Tendencias ($selectedSource)",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "${trackList.size} canciones ($downloadableCount descargables en MP3 HD)",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFF94A3B8)
+                                    text = "${trackList.size} canciones",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF38BDF8)
                                 )
                             }
+                        }
 
-                            if (!isDownloadingBatch) {
-                                Button(
-                                    onClick = {
+                        if (!isDownloadingBatch) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF8B5CF6), Color(0xFF3B82F6))
+                                        )
+                                    )
+                                    .clickable {
+                                        AuraHaptic.click(view)
                                         if (downloadableCount > 0) {
                                             showBatchConfirmDialog = true
                                         } else {
                                             Toast.makeText(context, "No hay canciones descargables en esta lista", Toast.LENGTH_SHORT).show()
                                         }
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF8B5CF6),
-                                        contentColor = Color.White
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                    modifier = Modifier.height(36.dp)
-                                ) {
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.CloudDownload,
                                         contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Descargar Todo",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
-                                        .padding(horizontal = 10.dp, vertical = 6.dp)
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color(0xFF38BDF8)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "$batchCompleted/$batchTotal",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF38BDF8)
+                                        color = Color.White
                                     )
                                 }
                             }
-                        }
-
-                        // Live progress bar when batch download is active
-                        if (isDownloadingBatch) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val progress = if (batchTotal > 0) batchCompleted.toFloat() / batchTotal.toFloat() else 0f
-                            LinearProgressIndicator(
-                                progress = { progress },
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = Color(0xFF38BDF8),
-                                trackColor = Color(0xFF334155)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Descargando: ${batchCurrentTitle.ifBlank { "audio..." }}",
-                                fontSize = 11.sp,
-                                color = Color(0xFF38BDF8),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color(0xFF38BDF8)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "$batchCompleted/$batchTotal",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF38BDF8)
+                                )
+                            }
                         }
+                    }
+
+                    // Live progress bar when batch download is active
+                    if (isDownloadingBatch) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val progress = if (batchTotal > 0) batchCompleted.toFloat() / batchTotal.toFloat() else 0f
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = Color(0xFF38BDF8),
+                            trackColor = Color(0xFF334155)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Descargando: ${batchCurrentTitle.ifBlank { "audio..." }}",
+                            fontSize = 10.sp,
+                            color = Color(0xFF38BDF8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             } else {
-                // Results Counter & Header
+                // Empty / Initial state counter
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -549,7 +563,7 @@ fun DiscoverScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (searchQuery.isNotBlank()) "Resultados unificados" else "Tendencias ($selectedSource)",
+                        text = if (searchQuery.isNotBlank()) "Resultados unificados" else "Tendencias ($selectedGenre)",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -660,17 +674,21 @@ fun DiscoverScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 90.dp, top = 4.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 130.dp, top = 4.dp)
                 ) {
                     items(trackList, key = { it.id }, contentType = { "online_track" }) { track ->
                         val status = downloadStates[track.id] ?: DownloadStatus.Idle
+                        val isPlayingThis = isPlaying && !currentPlayingTitle.isNullOrBlank() &&
+                                (currentPlayingTitle.equals(track.title, ignoreCase = true) ||
+                                 currentPlayingTitle.contains(track.title, ignoreCase = true) ||
+                                 track.title.contains(currentPlayingTitle, ignoreCase = true))
 
                         OnlineTrackCard(
                             track = track,
                             status = status,
+                            isPlayingThis = isPlayingThis,
                             onPreview = {
-                                Toast.makeText(context, "Reproduciendo: ${track.title}", Toast.LENGTH_SHORT).show()
                                 onPreviewTrack(track)
                             },
                             onDownload = {
@@ -701,6 +719,11 @@ fun DiscoverScreen(
                                         }
                                     }
                                 }
+                            },
+                            onAddToQueue = {
+                                onAddToQueue?.invoke(track) ?: run {
+                                    Toast.makeText(context, "Añadida: ${track.title}", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         )
                     }
@@ -711,13 +734,81 @@ fun DiscoverScreen(
 }
 
 @Composable
+fun AnimatedEqualizerBars(
+    modifier: Modifier = Modifier,
+    color: Color = Color(0xFF38BDF8)
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "eq_bars")
+    val bar1 by infiniteTransition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(420, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "b1"
+    )
+    val bar2 by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 0.20f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(310, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "b2"
+    )
+    val bar3 by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(520, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "b3"
+    )
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight(bar1)
+                .clip(RoundedCornerShape(1.dp))
+                .background(color)
+        )
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight(bar3)
+                .clip(RoundedCornerShape(1.dp))
+                .background(color)
+        )
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .fillMaxHeight(bar2)
+                .clip(RoundedCornerShape(1.dp))
+                .background(color)
+        )
+    }
+}
+
+@Composable
 fun OnlineTrackCard(
     track: OnlineTrack,
     status: DownloadStatus,
+    isPlayingThis: Boolean,
     onPreview: () -> Unit,
-    onDownload: () -> Unit
+    onDownload: () -> Unit,
+    onAddToQueue: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
+    var showMenu by remember { mutableStateOf(false) }
 
     val sourceBadgeColor = when (track.source) {
         "YouTube" -> Color(0xFFEF4444)
@@ -729,15 +820,34 @@ fun OnlineTrackCard(
     }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
-            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-            .padding(10.dp),
+            .background(
+                if (isPlayingThis) Color(0xFF1E1B4B).copy(alpha = 0.7f)
+                else Color(0xFF0F172A).copy(alpha = 0.55f)
+            )
+            .border(
+                width = if (isPlayingThis) 1.5.dp else 1.dp,
+                brush = if (isPlayingThis) {
+                    Brush.horizontalGradient(
+                        listOf(Color(0xFF38BDF8), Color(0xFF8B5CF6))
+                    )
+                } else {
+                    Brush.linearGradient(
+                        listOf(Color.White.copy(alpha = 0.10f), Color.White.copy(alpha = 0.04f))
+                    )
+                },
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable {
+                AuraHaptic.click(view)
+                onPreview()
+            }
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Album Cover Art
+        // Album Cover Art with Playing Overlay / Animated Bars
         Box(
             modifier = Modifier
                 .size(56.dp)
@@ -752,7 +862,8 @@ fun OnlineTrackCard(
                 )
                 .border(
                     1.dp,
-                    Color(0xFF8B5CF6).copy(alpha = 0.3f),
+                    if (isPlayingThis) Color(0xFF38BDF8).copy(alpha = 0.6f)
+                    else Color(0xFF8B5CF6).copy(alpha = 0.25f),
                     RoundedCornerShape(12.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -761,7 +872,7 @@ fun OnlineTrackCard(
                 imageVector = Icons.Default.MusicNote,
                 contentDescription = null,
                 tint = Color(0xFF8B5CF6).copy(alpha = 0.7f),
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
             if (track.coverUrl.isNotBlank()) {
                 AsyncImage(
@@ -775,9 +886,24 @@ fun OnlineTrackCard(
                     modifier = Modifier.fillMaxSize()
                 )
             }
+
+            // If playing: Translucent dark scrim + Animated Equalizer Bars
+            if (isPlayingThis) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedEqualizerBars(
+                        modifier = Modifier.size(20.dp),
+                        color = Color(0xFF38BDF8)
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         // Info: Title, Artist, Badges
         Column(modifier = Modifier.weight(1f)) {
@@ -785,7 +911,8 @@ fun OnlineTrackCard(
                 text = track.title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color.White,
+                color = if (isPlayingThis) Color(0xFF38BDF8) else Color.White,
+                fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -795,7 +922,8 @@ fun OnlineTrackCard(
             Text(
                 text = "${track.artist} • ${track.durationFormatted}",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Color(0xFF94A3B8),
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -807,8 +935,8 @@ fun OnlineTrackCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(sourceBadgeColor.copy(alpha = 0.2f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .background(sourceBadgeColor.copy(alpha = 0.18f))
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = track.source,
@@ -824,84 +952,87 @@ fun OnlineTrackCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.White.copy(alpha = 0.1f))
+                        .background(Color.White.copy(alpha = 0.08f))
                         .padding(horizontal = 5.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = track.format,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = Color.White.copy(alpha = 0.75f)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
-        // Action Buttons
+        // Right Actions: Sleek Download Action + More Options Menu
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Play Stream / Preview Button
-            IconButton(
-                onClick = onPreview,
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Escuchar",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Download Button with Dynamic State
             when (status) {
                 is DownloadStatus.Idle -> {
-                    IconButton(
-                        onClick = onDownload,
+                    Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(
-                                if (track.isDownloadable) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                                if (track.isDownloadable) Color(0xFF1E293B).copy(alpha = 0.9f)
+                                else Color.White.copy(alpha = 0.05f)
                             )
+                            .border(
+                                1.dp,
+                                if (track.isDownloadable) Color(0xFF38BDF8).copy(alpha = 0.35f)
+                                else Color.White.copy(alpha = 0.08f),
+                                CircleShape
+                            )
+                            .clickable {
+                                AuraHaptic.click(view)
+                                onDownload()
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (track.isDownloadable) Icons.Default.CloudDownload else Icons.Default.Info,
                             contentDescription = if (track.isDownloadable) "Descargar Canción Completa" else "Muestra 30s",
-                            tint = if (track.isDownloadable) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            tint = if (track.isDownloadable) Color(0xFF38BDF8) else Color(0xFF64748B),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
                 is DownloadStatus.Downloading -> {
-                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E293B)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(
                             progress = { status.progress / 100f },
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp),
-                            strokeWidth = 3.dp
+                            color = Color(0xFF38BDF8),
+                            modifier = Modifier.size(30.dp),
+                            strokeWidth = 2.5.dp
                         )
                         Text(
                             text = "${status.progress}%",
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            color = Color(0xFF38BDF8)
                         )
                     }
                 }
                 is DownloadStatus.Tagging -> {
-                    Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF1E293B)),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator(
                             color = Color(0xFFEC4899),
-                            modifier = Modifier.size(28.dp),
-                            strokeWidth = 2.5.dp
+                            modifier = Modifier.size(26.dp),
+                            strokeWidth = 2.dp
                         )
                     }
                 }
@@ -910,32 +1041,108 @@ fun OnlineTrackCard(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF10B981)),
+                            .background(Color(0xFF10B981).copy(alpha = 0.2f))
+                            .border(1.dp, Color(0xFF10B981), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Descargado",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            tint = Color(0xFF10B981),
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
                 is DownloadStatus.Error -> {
-                    IconButton(
-                        onClick = onDownload,
+                    Box(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.15f))
+                            .border(1.dp, MaterialTheme.colorScheme.error, CircleShape)
+                            .clickable {
+                                AuraHaptic.click(view)
+                                onDownload()
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
                             contentDescription = "Reintentar",
                             tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(4.dp))
+
+            // More Options Menu (⋮)
+            Box {
+                IconButton(
+                    onClick = {
+                        AuraHaptic.tick(view)
+                        showMenu = true
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Más opciones",
+                        tint = Color(0xFF94A3B8),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier
+                        .background(Color(0xFF1E1B4B))
+                        .border(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.PlaylistAdd,
+                                    contentDescription = null,
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Añadir a la cola", color = Color.White, fontSize = 13.sp)
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            AuraHaptic.click(view)
+                            onAddToQueue()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.ContentPaste,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Copiar título", color = Color.White, fontSize = 13.sp)
+                            }
+                        },
+                        onClick = {
+                            showMenu = false
+                            AuraHaptic.tick(view)
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            val clip = ClipData.newPlainText("song_title", "${track.title} - ${track.artist}")
+                            clipboard?.setPrimaryClip(clip)
+                            Toast.makeText(context, "Copiado: ${track.title}", Toast.LENGTH_SHORT).show()
+                        }
+                    )
                 }
             }
         }

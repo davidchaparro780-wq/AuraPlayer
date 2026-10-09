@@ -1436,6 +1436,8 @@ fun AuraApp(
             1 -> DiscoverScreen(
                 searchService = searchService,
                 downloadEngine = downloadEngine,
+                currentPlayingTitle = currentMedia?.title,
+                isPlaying = isPlaying,
                 onPreviewTrack = { onlineTrack ->
                     scope.launch {
                         val validUrl = searchService.resolveValidAudioUrl(onlineTrack)
@@ -1471,6 +1473,32 @@ fun AuraApp(
                             setMediaItem(previewItem)
                             prepare()
                             play()
+                        }
+                    }
+                },
+                onAddToQueue = { onlineTrack ->
+                    scope.launch {
+                        val validUrl = searchService.resolveValidAudioUrl(onlineTrack)
+                        val trackDurationMs = onlineTrack.durationSec * 1000L
+                        val bundle = android.os.Bundle().apply {
+                            putLong("duration_ms", trackDurationMs)
+                        }
+                        val queueItem = MediaItem.Builder()
+                            .setUri(validUrl)
+                            .setMediaId("online_${onlineTrack.id}")
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(onlineTrack.title)
+                                    .setArtist(onlineTrack.artist)
+                                    .setAlbumTitle(onlineTrack.album)
+                                    .setArtworkUri(if (onlineTrack.coverUrl.isNotBlank()) Uri.parse(onlineTrack.coverUrl) else null)
+                                    .setExtras(bundle)
+                                    .build()
+                            )
+                            .build()
+                        controller?.let { ctrl ->
+                            ctrl.addMediaItem(queueItem)
+                            Toast.makeText(this@MainActivity, "✓ '${onlineTrack.title}' añadida a la cola", Toast.LENGTH_SHORT).show()
                         }
                     }
                 },

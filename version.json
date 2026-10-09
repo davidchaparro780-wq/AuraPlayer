@@ -1,7 +1,7 @@
 {
-  "versionCode": 53,
-  "versionName": "2.7.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.1/app-debug.apk",
-  "changelog": "✨ DaVE v2.7.1 — Restauración y Rediseño de la Barra de Búsqueda:\n• 🔍 Barra de Búsqueda Dedicada a Ancho Completo: Se independizó el buscador en su propia fila de 100% ancho con borde neón, icono luminoso y texto cómodo para que nunca vuelva a ocultarse ni comprimirse.\n• 👑 Nueva Cabecera Ergonómica: Agrupación elegante de controles (Ordenar, Temporizador, Herramientas Pro, Perfil y Ajustes) junto al logo de DaVE Player.\n• ⚡ Todas las funciones de v2.7.0 activas: Control de volumen vertical por gestos con HUD neón, Modo candado de bolsillo (Pocket lock), Swipe-to-action en canciones, historial de búsquedas y temporizador inteligente.",
+  "versionCode": 54,
+  "versionName": "2.7.2",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.2/app-debug.apk",
+  "changelog": "✨ DaVE v2.7.2 — Rediseño Pro de la Pantalla Explorar & Descargar:\n• 📏 Liberación de +60% Espacio Vertical: Cabecera compacta con selector de calidad Hi-Fi integrado y barra de acción ligera (reemplazando la caja pesada) para ver muchas más canciones en pantalla.\n• 🎧 Reproducción Directa al Tocar la Canción: Toca cualquier fila para escuchar de inmediato (estilo Spotify).\n• 🌊 Animación de Ecualizador en Vivo: La canción que suena se resalta con borde neón y barras de ecualizador animadas sobre la carátula.\n• 💎 Botón de Descarga Glassmorphism: Indicadores de estado elegantes (descargar, porcentaje animado, completado).\n• ➕ Menú Contextual (⋮): Añadir a la cola y copiar título al portapapeles.",
   "fileSizeMb": 24.5
 }
