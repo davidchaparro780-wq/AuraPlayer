@@ -1722,7 +1722,7 @@ document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
 });
 
 // ==========================================
-// REAL MOBILE TRACKS (INFINIX HOT 40i SYNC — 25 CANCIONES)
+// REAL MOBILE TRACKS (INFINIX HOT 40i SYNC — 30 CANCIONES)
 // ==========================================
 const realPhoneTracks = [
   {
@@ -1786,7 +1786,7 @@ const realPhoneTracks = [
     artist: 'Dawid Podsiadło',
     album: 'Cyberpunk: Edgerunners (Netflix)',
     duration: 238,
-    streamUrl: 'music/Cyberpunk_%20Edgerunners%20-%20Ending%20Theme%20_%20Let%20You%20Down%20by%20Dawid%20Podsiadlo%20_%20Netflix.mp3',
+    streamUrl: 'music/Cyberpunk_%20Edgerunners%20%E2%80%94%20Ending%20Theme%20_%20Let%20You%20Down%20by%20Dawid%20Podsiad%C5%82o%20_%20Netflix.mp3',
     coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/82/35/0e/82350ed4-f66f-600b-f572-c7507fc66a10/196589453082.jpg/600x600bb.jpg'
   },
   {
@@ -1794,7 +1794,7 @@ const realPhoneTracks = [
     artist: 'Dawid Podsiadło, P.T. Adamczyk',
     album: 'Cyberpunk 2077: Phantom Liberty',
     duration: 279,
-    streamUrl: 'music/Dawid%20Podsiadlo%2C%20P.T.%20Adamczyk%20-%20Phantom%20Liberty%20(Official%20Cyberpunk%202077%20Music%20Video).mp3',
+    streamUrl: 'music/Dawid%20Podsiad%C5%82o%2C%20P.T.%20Adamczyk%20%E2%80%94%20Phantom%20Liberty%20(Official%20Cyberpunk%202077%20Music%20Video).mp3',
     coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/e1/6e/79/e16e7907-1a77-8e18-64df-6a5d28ecc17d/196871442299.jpg/600x600bb.jpg'
   },
   {
@@ -1924,6 +1924,46 @@ const realPhoneTracks = [
     duration: 242,
     streamUrl: 'music/Ziraki%20-%20SSRHD%20(Remix).mp3',
     coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/25/b9/d0/25b9d0a5-323a-fd54-bce4-6c768c8b00e4/8721056924288.png/600x600bb.jpg'
+  },
+  {
+    title: 'Verdades (TikTok)',
+    artist: 'Westcol',
+    album: 'Westcol Audios Virales',
+    duration: 78,
+    streamUrl: 'music/Westcol%20-%20Verdades%20(TikTok).mp3',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/76/c1/83/76c18371-1a13-b500-12a5-da71f33a8d25/0.jpg/600x600bb.jpg'
+  },
+  {
+    title: 'HJ-S',
+    artist: 'Ziraki',
+    album: 'Suno AI Studio',
+    duration: 151,
+    streamUrl: 'music/Ziraki%20-%20HJ-S.mp3',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/25/b9/d0/25b9d0a5-323a-fd54-bce4-6c768c8b00e4/8721056924288.png/600x600bb.jpg'
+  },
+  {
+    title: 'Dame Fuerza (Intro Doña Bárbara)',
+    artist: 'Marta Sánchez',
+    album: 'Doña Bárbara Soundtrack',
+    duration: 188,
+    streamUrl: 'music/Martha%20Sanchez%20-%20Dame%20Fuerza%20(Intro%20Dona%20Barbara).mp3',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music/v4/7d/53/7d/7d537dfa-2cb0-b08e-5b12-58133ce745c4/00602517871379.rgb.jpg/600x600bb.jpg'
+  },
+  {
+    title: 'Gritona (Efecto de Sonido)',
+    artist: 'Jorge Murguía Quiroz',
+    album: 'Efectos & Vines',
+    duration: 6,
+    streamUrl: 'music/Jorge%20Murguia%20Quiroz%20-%20Gritona%20(Efecto).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Let You Down (Extended)',
+    artist: 'Dawid Podsiadło',
+    album: 'Cyberpunk 2077 OST',
+    duration: 280,
+    streamUrl: 'music/Let%20You%20Down.mp3',
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/82/35/0e/82350ed4-f66f-600b-f572-c7507fc66a10/196589453082.jpg/600x600bb.jpg'
   }
 ];
 
@@ -2244,7 +2284,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '3.5.2';
+  const CATALOG_VERSION = '3.6.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
