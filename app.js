@@ -1352,11 +1352,112 @@ document.querySelector('a[href="#stem-mixer-info"]')?.addEventListener('click', 
 // ==========================================
 // 13. USER AUTH & PHONE SYNC
 // ==========================================
+const authDisconnectBanner = document.getElementById('auth-disconnect-banner');
+const btnPhoneDisconnect = document.getElementById('btn-phone-disconnect');
+const syncActiveBox = document.getElementById('sync-active-box');
+const syncConnectedIpText = document.getElementById('sync-connected-ip-text');
+const btnModalDisconnectServer = document.getElementById('btn-modal-disconnect-server');
+
+let connectedPhoneIp = null;
+let phoneHeartbeatInterval = null;
+
+function updatePhoneConnectionUI(isConnected, ip = '') {
+  if (isConnected) {
+    connectedPhoneIp = ip;
+    btnPhoneDisconnect?.classList.remove('hidden');
+    syncActiveBox?.classList.remove('hidden');
+    if (syncConnectedIpText) syncConnectedIpText.innerText = ip;
+    if (phoneSyncStatus) {
+      phoneSyncStatus.innerHTML = `<span style="color:#10b981; font-weight:600;">● Servidor Conectado</span> en <code style="color:var(--accent-cyan); font-family:monospace;">${escapeHtml(ip)}</code> • ${phoneTracks.length} canciones sincronizadas.`;
+    }
+  } else {
+    connectedPhoneIp = null;
+    btnPhoneDisconnect?.classList.add('hidden');
+    syncActiveBox?.classList.add('hidden');
+    if (syncConnectedIpText) syncConnectedIpText.innerText = '';
+    if (phoneSyncStatus) {
+      phoneSyncStatus.innerText = currentUser 
+        ? `Sincronizado con ${currentUser.email} • ${phoneTracks.length} canciones de tu nube disponibles.`
+        : 'Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.';
+    }
+  }
+}
+
+function startPhoneHeartbeat(ip) {
+  stopPhoneHeartbeat();
+  updatePhoneConnectionUI(true, ip);
+  localStorage.setItem('dave_connected_phone_ip', ip);
+
+  let consecutiveFailures = 0;
+  phoneHeartbeatInterval = setInterval(async () => {
+    if (!connectedPhoneIp) return;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch(`${connectedPhoneIp}/api/status`, { signal: controller.signal, cache: 'no-store' });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        consecutiveFailures = 0;
+      } else {
+        consecutiveFailures++;
+      }
+    } catch (e) {
+      consecutiveFailures++;
+    }
+
+    if (consecutiveFailures >= 2) {
+      console.warn('Servidor del teléfono desconectado (heartbeat fallido):', connectedPhoneIp);
+      disconnectPhoneServer(true);
+    }
+  }, 3500);
+}
+
+function stopPhoneHeartbeat() {
+  if (phoneHeartbeatInterval) {
+    clearInterval(phoneHeartbeatInterval);
+    phoneHeartbeatInterval = null;
+  }
+}
+
+function disconnectPhoneServer(isRemoteDisconnect = false) {
+  stopPhoneHeartbeat();
+  updatePhoneConnectionUI(false);
+  localStorage.removeItem('dave_connected_phone_ip');
+
+  // Si se estaba reproduciendo audio transmitido desde el teléfono, pausar
+  if (isPlaying && currentTrack && currentTrack.streamUrl && (currentTrack.streamUrl.includes(':8080') || currentTrack.streamUrl.includes('/stream/'))) {
+    pauseTrack();
+  }
+
+  // Cerrar sesión activa para forzar la ventana de inicio de sesión
+  currentUser = null;
+  localStorage.removeItem('dave_user');
+  updateUserUI();
+
+  // Abrir la ventana principal de Iniciar Sesión con aviso destacado
+  modalSync?.classList.add('hidden');
+  authDisconnectBanner?.classList.remove('hidden');
+  modalAuth?.classList.remove('hidden');
+  setTimeout(() => document.getElementById('auth-email')?.focus(), 250);
+
+  const msg = isRemoteDisconnect 
+    ? 'El servidor de tu teléfono se ha desconectado. Inicia sesión para acceder a tu música en la nube.'
+    : 'Servidor del teléfono desconectado manualmente.';
+  showToast(msg, 'warning', 'fa-power-off');
+}
+
+btnPhoneDisconnect?.addEventListener('click', () => disconnectPhoneServer(false));
+btnModalDisconnectServer?.addEventListener('click', () => disconnectPhoneServer(false));
+
 btnLoginModal?.addEventListener('click', () => {
+  authDisconnectBanner?.classList.add('hidden');
   modalAuth?.classList.remove('hidden');
   updateUserUI();
 });
-btnCloseAuth?.addEventListener('click', () => modalAuth?.classList.add('hidden'));
+btnCloseAuth?.addEventListener('click', () => {
+  authDisconnectBanner?.classList.add('hidden');
+  modalAuth?.classList.add('hidden');
+});
 btnCloseSync?.addEventListener('click', () => modalSync?.classList.add('hidden'));
 
 document.getElementById('btn-open-sync-modal')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
@@ -1373,13 +1474,47 @@ function updateUserUI() {
 
     authFormContainer?.classList.add('hidden');
     authUserProfile?.classList.remove('hidden');
-    if (phoneSyncStatus) phoneSyncStatus.innerText = `Sincronizado con ${currentUser.email} • ${phoneTracks.length} canciones del celular disponibles.`;
+    if (phoneSyncStatus && !connectedPhoneIp) {
+      phoneSyncStatus.innerText = `Sincronizado con ${currentUser.email} • ${phoneTracks.length} canciones de tu nube disponibles.`;
+    }
   } else {
     if (userDisplayName) userDisplayName.innerText = 'Iniciar Sesión';
     authFormContainer?.classList.remove('hidden');
     authUserProfile?.classList.add('hidden');
-    if (phoneSyncStatus) phoneSyncStatus.innerText = 'Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.';
+    if (phoneSyncStatus && !connectedPhoneIp) {
+      phoneSyncStatus.innerText = 'Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.';
+    }
   }
+}
+
+function handleSuccessfulLoginCloudSync() {
+  authDisconnectBanner?.classList.add('hidden');
+  modalAuth?.classList.add('hidden');
+
+  // Cargar todas las canciones que tenía en la nube
+  phoneTracks = [...realPhoneTracks];
+  localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+
+  // Sincronizar en la playlist principal
+  realPhoneTracks.forEach(t => {
+    if (!playlist.some(p => p.title === t.title && p.artist === t.artist)) {
+      playlist.push(t);
+    }
+  });
+
+  renderTrackList();
+  renderPhoneTracksList();
+  updateUserUI();
+
+  // Cambiar a la vista principal de Canciones para ver toda la nube inmediatamente
+  switchTab('songs');
+
+  // Precargar la primera canción en el dock
+  if (playlist.length > 0 && currentTrackIndex === -1) {
+    loadTrackMeta(0);
+  }
+
+  showToast(`☁️ ¡Bienvenido, ${currentUser.name || 'Usuario'}! Se cargaron ${realPhoneTracks.length} canciones de tu nube`, 'success', 'fa-cloud');
 }
 
 authForm?.addEventListener('submit', (e) => {
@@ -1393,8 +1528,7 @@ authForm?.addEventListener('submit', (e) => {
   };
   localStorage.setItem('dave_user', JSON.stringify(currentUser));
   updateUserUI();
-  if (phoneTracks.length === 0) syncCloudPhoneLibrary();
-  setTimeout(() => modalAuth?.classList.add('hidden'), 500);
+  handleSuccessfulLoginCloudSync();
 });
 
 document.getElementById('auth-link-demo')?.addEventListener('click', (e) => {
@@ -1406,8 +1540,7 @@ document.getElementById('auth-link-demo')?.addEventListener('click', (e) => {
   };
   localStorage.setItem('dave_user', JSON.stringify(currentUser));
   updateUserUI();
-  syncCloudPhoneLibrary();
-  setTimeout(() => modalAuth?.classList.add('hidden'), 500);
+  handleSuccessfulLoginCloudSync();
 });
 
 document.getElementById('btn-google-login')?.addEventListener('click', () => {
@@ -1418,8 +1551,7 @@ document.getElementById('btn-google-login')?.addEventListener('click', () => {
   };
   localStorage.setItem('dave_user', JSON.stringify(currentUser));
   updateUserUI();
-  syncCloudPhoneLibrary();
-  setTimeout(() => modalAuth?.classList.add('hidden'), 500);
+  handleSuccessfulLoginCloudSync();
 });
 
 document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
@@ -1751,6 +1883,7 @@ document.getElementById('btn-test-connect')?.addEventListener('click', async () 
   // Seamlessly open the phone console in a new tab so the user sees all their songs immediately!
   if (window.location.protocol === 'https:') {
     window.open(ip, '_blank');
+    startPhoneHeartbeat(ip);
     showSyncFeedback(`¡Abriendo tu celular (${ip}) en una nueva pestaña! En esa pestaña tienes todas tus canciones listas.`, 'success');
     setTimeout(() => modalSync?.classList.add('hidden'), 2000);
     return;
@@ -1776,6 +1909,7 @@ document.getElementById('btn-test-connect')?.addEventListener('click', async () 
           coverUrl: null
         }));
         localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+        startPhoneHeartbeat(ip);
         renderPhoneTracksList();
         updateUserUI();
         showSyncFeedback(`¡Conectado! Se cargaron ${phoneTracks.length} canciones de tu celular.`, 'success');
@@ -1955,7 +2089,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
-  const CATALOG_VERSION = '3.4.2';
+  const CATALOG_VERSION = '3.4.3';
   const savedVersion = localStorage.getItem('dave_catalog_ver');
   const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
   let loadedTracks = null;
@@ -2003,7 +2137,19 @@ function initApp() {
   }
   updateUserUI();
 
-  // 4. Preload first track (Happy Nation) metadata so dock is ready immediately
+  // 4. Verificar si había un servidor de teléfono previamente conectado
+  const savedConnectedIp = localStorage.getItem('dave_connected_phone_ip');
+  if (savedConnectedIp) {
+    startPhoneHeartbeat(savedConnectedIp);
+  }
+
+  // Si la URL solicita pantalla de login (?login=true o ?action=login)
+  if (window.location.search.includes('login=true') || window.location.search.includes('action=login')) {
+    authDisconnectBanner?.classList.remove('hidden');
+    modalAuth?.classList.remove('hidden');
+  }
+
+  // 5. Preload first track (Happy Nation) metadata so dock is ready immediately
   if (playlist.length > 0) {
     loadTrackMeta(0);
   }

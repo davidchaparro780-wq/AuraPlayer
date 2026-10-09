@@ -1406,7 +1406,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.4.2</span>
+        <span class="brand-badge">PRO v3.4.3</span>
       </div>
 
       <div class="search-wrapper">
@@ -1556,6 +1556,9 @@
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                 <button id="btn-phone-sync-trigger" class="btn-glow-primary" style="padding:0.45rem 0.9rem;">
                   <i class="fa-solid fa-wifi"></i> Conectar WiFi
+                </button>
+                <button id="btn-phone-disconnect" class="btn-outline-secondary hidden" style="padding:0.45rem 0.9rem; color:#ef4444; border-color:rgba(239,68,68,0.45);">
+                  <i class="fa-solid fa-power-off"></i> Desconectar Servidor
                 </button>
                 <button id="btn-phone-upload-files" class="btn-outline-secondary" style="padding:0.45rem 0.9rem;">
                   <i class="fa-solid fa-file-audio"></i> Cargar Canciones
@@ -1829,6 +1832,17 @@
         <button class="btn-close-x" id="btn-close-auth"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-content" id="auth-form-container">
+        <!-- Banner de desconexion de servidor -->
+        <div id="auth-disconnect-banner" class="hidden" style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.45); border-radius:12px; padding:0.9rem; margin-bottom:1rem; text-align:left;">
+          <div style="display:flex; align-items:flex-start; gap:0.75rem;">
+            <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; font-size:1.25rem; margin-top:0.15rem;"></i>
+            <div>
+              <strong style="color:#fff; font-size:0.92rem; display:block; margin-bottom:0.25rem;">Servidor del teléfono desconectado</strong>
+              <span style="font-size:0.82rem; color:#fca5a5; line-height:1.4; display:block;">Se ha desconectado el servidor de tu teléfono para esta PC. Inicia sesión para cargar y reproducir todas las canciones que tenías en la nube.</span>
+            </div>
+          </div>
+        </div>
+
         <p style="font-size:0.85rem; color:var(--text-muted);">Inicia sesión con tu correo para sincronizar automáticamente tu música y listas de tu celular.</p>
         <form id="auth-form">
           <div class="form-field">
@@ -1895,6 +1909,12 @@
           </div>
         </div>
 
+        <!-- Estado de conexion activa con boton de desconectar -->
+        <div id="sync-active-box" class="hidden" style="background:rgba(16,185,129,0.1); border:1px solid #10b981; border-radius:var(--radius-md); padding:0.75rem 0.9rem; margin-bottom:0.7rem; display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#10b981; font-weight:600; font-size:0.84rem;"><i class="fa-solid fa-circle-check"></i> Teléfono Conectado: <span id="sync-connected-ip-text" style="font-family:monospace;"></span></span>
+          <button id="btn-modal-disconnect-server" class="btn-outline-secondary" style="padding:0.3rem 0.75rem; font-size:0.75rem; color:#ef4444; border-color:rgba(239,68,68,0.4);"><i class="fa-solid fa-power-off"></i> Desconectar</button>
+        </div>
+
         <div style="display:flex; gap:0.5rem;">
           <button id="btn-direct-browser-open" class="btn-outline-secondary btn-block" style="font-size:0.8rem;">
             <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Consola en Nueva Pestaña
@@ -1953,6 +1973,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.4.2"></script>
+  <script src="app.js?v=3.4.3"></script>
 </body>
 </html>
