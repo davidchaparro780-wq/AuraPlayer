@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -625,10 +626,11 @@ fun PlayerScreen(
                 ) {
                     if (!showLyricsView) {
                         if (centerVisualizerMode == 0) {
-                            // Glowing Ambient Aura Disc with Vinyl Record Grooves (100% Opaque solid)
+                            // Glowing Ambient Aura Disc with Vinyl Record Grooves (Dynamic Palette Glow)
                             val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
                             val dynamicElevation = if (isPlaying) (18.dp + (22.dp * bassEnergy)) else 12.dp
                             val dynamicGlowAlpha = if (isPlaying) (0.35f + (bassEnergy * 0.55f)).coerceIn(0.2f, 0.95f) else 0.2f
+                            val activeAccent = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
 
                             Box(
                                 modifier = Modifier
@@ -637,11 +639,14 @@ fun PlayerScreen(
                                     .shadow(
                                         elevation = dynamicElevation,
                                         shape = CircleShape,
-                                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = dynamicGlowAlpha),
+                                        spotColor = activeAccent.copy(alpha = dynamicGlowAlpha),
                                         ambientColor = Color(0xFF8B5CF6).copy(alpha = dynamicGlowAlpha * 0.7f)
                                     )
                                     .clip(CircleShape)
-                                    .clickable { centerVisualizerMode = 1 }
+                                    .clickable {
+                                        AuraHaptic.click(view)
+                                        centerVisualizerMode = 1
+                                    }
                                     .background(
                                         Brush.radialGradient(
                                             listOf(
@@ -655,10 +660,10 @@ fun PlayerScreen(
                                         2.5.dp,
                                         Brush.sweepGradient(
                                             listOf(
-                                                MaterialTheme.colorScheme.primary,
+                                                activeAccent,
                                                 Color(0xFF38BDF8),
                                                 Color(0xFFEC4899),
-                                                MaterialTheme.colorScheme.primary
+                                                activeAccent
                                             )
                                         ),
                                         CircleShape
@@ -1642,6 +1647,169 @@ fun PlayerScreen(
                             color = Color.White.copy(alpha = 0.6f),
                             textAlign = TextAlign.Center
                         )
+    // Interactive Queue Sheet (Spotify / Musicolet Style)
+    if (showQueueSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showQueueSheet = false },
+            sheetState = sheetState,
+            containerColor = Color(0xFF0D1222),
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 10.dp)
+                        .width(40.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0xFF38BDF8).copy(alpha = 0.6f))
+                )
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Cola de Reproducción",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "${queueSongs.size} canciones en cola",
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                    IconButton(onClick = { showQueueSheet = false }) {
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Cerrar",
+                            tint = Color(0xFF38BDF8)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(
+                        items = queueSongs,
+                        key = { idx, song -> "${song.id}_$idx" }
+                    ) { index, song ->
+                        val isPlayingThis = song.id == currentMedia.id
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isPlayingThis) Color(0xFF1E1B4B).copy(alpha = 0.85f)
+                                    else Color(0xFF13182E).copy(alpha = 0.6f)
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isPlayingThis) Color(0xFF38BDF8).copy(alpha = 0.8f)
+                                    else Color.White.copy(alpha = 0.06f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    AuraHaptic.click(view)
+                                    onQueueSongClick(song)
+                                    showQueueSheet = false
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Cover or Note Icon
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF1E293B)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (song.artworkUri != null) {
+                                    AsyncImage(
+                                        model = song.artworkUri,
+                                        contentDescription = song.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.MusicNote,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                if (isPlayingThis && isPlaying) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = 0.5f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Default.GraphicEq,
+                                            contentDescription = null,
+                                            tint = Color(0xFF38BDF8),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = song.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isPlayingThis) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isPlayingThis) Color(0xFF38BDF8) else Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${song.artist} • ${song.durationFormatted}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isPlayingThis) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (isPlayingThis) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF38BDF8).copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "Sonando",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF38BDF8)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

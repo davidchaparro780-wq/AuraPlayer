@@ -1,7 +1,7 @@
 {
-  "versionCode": 54,
-  "versionName": "2.7.2",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.2/app-debug.apk",
-  "changelog": "✨ DaVE v2.7.2 — Rediseño Pro de la Pantalla Explorar & Descargar:\n• 📏 Liberación de +60% Espacio Vertical: Cabecera compacta con selector de calidad Hi-Fi integrado y barra de acción ligera (reemplazando la caja pesada) para ver muchas más canciones en pantalla.\n• 🎧 Reproducción Directa al Tocar la Canción: Toca cualquier fila para escuchar de inmediato (estilo Spotify).\n• 🌊 Animación de Ecualizador en Vivo: La canción que suena se resalta con borde neón y barras de ecualizador animadas sobre la carátula.\n• 💎 Botón de Descarga Glassmorphism: Indicadores de estado elegantes (descargar, porcentaje animado, completado).\n• ➕ Menú Contextual (⋮): Añadir a la cola y copiar título al portapapeles.",
+  "versionCode": 55,
+  "versionName": "2.7.3",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.3/app-debug.apk",
+  "changelog": "✨ DaVE v2.7.3 — Cola Interactiva en Reproductor, Resplandor Dinámico & Gestos Avanzados:\n• 📑 Hoja de Cola Interactiva en Reproductor: Toca el icono de cola en la esquina superior derecha del reproductor para abrir la lista de reproducción activa. Toca cualquier canción para reproducirla inmediatamente con indicador de estado 'Sonando' y ecualizador animado.\n• 🌈 Resplandor Dinámico de Carátula en Vinilo: El halo de luz, borde y sombras del vinilo ahora se adaptan automáticamente a la paleta de colores de la portada del álbum en tiempo real.\n• 📳 Agitar para Saltar Canción (Shake-to-Skip): Salta a la siguiente pista sacudiendo suavemente el dispositivo con respuesta háptica inteligente.\n• 🚀 Optimizaciones de fluidez y respuesta táctil en controles principales.",
   "fileSizeMb": 24.5
 }
