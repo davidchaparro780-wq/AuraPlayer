@@ -1810,10 +1810,10 @@ fun SongListItem(
                     coroutineScope.launch {
                         val finalOffset = offsetX.value
                         if (finalOffset > 80f && onSwipePlayNext != null) {
-                            AuraHaptic.heavyClick(view)
+                            AuraHaptic.heavy(view)
                             onSwipePlayNext()
                         } else if (finalOffset < -80f && onSwipeToggleFavorite != null) {
-                            AuraHaptic.heavyClick(view)
+                            AuraHaptic.heavy(view)
                             onSwipeToggleFavorite()
                         }
                         offsetX.animateTo(0f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))

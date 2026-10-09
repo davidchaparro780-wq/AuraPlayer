@@ -28,4 +28,6 @@ object AuraHaptic {
             view?.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         } catch (_: Exception) {}
     }
+
+    fun heavyClick(view: View?) = heavy(view)
 }

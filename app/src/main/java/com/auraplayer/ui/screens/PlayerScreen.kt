@@ -1616,7 +1616,7 @@ fun PlayerScreen(
                                 .background(Color(0xFF1E293B).copy(alpha = 0.8f))
                                 .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
                                 .clickable {
-                                    AuraHaptic.heavyClick(view)
+                                    AuraHaptic.heavy(view)
                                     isPocketLocked = false
                                 },
                             contentAlignment = Alignment.Center
