@@ -996,6 +996,8 @@ fun PlayerScreen(
                                 }
                             }
                         }
+                    }
+
                     // Animated Neon Seek Badge Overlay (+10s / -10s)
                     AnimatedVisibility(
                         visible = showSeekBadge,
