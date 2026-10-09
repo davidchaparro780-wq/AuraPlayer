@@ -378,7 +378,7 @@ function formatTime(secs) {
   return `${m}:${s < 10 ? '0' : ''}${s}`;
 }
 
-const sampleLyrics = [
+const defaultLyrics = [
   { time: 0, text: "✨ DaVE Player — Audio HD Master Pro" },
   { time: 4, text: "🎶 Sintetizadores en estéreo y bajos 808" },
   { time: 8, text: "🎛️ AI Stem Mixer aislando frecuencias en vivo" },
@@ -387,14 +387,49 @@ const sampleLyrics = [
   { time: 20, text: "⚡ Disfruta la mejor música sin anuncios y sin cortes" }
 ];
 
+const songLyricsMap = {
+  'Happy Nation': [
+    { time: 0, text: "✨ Happy Nation — Ace of Base (Infinix Audio HD)" },
+    { time: 8, text: "Laudate omnes gentes laudate" },
+    { time: 16, text: "Magnificat in secula" },
+    { time: 24, text: "Et anima mea laudate" },
+    { time: 32, text: "Magnificat in secula" },
+    { time: 43, text: "Happy Nation, living in a happy nation" },
+    { time: 52, text: "Where the people understand" },
+    { time: 56, text: "And face the thing we're fighting for" },
+    { time: 61, text: "Happy Nation, living in a happy nation" },
+    { time: 70, text: "Where the people understand" },
+    { time: 74, text: "And face the thing we're fighting for" },
+    { time: 80, text: "Ideas aiming for the better" },
+    { time: 85, text: "Even though they tell us it's too late" }
+  ],
+  'SSRHD (Remix)': [
+    { time: 0, text: "✨ Ziraki — SSRHD (Remix)" },
+    { time: 8, text: "Suno AI Producción Exclusiva" },
+    { time: 18, text: "Bajos 808 y armonía electrónica" },
+    { time: 30, text: "Sintetizadores al máximo volumen" }
+  ]
+};
+
+function getCurrentLyrics() {
+  if (currentIndex >= 0 && currentIndex < playlist.length) {
+    const title = playlist[currentIndex].title;
+    if (songLyricsMap[title]) return songLyricsMap[title];
+  }
+  return defaultLyrics;
+}
+
 function renderLyrics(currentTime) {
   const box = document.getElementById('lyrics-box');
   if (!box) return;
 
-  // Render on track start
-  if (box.children.length !== sampleLyrics.length) {
+  const currentLyrics = getCurrentLyrics();
+
+  // Render on track start or when track changes
+  if (box.dataset.trackIndex !== String(currentIndex) || box.children.length !== currentLyrics.length) {
     box.innerHTML = '';
-    sampleLyrics.forEach((line) => {
+    box.dataset.trackIndex = String(currentIndex);
+    currentLyrics.forEach((line) => {
       const div = document.createElement('div');
       div.className = 'lyric-line';
       div.dataset.time = line.time;
@@ -408,8 +443,8 @@ function renderLyrics(currentTime) {
 
   // Find active line
   let activeIdx = 0;
-  for (let i = 0; i < sampleLyrics.length; i++) {
-    if (currentTime >= sampleLyrics[i].time) {
+  for (let i = 0; i < currentLyrics.length; i++) {
+    if (currentTime >= currentLyrics[i].time) {
       activeIdx = i;
     }
   }
@@ -1076,39 +1111,72 @@ document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
   modalSync?.classList.remove('hidden');
 });
 
-function syncCloudPhoneLibrary() {
-  const cloudSongs = [
-    {
-      title: 'Midnight City Drive',
-      artist: 'DaVE Mobile Synced',
-      album: 'Mi Celular • Audio HD',
-      duration: 215,
-      streamUrl: null,
-      demoUrl: generateSynthwaveWav(),
-      coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="c1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ec4899"/><stop offset="100%" stop-color="%238b5cf6"/></linearGradient></defs><rect width="100" height="100" fill="url(%23c1)"/><circle cx="50" cy="50" r="25" fill="%230f111a"/><path d="M40 30 L70 50 L40 70 Z" fill="%2306b6d4"/></svg>'
-    },
-    {
-      title: 'Cyberpunk Bassline 808',
-      artist: 'DaVE Mobile Synced',
-      album: 'Descargas Móvil',
-      duration: 180,
-      streamUrl: null,
-      demoUrl: generateSynthwaveWav(),
-      coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="c2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2306b6d4"/><stop offset="100%" stop-color="%233b82f6"/></linearGradient></defs><rect width="100" height="100" fill="url(%23c2)"/><circle cx="50" cy="50" r="25" fill="%230f111a"/><path d="M40 30 L70 50 L40 70 Z" fill="%23a855f7"/></svg>'
-    },
-    {
-      title: 'Aesthetic Chill Beat',
-      artist: 'DaVE Mobile Synced',
-      album: 'Favoritas Móvil',
-      duration: 240,
-      streamUrl: null,
-      demoUrl: generateSynthwaveWav(),
-      coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="c3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2310b981"/><stop offset="100%" stop-color="%2306b6d4"/></linearGradient></defs><rect width="100" height="100" fill="url(%23c3)"/><circle cx="50" cy="50" r="25" fill="%230f111a"/><path d="M40 30 L70 50 L40 70 Z" fill="%23ec4899"/></svg>'
-    }
-  ];
+// ==========================================
+// REAL MOBILE TRACKS (INFINIX HOT 40i SYNC)
+// ==========================================
+const realPhoneTracks = [
+  {
+    title: 'Happy Nation',
+    artist: 'Ace of Base',
+    album: 'Infinix HOT 40i • Music',
+    duration: 255,
+    streamUrl: 'music/Ace%20of%20Base%20-%20Happy%20Nation.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'SSRHD (Remix)',
+    artist: 'Ziraki',
+    album: 'Suno AI • WhatsApp Audio',
+    duration: 242,
+    streamUrl: 'music/Ziraki%20-%20SSRHD%20(Remix).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'HJ-S',
+    artist: 'Ziraki',
+    album: 'Suno AI • WhatsApp Audio',
+    duration: 153,
+    streamUrl: 'music/Ziraki%20-%20HJ-S.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Dame Fuerza (Intro Doña Bárbara)',
+    artist: 'Marta Sánchez',
+    album: 'Infinix HOT 40i • Music',
+    duration: 224,
+    streamUrl: 'music/Martha%20Sanchez%20-%20Dame%20Fuerza%20(Intro%20Dona%20Barbara).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Verdades (TikTok)',
+    artist: 'Westcol',
+    album: 'TikTok Audio • Descargas',
+    duration: 78,
+    streamUrl: 'music/Westcol%20-%20Verdades%20(TikTok).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Gritona (Efecto de Sonido)',
+    artist: 'Jorge Murguía Quiroz',
+    album: 'Efectos • Audio',
+    duration: 6,
+    streamUrl: 'music/Jorge%20Murguia%20Quiroz%20-%20Gritona%20(Efecto).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+  }
+];
 
-  phoneTracks = cloudSongs;
+function syncCloudPhoneLibrary() {
+  phoneTracks = [...realPhoneTracks];
   localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+
+  // Merge into main playlist if not already present
+  realPhoneTracks.forEach(t => {
+    if (!playlist.some(p => p.title === t.title && p.artist === t.artist)) {
+      playlist.push(t);
+    }
+  });
+
+  renderTrackList();
   renderPhoneTracksList();
   updateUserUI();
 }
@@ -1329,12 +1397,39 @@ window.addEventListener('keydown', (e) => {
 
 // ==========================================
 // 15. STARTUP INITIALIZATION
+function loadTrackMeta(index) {
+  if (index < 0 || index >= playlist.length) return;
+  currentIndex = index;
+  const track = playlist[index];
+  if (track.demoUrl) {
+    audio.src = track.demoUrl;
+  } else if (track.streamUrl) {
+    audio.src = track.streamUrl;
+  } else if (track.fileObj) {
+    audio.src = URL.createObjectURL(track.fileObj);
+  } else if (track.path) {
+    audio.src = `file://${track.path}`;
+  }
+
+  playerTitle.innerText = track.title;
+  playerArtist.innerText = track.artist;
+  if (track.coverUrl) {
+    playerArt.src = track.coverUrl;
+  }
+  const lyrTitle = document.getElementById('lyrics-song-title');
+  const lyrArtist = document.getElementById('lyrics-song-artist');
+  if (lyrTitle) lyrTitle.innerText = track.title;
+  if (lyrArtist) lyrArtist.innerText = track.artist;
+}
+
+// ==========================================
+// 15. STARTUP INITIALIZATION
 // ==========================================
 function initApp() {
   // 1. Render EQ Sliders immediately
   renderEqualizerUI();
 
-  // 2. Load stored user & favorites
+  // 2. Load stored favorites
   const savedFavs = localStorage.getItem('dave_favorites');
   if (savedFavs) {
     try {
@@ -1343,24 +1438,39 @@ function initApp() {
     } catch (e) {}
   }
 
+  // 3. Load or initialize real phone tracks (Infinix HOT 40i)
+  const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
+  let loadedTracks = null;
+  if (savedPhoneTracks) {
+    try {
+      const parsed = JSON.parse(savedPhoneTracks);
+      // If the cache only had old fake synthwave demo songs, replace with real songs
+      if (parsed.length > 0 && !parsed.some(t => t.title === 'Midnight City Drive')) {
+        loadedTracks = parsed;
+      }
+    } catch (e) {}
+  }
+
+  phoneTracks = loadedTracks || [...realPhoneTracks];
+  localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+
+  // Initialize main playlist with real songs
+  playlist = [...phoneTracks];
+  renderTrackList();
+  renderPhoneTracksList();
+
   const savedUser = localStorage.getItem('dave_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
-      updateUserUI();
     } catch (e) {}
   }
+  updateUserUI();
 
-  const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
-  if (savedPhoneTracks) {
-    try {
-      phoneTracks = JSON.parse(savedPhoneTracks);
-      renderPhoneTracksList();
-    } catch (e) {}
+  // 4. Preload first track (Happy Nation) metadata so dock is ready immediately
+  if (playlist.length > 0) {
+    loadTrackMeta(0);
   }
-
-  // 3. Auto-load synthwave demo track so player is ready to play with 1-click
-  loadDemoTrack();
 }
 
 initApp();
