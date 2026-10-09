@@ -76,6 +76,7 @@ import kotlinx.coroutines.withContext
 import com.auraplayer.audio.EqualizerManager
 import com.auraplayer.ui.components.AudioCutterDialog
 import com.auraplayer.ui.components.EdgeLighting
+import com.auraplayer.ui.components.FluidAmbilightGlow
 import com.auraplayer.ui.components.SoundboardDialog
 import com.auraplayer.ui.components.StoryShareHelper
 import androidx.compose.material.icons.filled.FastRewind
@@ -476,6 +477,11 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .background(Brush.verticalGradient(dynamicBg))
         ) {
+            FluidAmbilightGlow(
+                primaryColor = dynamicBg.firstOrNull() ?: MaterialTheme.colorScheme.primary,
+                secondaryColor = dynamicBg.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
+            )
+
             if (isEdgeLightingEnabled) {
                 EdgeLighting(isPlaying = isPlaying)
             }
@@ -1371,6 +1377,31 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (isNightDrcActive) Color(0xFF818CF8) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Karaoke Vocal Reducer Pill
+                    val gaplessManager = remember { com.auraplayer.audio.GaplessManager.getInstance(context) }
+                    var isKaraokeActive by remember { mutableStateOf(gaplessManager.isVocalReducerEnabled) }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isKaraokeActive) Color(0xFFE040FB).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .border(1.dp, if (isKaraokeActive) Color(0xFFE040FB) else Color.Transparent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                isKaraokeActive = !isKaraokeActive
+                                gaplessManager.toggleVocalReducer(isKaraokeActive)
+                                Toast.makeText(context, if (isKaraokeActive) "🎤 Modo Karaoke ACTIVADO (Voz Reducida)" else "🎤 Modo Karaoke DESACTIVADO", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isKaraokeActive) "🎤 KARAOKE" else "🎙️ VOCAL",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isKaraokeActive) Color(0xFFE040FB) else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
                     }

@@ -375,10 +375,24 @@ fun AuraApp(
     val crossfadeManager = remember { com.auraplayer.audio.CrossfadeManager.getInstance(context) }
     val tubeAmpManager = remember { com.auraplayer.audio.TubeAmpManager.getInstance(context) }
 
+    var showFolderShieldDialog by remember { mutableStateOf(false) }
+    var showInsightsDialog by remember { mutableStateOf(false) }
+    var showBatchCoversDialog by remember { mutableStateOf(false) }
+    var showKaraokeDjDialog by remember { mutableStateOf(false) }
+
+    val gaplessManager = remember { com.auraplayer.audio.GaplessManager.getInstance(context) }
+    val folderShieldManager = remember { com.auraplayer.data.repository.FolderShieldManager.getInstance(context) }
+    val statsManager = remember { com.auraplayer.data.repository.PlaybackStatsManager.getInstance(context) }
+    val headphoneProfileManager = remember { com.auraplayer.audio.HeadphoneProfileManager.getInstance(context) }
+
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
     LaunchedEffect(controller) {
         MainActivity.activeController = controller
+    }
+
+    LaunchedEffect(currentMedia, isPlaying) {
+        com.auraplayer.widget.DaVEAppWidgetProvider.updateAllWidgets(context, currentMedia, isPlaying)
     }
 
     // Smart Resume State ("Continuar donde lo dejaste")
@@ -551,6 +565,18 @@ fun AuraApp(
             }
             showBackupRestoreDialog -> {
                 showBackupRestoreDialog = false
+            }
+            showFolderShieldDialog -> {
+                showFolderShieldDialog = false
+            }
+            showInsightsDialog -> {
+                showInsightsDialog = false
+            }
+            showBatchCoversDialog -> {
+                showBatchCoversDialog = false
+            }
+            showKaraokeDjDialog -> {
+                showKaraokeDjDialog = false
             }
             showSleepTimerDialog -> {
                 showSleepTimerDialog = false
@@ -982,7 +1008,8 @@ fun AuraApp(
     }
 
     // Position update loop
-    LaunchedEffect(isPlaying) {
+    LaunchedEffect(isPlaying, currentMedia) {
+        var lastStatsTime = System.currentTimeMillis()
         while (isActive && isPlaying) {
             controller?.let {
                 currentPositionMs = it.currentPosition
@@ -995,6 +1022,12 @@ fun AuraApp(
                 } else if (durationMs <= 0L && (currentMedia?.duration ?: 0L) > 0L) {
                     durationMs = currentMedia!!.duration
                 }
+            }
+            val now = System.currentTimeMillis()
+            if (now - lastStatsTime >= 1000L) {
+                val elapsedSecs = ((now - lastStatsTime) / 1000L).toInt()
+                statsManager.recordListeningTime(currentMedia?.artist ?: "Desconocido", elapsedSecs)
+                lastStatsTime = now
             }
             delay(400)
         }
@@ -1282,6 +1315,61 @@ fun AuraApp(
             playlistManager = playlistManager,
             totalPlaysCount = achievementManager.songsPlayed,
             onDismiss = { showProfileDialog = false }
+        )
+    }
+
+    // Folder Shield & Filtro de Mensajería Dialog
+    if (showFolderShieldDialog) {
+        val filteredList = remember(songs, folderShieldManager.isShortTracksFilterEnabled, folderShieldManager.minTrackDurationSeconds, folderShieldManager.isWhatsAppFilterEnabled, folderShieldManager.isTelegramFilterEnabled, folderShieldManager.isRingtonesFilterEnabled) {
+            folderShieldManager.filterSongs(songs)
+        }
+        com.auraplayer.ui.components.FolderShieldDialog(
+            folderShieldManager = folderShieldManager,
+            totalSongsCount = songs.size,
+            filteredSongsCount = filteredList.size,
+            onDismiss = { showFolderShieldDialog = false },
+            onApply = {
+                showFolderShieldDialog = false
+                songs = songs.toList()
+                Toast.makeText(context, "Filtros de carpeta aplicados", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // DaVE Insights & Métricas Dialog
+    if (showInsightsDialog) {
+        com.auraplayer.ui.components.DaveInsightsDialog(
+            statsManager = statsManager,
+            onDismiss = { showInsightsDialog = false }
+        )
+    }
+
+    // Batch Cover Art Fetcher Dialog
+    if (showBatchCoversDialog) {
+        val songsWithoutArt = remember(songs) { songs.filter { it.artworkUri == null } }
+        com.auraplayer.ui.components.BatchCoverFetcherDialog(
+            songsWithoutCover = songsWithoutArt,
+            onFetchSingleCover = { song ->
+                val savedCover = mediaRepository.coverArtManager.autoFetchAndSaveCover(song)
+                if (savedCover != null) {
+                    songs = songs.map { s ->
+                        if (s.id == song.id) s.copy(artworkUri = savedCover) else s
+                    }
+                }
+            },
+            onFinished = {
+                Toast.makeText(context, "Búsqueda masiva de carátulas finalizada", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showBatchCoversDialog = false }
+        )
+    }
+
+    // Karaoke & Audio Studio Dialog
+    if (showKaraokeDjDialog) {
+        com.auraplayer.ui.components.KaraokeDjDialog(
+            gaplessManager = gaplessManager,
+            headphoneManager = headphoneProfileManager,
+            onDismiss = { showKaraokeDjDialog = false }
         )
     }
 
@@ -1816,6 +1904,10 @@ fun AuraApp(
                     onOpenAiPlaylist = { showAiPlaylistDialog = true },
                     onOpenDuplicateCleaner = { showDuplicateCleanerDialog = true },
                     onOpenBackupRestore = { showBackupRestoreDialog = true },
+                    onOpenFolderShield = { showFolderShieldDialog = true },
+                    onOpenInsights = { showInsightsDialog = true },
+                    onOpenBatchCovers = { showBatchCoversDialog = true },
+                    onOpenKaraokeDj = { showKaraokeDjDialog = true },
                     userManager = userManager,
                     onOpenAuth = { showAuthDialog = true },
                     onOpenProfile = { showProfileDialog = true },

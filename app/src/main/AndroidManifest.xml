@@ -115,6 +115,21 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- DaVE Player Home Screen Widget -->
+        <receiver
+            android:name="com.auraplayer.widget.DaVEAppWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.auraplayer.widget.ACTION_PLAY_PAUSE" />
+                <action android:name="com.auraplayer.widget.ACTION_NEXT" />
+                <action android:name="com.auraplayer.widget.ACTION_PREV" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_dave_info" />
+        </receiver>
+
     </application>
 
 </manifest>

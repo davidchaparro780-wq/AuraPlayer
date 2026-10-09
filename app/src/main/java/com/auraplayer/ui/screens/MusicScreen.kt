@@ -190,6 +190,10 @@ fun MusicScreen(
     onOpenAiPlaylist: () -> Unit = {},
     onOpenDuplicateCleaner: () -> Unit = {},
     onOpenBackupRestore: () -> Unit = {},
+    onOpenFolderShield: () -> Unit = {},
+    onOpenInsights: () -> Unit = {},
+    onOpenBatchCovers: () -> Unit = {},
+    onOpenKaraokeDj: () -> Unit = {},
     userManager: com.auraplayer.data.repository.UserManager,
     onOpenAuth: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -249,15 +253,23 @@ fun MusicScreen(
     }
 
     val settings = remember { com.auraplayer.data.repository.SettingsManager.getInstance(context) }
+    val folderShield = remember { com.auraplayer.data.repository.FolderShieldManager.getInstance(context) }
 
     // Process Filter and Sort
-    val filteredSongs = remember(songs, searchQuery, selectedFilterIndex, selectedSortMode, favoritesManager, settings.hideShortAudioDurationSec) {
-        val hideShortSec = settings.hideShortAudioDurationSec
-        val baseSongs = if (hideShortSec > 0) {
-            songs.filter { it.duration >= hideShortSec * 1000L }
-        } else {
-            songs
-        }
+    val filteredSongs = remember(
+        songs,
+        searchQuery,
+        selectedFilterIndex,
+        selectedSortMode,
+        favoritesManager,
+        settings.hideShortAudioDurationSec,
+        folderShield.isShortTracksFilterEnabled,
+        folderShield.minTrackDurationSeconds,
+        folderShield.isWhatsAppFilterEnabled,
+        folderShield.isTelegramFilterEnabled,
+        folderShield.isRingtonesFilterEnabled
+    ) {
+        val baseSongs = folderShield.filterSongs(songs)
 
         var list = if (searchQuery.isBlank()) baseSongs
         else baseSongs.filter {
@@ -426,6 +438,22 @@ fun MusicScreen(
                         onDismissRequest = { showToolsMenu = false },
                         modifier = Modifier.background(Color(0xFF0F172A))
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("🛡️ Folder Shield & WhatsApp", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenFolderShield() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("📊 DaVE Insights & Métricas", color = Color(0xFF6366F1), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenInsights() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🖼️ Descargar Carátulas Masivas", color = Color(0xFF06B6D4), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenBatchCovers() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎤 Estudio Karaoke & Balance", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenKaraokeDj() }
+                        )
                         DropdownMenuItem(
                             text = { Text("🤖 DaVE AI Playlists", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenAiPlaylist() }
