@@ -10,9 +10,20 @@ import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.ui.components.AlphabetFastScroller
 import com.auraplayer.ui.components.RelaxAmbienceDialog
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -196,6 +207,14 @@ fun MusicScreen(
     var showToolsMenu by remember { mutableStateOf(false) }
     var showRelaxDialog by remember { mutableStateOf(false) }
     val lyricsManager = remember { com.auraplayer.data.repository.LyricsManager(context) }
+    val searchHistoryManager = remember { com.auraplayer.data.repository.SearchHistoryManager.getInstance(context) }
+
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.trim().length >= 3) {
+            delay(1200)
+            searchHistoryManager.addQuery(searchQuery.trim())
+        }
+    }
 
     var selectedSongForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var songToDelete by remember { mutableStateOf<MediaModel?>(null) }
@@ -684,6 +703,75 @@ fun MusicScreen(
             }
         }
 
+        // Recent Search History Chips
+        if (searchHistoryManager.historyList.isNotEmpty() && selectedTab == 0) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                item {
+                    Text(
+                        text = "Recientes:",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF64748B),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                items(searchHistoryManager.historyList) { historyItem ->
+                    val isCurrent = searchQuery.equals(historyItem, ignoreCase = true)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isCurrent) Color(0xFF8B5CF6).copy(alpha = 0.35f) else Color(0xFF1E293B).copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, if (isCurrent) Color(0xFF8B5CF6) else Color(0xFF334155)),
+                        modifier = Modifier.clickable {
+                            AuraHaptic.click(view)
+                            searchQuery = historyItem
+                        }
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = historyItem,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isCurrent) Color(0xFF38BDF8) else Color(0xFFE2E8F0)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Eliminar",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .clickable {
+                                        AuraHaptic.tick(view)
+                                        searchHistoryManager.removeQuery(historyItem)
+                                    }
+                            )
+                        }
+                    }
+                }
+                item {
+                    Text(
+                        text = "Borrar",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFEF4444).copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable {
+                                AuraHaptic.click(view)
+                                searchHistoryManager.clear()
+                            }
+                            .padding(horizontal = 4.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+
         // Tab Row with Aesthetic Neon Accent
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
@@ -862,9 +950,20 @@ fun MusicScreen(
                                             song = song,
                                             isSelected = isSelected,
                                             isFavorite = favoritesManager.isFavorite(song.id),
-                                            onClick = { onSongClick(song) },
+                                            onClick = {
+                                                if (searchQuery.isNotBlank()) searchHistoryManager.addQuery(searchQuery)
+                                                onSongClick(song)
+                                            },
                                             onLongClick = { selectedSongForMenu = song },
-                                            onOptionsClick = { selectedSongForMenu = song }
+                                            onOptionsClick = { selectedSongForMenu = song },
+                                            onSwipePlayNext = {
+                                                onPlayNext(song)
+                                                Toast.makeText(context, "Se reproducirá a continuación: ${song.title}", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onSwipeToggleFavorite = {
+                                                val isFav = favoritesManager.toggleFavorite(song.id)
+                                                Toast.makeText(context, if (isFav) "Añadida a Favoritos ❤️" else "Eliminada de Favoritos", Toast.LENGTH_SHORT).show()
+                                            }
                                         )
                                     }
                                 }
@@ -939,7 +1038,15 @@ fun MusicScreen(
                                             isFavorite = favoritesManager.isFavorite(song.id),
                                             onClick = { onSongClick(song) },
                                             onLongClick = { selectedSongForMenu = song },
-                                            onOptionsClick = { selectedSongForMenu = song }
+                                            onOptionsClick = { selectedSongForMenu = song },
+                                            onSwipePlayNext = {
+                                                onPlayNext(song)
+                                                Toast.makeText(context, "Se reproducirá a continuación: ${song.title}", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onSwipeToggleFavorite = {
+                                                val isFav = favoritesManager.toggleFavorite(song.id)
+                                                Toast.makeText(context, if (isFav) "Añadida a Favoritos ❤️" else "Eliminada de Favoritos", Toast.LENGTH_SHORT).show()
+                                            }
                                         )
                                     }
                                 }
@@ -1110,7 +1217,15 @@ fun MusicScreen(
                                     isFavorite = true,
                                     onClick = { onSongClick(song) },
                                     onLongClick = { selectedSongForMenu = song },
-                                    onOptionsClick = { selectedSongForMenu = song }
+                                    onOptionsClick = { selectedSongForMenu = song },
+                                    onSwipePlayNext = {
+                                        onPlayNext(song)
+                                        Toast.makeText(context, "Se reproducirá a continuación: ${song.title}", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onSwipeToggleFavorite = {
+                                        val isFav = favoritesManager.toggleFavorite(song.id)
+                                        Toast.makeText(context, if (isFav) "Añadida a Favoritos ❤️" else "Eliminada de Favoritos", Toast.LENGTH_SHORT).show()
+                                    }
                                 )
                             }
                         }
@@ -1677,156 +1792,259 @@ fun SongListItem(
     extraBadge: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    onOptionsClick: () -> Unit
+    onOptionsClick: () -> Unit,
+    onSwipePlayNext: (() -> Unit)? = null,
+    onSwipeToggleFavorite: (() -> Unit)? = null
 ) {
     val ext = remember(song.path) {
         File(song.path).extension.uppercase().ifEmpty { "AUDIO" }
     }
+    val view = LocalView.current
+    val coroutineScope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
 
-    Row(
+    val swipeModifier = if (onSwipePlayNext != null || onSwipeToggleFavorite != null) {
+        Modifier.pointerInput(Unit) {
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    coroutineScope.launch {
+                        val finalOffset = offsetX.value
+                        if (finalOffset > 80f && onSwipePlayNext != null) {
+                            AuraHaptic.heavyClick(view)
+                            onSwipePlayNext()
+                        } else if (finalOffset < -80f && onSwipeToggleFavorite != null) {
+                            AuraHaptic.heavyClick(view)
+                            onSwipeToggleFavorite()
+                        }
+                        offsetX.animateTo(0f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                    }
+                },
+                onDragCancel = {
+                    coroutineScope.launch {
+                        offsetX.animateTo(0f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                    }
+                },
+                onHorizontalDrag = { change, dragAmount ->
+                    change.consume()
+                    coroutineScope.launch {
+                        val newOffset = (offsetX.value + dragAmount).coerceIn(-140f, 140f)
+                        offsetX.snapTo(newOffset)
+                    }
+                }
+            )
+        }
+    } else Modifier
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                else Color.Transparent
-            )
-            .padding(horizontal = 16.dp, vertical = 7.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(12.dp))
     ) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(
-                    if (isSelected) {
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFF8B5CF6).copy(alpha = 0.35f),
-                                Color(0xFF38BDF8).copy(alpha = 0.35f)
-                            )
-                        )
-                    } else {
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFF13182E),
-                                Color(0xFF0F172A)
-                            )
+        // Swipe Background Hints
+        val currentOffset = offsetX.value
+        if (currentOffset > 0) {
+            // Right Swipe: Play Next
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color(0xFF0284C7).copy(alpha = (currentOffset / 100f).coerceIn(0.15f, 0.85f)))
+                    .padding(start = 20.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.QueueMusic,
+                        contentDescription = "Siguiente",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    if (currentOffset > 50f) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Reproducir Siguiente",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
                         )
                     }
-                )
-                .border(
-                    1.dp,
-                    if (isSelected) Color(0xFF38BDF8).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.2f),
-                    RoundedCornerShape(14.dp)
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.MusicNote,
-                contentDescription = null,
-                tint = if (isSelected) Color(0xFF38BDF8) else Color(0xFF8B5CF6).copy(alpha = 0.6f),
-                modifier = Modifier.size(24.dp)
-            )
-            if (song.artworkUri != null) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(song.artworkUri)
-                        .size(160, 160)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-        }
-
-        Spacer(modifier = Modifier.width(14.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = song.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-                if (isSelected) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    LiveEqualizerIndicator(barColor = Color(0xFF38BDF8))
                 }
-                if (isFavorite) {
-                    val heartScale by animateFloatAsState(
-                        targetValue = if (isFavorite) 1.2f else 1.0f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
-                        ),
-                        label = "heartScale"
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+            }
+        } else if (currentOffset < 0) {
+            // Left Swipe: Toggle Favorite
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color(0xFFEC4899).copy(alpha = ((-currentOffset) / 100f).coerceIn(0.15f, 0.85f)))
+                    .padding(end = 20.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (-currentOffset > 50f) {
+                        Text(
+                            text = if (isFavorite) "Quitar Favorito" else "Favorito",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     Icon(
-                        imageVector = Icons.Default.Favorite,
+                        imageVector = if (isFavorite) Icons.Default.FavoriteBorder else Icons.Default.Favorite,
                         contentDescription = "Favorito",
-                        tint = Color(0xFFEC4899),
-                        modifier = Modifier
-                            .size(14.dp)
-                            .graphicsLayer(scaleX = heartScale, scaleY = heartScale)
-                    )
-                }
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "${song.artist} • ${song.formattedDuration}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Small dynamic format badge chip
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                ) {
-                    Text(
-                        text = ext,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4) else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                if (extraBadge != null) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = extraBadge,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
         }
 
-        IconButton(onClick = onOptionsClick) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Opciones",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        // Foreground Song Item Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .then(swipeModifier)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick
+                )
+                .background(
+                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    else MaterialTheme.colorScheme.background
+                )
+                .padding(horizontal = 16.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        if (isSelected) {
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFF8B5CF6).copy(alpha = 0.35f),
+                                    Color(0xFF38BDF8).copy(alpha = 0.35f)
+                                )
+                            )
+                        } else {
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(0xFF13182E),
+                                    Color(0xFF0F172A)
+                                )
+                            )
+                        }
+                    )
+                    .border(
+                        1.dp,
+                        if (isSelected) Color(0xFF38BDF8).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.2f),
+                        RoundedCornerShape(14.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MusicNote,
+                    contentDescription = null,
+                    tint = if (isSelected) Color(0xFF38BDF8) else Color(0xFF8B5CF6).copy(alpha = 0.6f),
+                    modifier = Modifier.size(24.dp)
+                )
+                if (song.artworkUri != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(song.artworkUri)
+                            .size(160, 160)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        LiveEqualizerIndicator(barColor = Color(0xFF38BDF8))
+                    }
+                    if (isFavorite) {
+                        val heartScale by animateFloatAsState(
+                            targetValue = if (isFavorite) 1.2f else 1.0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            ),
+                            label = "heartScale"
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "Favorito",
+                            tint = Color(0xFFEC4899),
+                            modifier = Modifier
+                                .size(14.dp)
+                                .graphicsLayer(scaleX = heartScale, scaleY = heartScale)
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${song.artist} • ${song.formattedDuration}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Small dynamic format badge chip
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4).copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = ext,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4) else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (extraBadge != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = extraBadge,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            IconButton(onClick = onOptionsClick) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Opciones",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.auraplayer.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,6 +52,7 @@ fun SleepTimerDialog(
     onFinish: () -> Unit
 ) {
     val isTimerActive by sleepTimerManager.isTimerActive.collectAsState()
+    val isEndOfTrackActive by sleepTimerManager.isEndOfTrackActive.collectAsState()
     val remainingSeconds by sleepTimerManager.remainingSeconds.collectAsState()
 
     val presets = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
@@ -95,7 +97,53 @@ fun SleepTimerDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (isTimerActive) {
+                if (isEndOfTrackActive) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF38BDF8).copy(alpha = 0.15f))
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "Modo Inteligente Activo:",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "🎵 Al terminar canción",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "La música se apagará cuando termine la pista actual.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF94A3B8),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            sleepTimerManager.cancelTimer()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Detener Temporizador", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+                } else if (isTimerActive) {
                     val minutes = remainingSeconds / 60
                     val seconds = remainingSeconds % 60
                     val formatted = String.format("%02d:%02d", minutes, seconds)
@@ -139,11 +187,39 @@ fun SleepTimerDialog(
                         Text("Detener Temporizador", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 } else {
+                    // Smart End of Track Button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF38BDF8).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                            .clickable {
+                                sleepTimerManager.startEndOfTrackTimer(onFinish)
+                                onDismiss()
+                            }
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🎵", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Apagar al terminar la canción actual",
+                                color = Color(0xFF38BDF8),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
                     Text(
-                        text = "Selecciona el tiempo de apagado automático:",
+                        text = "O selecciona minutos de apagado:",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp)
+                        modifier = Modifier.padding(bottom = 10.dp)
                     )
 
                     // Presets Grid

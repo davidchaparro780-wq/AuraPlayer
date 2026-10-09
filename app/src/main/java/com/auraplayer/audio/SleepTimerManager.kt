@@ -21,6 +21,11 @@ class SleepTimerManager {
     private val _isTimerActive = MutableStateFlow(false)
     val isTimerActive: StateFlow<Boolean> = _isTimerActive.asStateFlow()
 
+    private val _isEndOfTrackActive = MutableStateFlow(false)
+    val isEndOfTrackActive: StateFlow<Boolean> = _isEndOfTrackActive.asStateFlow()
+
+    private var endOfTrackCallback: (() -> Unit)? = null
+
     private val _fadeVolumeFactor = MutableStateFlow(1.0f)
     val fadeVolumeFactor: StateFlow<Float> = _fadeVolumeFactor.asStateFlow()
 
@@ -57,6 +62,21 @@ class SleepTimerManager {
         }
     }
 
+    fun startEndOfTrackTimer(onFinish: () -> Unit) {
+        cancelTimer()
+        _isEndOfTrackActive.value = true
+        endOfTrackCallback = onFinish
+    }
+
+    fun onTrackEnded() {
+        if (_isEndOfTrackActive.value) {
+            _isEndOfTrackActive.value = false
+            val cb = endOfTrackCallback
+            endOfTrackCallback = null
+            cb?.invoke()
+        }
+    }
+
     fun cancelTimer() {
         timerJob?.cancel()
         timerJob = null
@@ -64,9 +84,12 @@ class SleepTimerManager {
         _fadeVolumeFactor.value = 1.0f
         globalFadeFactor = 1.0f
         _isTimerActive.value = false
+        _isEndOfTrackActive.value = false
+        endOfTrackCallback = null
     }
 
     fun getFormattedTime(): String {
+        if (_isEndOfTrackActive.value) return "Fin de canción"
         val totalSecs = _remainingSeconds.value
         val mins = totalSecs / 60
         val secs = totalSecs % 60

@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -76,6 +77,8 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -337,7 +340,9 @@ fun PlayerScreen(
     // On-Screen HUD for Gestures (Volume & Brightness)
     var hudText by remember { mutableStateOf("") }
     var hudIcon by remember { mutableStateOf(Icons.Default.VolumeUp) }
+    var hudPercent by remember { mutableFloatStateOf(0f) }
     var isHudVisible by remember { mutableStateOf(false) }
+    var isPocketLocked by remember { mutableStateOf(false) }
 
     // Hardware-accelerated continuous vinyl rotation (RenderThread / GPU execution with zero Compose recomposition)
     val vinylRotation = remember { Animatable(0f) }
@@ -388,9 +393,10 @@ fun PlayerScreen(
     Surface(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(isPocketLocked) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
+                        if (isPocketLocked) return@detectVerticalDragGestures
                         val isLeftSide = change.position.x < size.width / 2f
                         if (isLeftSide) {
                             // Brightness Gesture (Left side)
@@ -408,20 +414,24 @@ fun PlayerScreen(
                                 window.attributes = params
 
                                 hudIcon = Icons.Default.Brightness6
+                                hudPercent = newBrightness
                                 hudText = "Brillo: ${(newBrightness * 100).toInt()}%"
+                                AuraHaptic.tick(view)
                                 isHudVisible = true
                             }
                         } else {
                             // Volume Gesture (Right side)
                             val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                             val currentVol = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                            val delta = if (dragAmount < -15) 1 else if (dragAmount > 15) -1 else 0
+                            val delta = if (dragAmount < -12) 1 else if (dragAmount > 12) -1 else 0
                             if (delta != 0) {
                                 val newVol = (currentVol + delta).coerceIn(0, maxVol)
                                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                val pct = ((newVol.toFloat() / maxVol.toFloat()) * 100).toInt()
+                                val pct = (newVol.toFloat() / maxVol.toFloat())
                                 hudIcon = Icons.Default.VolumeUp
-                                hudText = "Volumen: $pct%"
+                                hudPercent = pct
+                                hudText = "Volumen: ${(pct * 100).toInt()}%"
+                                AuraHaptic.tick(view)
                                 isHudVisible = true
                             }
                         }
@@ -567,6 +577,19 @@ fun PlayerScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
+
+                        // Pocket Lock Mode
+                        IconButton(onClick = {
+                            AuraHaptic.click(view)
+                            isPocketLocked = true
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.LockOpen,
+                                contentDescription = "Bloqueo de bolsillo",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
 
@@ -576,10 +599,12 @@ fun PlayerScreen(
                         .fillMaxWidth()
                         .weight(1f)
                         .padding(vertical = 10.dp)
-                        .pointerInput(Unit) {
+                        .pointerInput(isPocketLocked) {
+                            if (isPocketLocked) return@pointerInput
                             var totalDragX = 0f
                             detectHorizontalDragGestures(
                                 onDragEnd = {
+                                    if (isPocketLocked) return@detectHorizontalDragGestures
                                     if (totalDragX < -60f) {
                                         AuraHaptic.tick(view)
                                         onNextClick()
@@ -590,6 +615,7 @@ fun PlayerScreen(
                                     totalDragX = 0f
                                 },
                                 onHorizontalDrag = { change, dragAmount ->
+                                    if (isPocketLocked) return@detectHorizontalDragGestures
                                     change.consume()
                                     totalDragX += dragAmount
                                 }
@@ -1526,10 +1552,96 @@ fun PlayerScreen(
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(imageVector = hudIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = hudText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = hudIcon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(text = hudText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
+                        }
+                        // Cyberpunk Neon Bar
+                        Box(
+                            modifier = Modifier
+                                .width(130.dp)
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(hudPercent.coerceIn(0f, 1f))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(MaterialTheme.colorScheme.primary, Color(0xFF06B6D4))
+                                        )
+                                    )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Pocket Lock Overlay
+            AnimatedVisibility(
+                visible = isPocketLocked,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.88f))
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    awaitPointerEvent()
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(32.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(90.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF1E293B).copy(alpha = 0.8f))
+                                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                .clickable {
+                                    AuraHaptic.heavyClick(view)
+                                    isPocketLocked = false
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = "Desbloquear pantalla",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Text(
+                            text = "Modo Bolsillo Activado",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Toque el candado para desbloquear la pantalla",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }

@@ -1,7 +1,7 @@
 {
-  "versionCode": 51,
-  "versionName": "2.6.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.6.0/app-debug.apk",
-  "changelog": "✨ DaVE v2.6.0 — Panel de Ajustes, Notificaciones de Actualización & Confort Total:\n• 🔔 Notificaciones de Actualizaciones en tu Celular: Cada vez que salga una nueva versión de DaVE, recibirás una notificación directa en Android para actualizar con un solo toque.\n• ⚙️ Nueva Pantalla de Ajustes & Confort: Panel completo accesible desde la barra superior para personalizar audio, gestos, biblioteca y visualizador.\n• 🧹 Filtro Inteligente de Audios Cortos: Oculta automáticamente notas de voz de WhatsApp y audios breves (<30s, <45s, <60s) para mantener tu biblioteca impecable.\n• 📉 Pausa y Reanudación Suave (Fade In/Out): El volumen sube y baja gradualmente sin cortes secos.\n• 💡 Pantalla Siempre Encendida en Reproductor: Opción para evitar que el celular se apague mientras disfrutas del vinilo o visualizador.\n• 🌊 Sensibilidad del Visualizador: Modifica la potencia reactiva de las ondas FFT en tiempo real (Suave, Normal, Intensa).",
+  "versionCode": 52,
+  "versionName": "2.7.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.0/app-debug.apk",
+  "changelog": "✨ DaVE v2.7.0 — Ultimate UX Overhaul (Experiencia de Usuario al Máximo Nivel):\n• 🔊 Control de Volumen Vertical por Gestos con HUD Neón: Desliza verticalmente en la mitad derecha del reproductor para ajustar el volumen con barra luminosa, porcentaje y respuesta háptica.\n• 🔒 Modo Candado de Bolsillo (Pocket Lock): Bloquea la pantalla del reproductor con un toque para evitar saltos o toques accidentales al caminar o llevar el teléfono en la mano.\n• ⏩ Deslizar Canción (Swipe-to-Action): Desliza a la derecha en cualquier canción para ponerla a 'Reproducir Siguiente', o a la izquierda para alternar Favorito al instante.\n• 🔍 Burbujas de Búsquedas Recientes: Chips interactivos debajo del buscador para acceder a tus búsquedas frecuentes en un toque con botón de borrado.\n• 🌙 Temporizador Inteligente 'Al terminar la canción': Apaga la reproducción automáticamente justo cuando termine la canción que estás escuchando.",
   "fileSizeMb": 24.5
 }

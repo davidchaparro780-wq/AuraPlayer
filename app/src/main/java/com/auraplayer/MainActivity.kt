@@ -735,6 +735,7 @@ fun AuraApp(
                 }
 
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
+                    sleepTimerManager.onTrackEnded()
                     val mediaId = item?.mediaId?.toLongOrNull()
                     if (mediaId != null) {
                         val found = songs.find { it.id == mediaId }
