@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.Settings
 import android.view.WindowManager
 import android.widget.Toast
+import com.auraplayer.MainActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -827,7 +828,7 @@ fun PlayerScreen(
                                 isPlaying = isPlaying,
                                 currentPositionMs = currentPositionMs,
                                 durationMs = durationMs,
-                                onTogglePlay = onTogglePlay,
+                                onTogglePlay = onPlayPauseClick,
                                 modifier = Modifier
                                     .fillMaxWidth(0.92f)
                                     .pointerInput(Unit) {
@@ -2526,9 +2527,9 @@ fun PlayerScreen(
             isPlaying = isPlaying,
             currentPositionMs = currentPositionMs,
             durationMs = durationMs,
-            onTogglePlay = onTogglePlay,
-            onNext = onNext,
-            onPrevious = onPrevious,
+            onTogglePlay = onPlayPauseClick,
+            onNext = onNextClick,
+            onPrevious = onPreviousClick,
             onSeekRelative = onSeekRelative,
             onDismiss = { showIpodClassicDialog = false }
         )

@@ -40,11 +40,11 @@ class ViralAudioEffectsManager private constructor(context: Context) {
 
         when (mode) {
             ViralAudioMode.SLOWED_REVERB -> {
-                EqualizerManager.instance.setBassStrength(600.toShort())
+                EqualizerManager.instance.setBassBoostStrength(600.toShort())
                 EqualizerManager.instance.setSpatial8DEnabled(true)
             }
             ViralAudioMode.NIGHTCORE -> {
-                EqualizerManager.instance.setBassStrength(350.toShort())
+                EqualizerManager.instance.setBassBoostStrength(350.toShort())
                 EqualizerManager.instance.setSpatial8DEnabled(false)
             }
             ViralAudioMode.NORMAL -> {
