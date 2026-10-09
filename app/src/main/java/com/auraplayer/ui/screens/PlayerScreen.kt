@@ -29,7 +29,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.runtime.rememberCoroutineScope
-import com.auraplayer.ui.components.VinylTonearm
 import com.auraplayer.ui.components.AuraRippleRings
 import com.auraplayer.ui.components.FloatingMusicParticles
 import com.auraplayer.ui.components.PlayPauseMorphButton
@@ -741,8 +740,9 @@ fun PlayerScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.92f)
-                                    .aspectRatio(1f),
+                                    .fillMaxWidth(0.82f)
+                                    .aspectRatio(1f)
+                                    .padding(vertical = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 AuraRippleRings(
@@ -752,7 +752,7 @@ fun PlayerScreen(
 
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(0.91f)
+                                        .fillMaxWidth(0.95f)
                                         .aspectRatio(1f)
                                     .shadow(
                                         elevation = dynamicElevation,
@@ -854,15 +854,6 @@ fun PlayerScreen(
                                         .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
                                  )
                             }
-
-                            // Realistic Mechanical Vinyl Tonearm
-                            VinylTonearm(
-                                isPlaying = isPlaying,
-                                accentColor = activeAccent,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .offset(x = 10.dp, y = (-24).dp)
-                            )
                         }
                         } else if (centerVisualizerMode == 1) {
                             // Skin Retro Vintage: Cassette Tape Interactivo

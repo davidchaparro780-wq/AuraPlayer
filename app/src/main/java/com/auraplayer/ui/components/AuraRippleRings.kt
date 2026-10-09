@@ -63,12 +63,12 @@ fun AuraRippleRings(
     val phases = listOf(phase1 % 1f, phase2 % 1f, phase3 % 1f)
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val baseRadius = size.minDimension * 0.44f
-        val maxExtraRadius = size.minDimension * 0.22f
+        val baseRadius = size.minDimension * 0.42f
+        val maxExtraRadius = size.minDimension * 0.07f
 
         phases.forEach { p ->
             val radius = baseRadius + (maxExtraRadius * p)
-            val alpha = (1f - p) * 0.45f
+            val alpha = (1f - p) * 0.40f
             val strokeWidth = (3.5f * (1f - p * 0.5f))
 
             drawCircle(
