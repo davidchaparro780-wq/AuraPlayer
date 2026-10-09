@@ -1,30 +1,40 @@
-// DaVE Player Desktop — Core Engine & UI Logic
+// DaVE Player — Unified Core Audio Engine & UI Logic (Web & Desktop)
 
-// State
+// ==========================================
+// 1. GLOBAL STATE
+// ==========================================
 let playlist = [];
 let currentIndex = -1;
 let isPlaying = false;
 let isMuted = false;
+let currentVolume = 0.8;
 let previousVolume = 0.8;
 let isShuffle = false;
-let repeatMode = 0; // 0: off, 1: all, 2: one
+let repeatMode = 0; // 0: off, 1: repeat-all, 2: repeat-one
 let favorites = new Set();
 let scannedFolders = new Set();
+let phoneTracks = [];
+let currentUser = null;
 
-// Web Audio API Context & Nodes
+// ==========================================
+// 2. WEB AUDIO API NODES & ROUTING
+// ==========================================
 let audioCtx = null;
 let sourceNode = null;
 let analyserNode = null;
-let eqFilters = [];
-let stemNodes = {
-  vocals: { filter: null, gain: null },
-  drums: { filter: null, gain: null },
-  bass: { filter: null, gain: null },
-  melodies: { filter: null, gain: null }
-};
 let masterGain = null;
+let eqFilters = [];
+const eqFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
-// DOM Elements
+// Dedicated Stem Filter Bank (Separated from EQ to prevent mutual overwrite)
+let stemFilters = {
+  vocals: null,
+  drums: null,
+  bass: null,
+  melodies: null
+};
+
+// DOM References
 const audio = document.getElementById('audio-player');
 const playBtn = document.getElementById('btn-play-pause');
 const prevBtn = document.getElementById('btn-prev');
@@ -49,47 +59,55 @@ const songsCount = document.getElementById('songs-count');
 const favoritesCount = document.getElementById('favorites-count');
 const btnLike = document.getElementById('btn-like');
 const foldersList = document.getElementById('folders-list');
+const ambientGlow = document.getElementById('ambient-glow');
 
-// Window Controls
-document.getElementById('btn-minimize')?.addEventListener('click', () => window.electronAPI?.minimize());
-document.getElementById('btn-maximize')?.addEventListener('click', () => window.electronAPI?.maximize());
-document.getElementById('btn-close')?.addEventListener('click', () => window.electronAPI?.close());
+// Modals & Auth DOM
+const modalAuth = document.getElementById('modal-auth');
+const modalSync = document.getElementById('modal-sync');
+const btnLoginModal = document.getElementById('btn-login-modal');
+const btnCloseAuth = document.getElementById('btn-close-auth');
+const btnCloseSync = document.getElementById('btn-close-sync');
+const authForm = document.getElementById('auth-form');
+const authFormContainer = document.getElementById('auth-form-container');
+const authUserProfile = document.getElementById('auth-user-profile');
+const userDisplayName = document.getElementById('user-display-name');
+const profileName = document.getElementById('profile-name');
+const profileEmail = document.getElementById('profile-email');
+const pstatSongs = document.getElementById('pstat-songs');
+const pstatFavs = document.getElementById('pstat-favs');
+const phoneSongsCount = document.getElementById('phone-songs-count');
+const phoneSyncStatus = document.getElementById('phone-sync-status');
+const phoneTrackTable = document.getElementById('phone-track-table');
+const phoneTrackList = document.getElementById('phone-track-list');
+const phoneEmptyState = document.getElementById('phone-empty-state');
+const syncFeedback = document.getElementById('sync-feedback');
 
-// Tab Switching
-document.querySelectorAll('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    const tabId = `tab-${btn.dataset.tab}`;
-    const target = document.getElementById(tabId);
-    if (target) target.classList.add('active');
-  });
-});
+// Canvas
+const canvas = document.getElementById('party-canvas');
+const ctx = canvas ? canvas.getContext('2d') : null;
 
-// Quick bottom buttons
-document.getElementById('btn-quick-stem')?.addEventListener('click', () => switchTab('stem-mixer'));
-document.getElementById('btn-quick-lyrics')?.addEventListener('click', () => switchTab('lyrics'));
-document.getElementById('btn-quick-eq')?.addEventListener('click', () => switchTab('equalizer'));
-
-function switchTab(name) {
-  const btn = document.querySelector(`.nav-item[data-tab="${name}"]`);
-  if (btn) btn.click();
-}
-
-// Initialize Web Audio Engine
+// ==========================================
+// 3. AUDIO ENGINE INITIALIZATION
+// ==========================================
 function initAudioEngine() {
-  if (audioCtx) return;
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return;
+  }
+
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   audioCtx = new AudioContext();
 
-  sourceNode = audioCtx.createMediaElementSource(audio);
-  analyserNode = audioCtx.createAnalyser();
-  analyserNode.fftSize = 512;
-  analyserNode.smoothingTimeConstant = 0.8;
+  try {
+    sourceNode = audioCtx.createMediaElementSource(audio);
+  } catch (err) {
+    console.warn('MediaElementSource already created or error:', err);
+    return;
+  }
 
-  // 10-Band Equalizer Setup
-  const eqFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
+  // 1. Build 10-Band EQ filters in series
   eqFilters = eqFrequencies.map((freq, i) => {
     const filter = audioCtx.createBiquadFilter();
     if (i === 0) {
@@ -105,39 +123,76 @@ function initAudioEngine() {
     return filter;
   });
 
-  // Chain EQ filters in series
+  // Chain EQ in series
   let lastNode = sourceNode;
   eqFilters.forEach(f => {
     lastNode.connect(f);
     lastNode = f;
   });
 
-  // Master Gain & Analyser
-  masterGain = audioCtx.createGain();
-  masterGain.gain.value = volumeSlider.value / 100;
+  // 2. Build Dedicated Stem Filters
+  stemFilters.bass = audioCtx.createBiquadFilter();
+  stemFilters.bass.type = 'lowshelf';
+  stemFilters.bass.frequency.value = 120;
+  stemFilters.bass.gain.value = 0;
 
+  stemFilters.drums = audioCtx.createBiquadFilter();
+  stemFilters.drums.type = 'peaking';
+  stemFilters.drums.frequency.value = 4000;
+  stemFilters.drums.Q.value = 1.0;
+  stemFilters.drums.gain.value = 0;
+
+  stemFilters.melodies = audioCtx.createBiquadFilter();
+  stemFilters.melodies.type = 'peaking';
+  stemFilters.melodies.frequency.value = 800;
+  stemFilters.melodies.Q.value = 1.0;
+  stemFilters.melodies.gain.value = 0;
+
+  stemFilters.vocals = audioCtx.createBiquadFilter();
+  stemFilters.vocals.type = 'peaking';
+  stemFilters.vocals.frequency.value = 2200;
+  stemFilters.vocals.Q.value = 1.2;
+  stemFilters.vocals.gain.value = 0;
+
+  lastNode.connect(stemFilters.bass);
+  stemFilters.bass.connect(stemFilters.drums);
+  stemFilters.drums.connect(stemFilters.melodies);
+  stemFilters.melodies.connect(stemFilters.vocals);
+  lastNode = stemFilters.vocals;
+
+  // 3. Analyser Node for FFT Visualizer & VU meters
+  analyserNode = audioCtx.createAnalyser();
+  analyserNode.fftSize = 512;
+  analyserNode.smoothingTimeConstant = 0.8;
   lastNode.connect(analyserNode);
+
+  // 4. Master Gain Node (Controls speaker volume without dampening analyser)
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = currentVolume;
   analyserNode.connect(masterGain);
   masterGain.connect(audioCtx.destination);
 
-  // Init EQ Sliders UI
-  renderEqualizerUI(eqFrequencies);
-  // Start Visualizer Loop
+  // Audio element itself stays at 1.0 so analyser always receives full audio signal
+  audio.volume = 1.0;
+
   startVisualizerLoop();
 }
 
-// Render Equalizer UI
-function renderEqualizerUI(freqs) {
+// ==========================================
+// 4. EQUALIZER UI & PRESETS
+// ==========================================
+function renderEqualizerUI() {
   const container = document.getElementById('eq-bands');
   if (!container) return;
   container.innerHTML = '';
-  freqs.forEach((freq, idx) => {
+
+  eqFrequencies.forEach((freq, idx) => {
     const col = document.createElement('div');
     col.className = 'eq-slider-col';
     const label = freq >= 1000 ? `${freq / 1000}k` : `${freq}`;
     col.innerHTML = `
       <div class="slider-wrapper" style="height: 160px;">
-        <input type="range" min="-12" max="12" value="0" step="0.5" class="vertical-slider eq-slider" data-index="${idx}">
+        <input type="range" min="-12" max="12" value="0" step="0.5" class="vertical-slider eq-slider" data-index="${idx}" id="eq-slider-${idx}">
       </div>
       <span>${label}Hz</span>
       <span class="eq-val" id="eq-val-${idx}">0dB</span>
@@ -149,14 +204,15 @@ function renderEqualizerUI(freqs) {
     slider.addEventListener('input', (e) => {
       const idx = parseInt(e.target.dataset.index);
       const val = parseFloat(e.target.value);
-      if (eqFilters[idx]) eqFilters[idx].gain.value = val;
+      if (eqFilters[idx]) {
+        eqFilters[idx].gain.value = val;
+      }
       const text = document.getElementById(`eq-val-${idx}`);
       if (text) text.innerText = `${val > 0 ? '+' : ''}${val}dB`;
     });
   });
 }
 
-// EQ Presets
 const eqPresets = {
   flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   bass: [6, 5, 4, 2, 0, 0, 0, 1, 2, 2],
@@ -169,18 +225,18 @@ const eqPresets = {
 
 document.getElementById('eq-preset-dropdown')?.addEventListener('change', (e) => {
   const preset = eqPresets[e.target.value] || eqPresets.flat;
-  const sliders = document.querySelectorAll('.eq-slider');
   preset.forEach((val, i) => {
-    if (sliders[i]) {
-      sliders[i].value = val;
-      if (eqFilters[i]) eqFilters[i].gain.value = val;
-      const text = document.getElementById(`eq-val-${i}`);
-      if (text) text.innerText = `${val > 0 ? '+' : ''}${val}dB`;
-    }
+    const slider = document.getElementById(`eq-slider-${i}`);
+    if (slider) slider.value = val;
+    if (eqFilters[i]) eqFilters[i].gain.value = val;
+    const text = document.getElementById(`eq-val-${i}`);
+    if (text) text.innerText = `${val > 0 ? '+' : ''}${val}dB`;
   });
 });
 
-// AI Stem Mixer Presets
+// ==========================================
+// 5. LIVE AI STEM MIXER (INDEPENDENT BANK)
+// ==========================================
 const stemSliders = {
   vocals: document.getElementById('stem-vocals'),
   drums: document.getElementById('stem-drums'),
@@ -188,38 +244,22 @@ const stemSliders = {
   melodies: document.getElementById('stem-melodies')
 };
 
+function updateStemValue(name, val) {
+  const text = document.getElementById(`val-${name}`);
+  if (text) text.innerText = `${val}%`;
+
+  if (!stemFilters[name]) return;
+
+  // Scale: 100% = 0dB. 0% = -24dB cut. 150% = +6dB boost
+  const gainDb = val <= 100 ? ((val - 100) / 100) * 24 : ((val - 100) / 50) * 6;
+  stemFilters[name].gain.value = gainDb;
+}
+
 function setStemPreset(vocals, drums, bass, melodies) {
   if (stemSliders.vocals) { stemSliders.vocals.value = vocals; updateStemValue('vocals', vocals); }
   if (stemSliders.drums) { stemSliders.drums.value = drums; updateStemValue('drums', drums); }
   if (stemSliders.bass) { stemSliders.bass.value = bass; updateStemValue('bass', bass); }
   if (stemSliders.melodies) { stemSliders.melodies.value = melodies; updateStemValue('melodies', melodies); }
-}
-
-function updateStemValue(name, val) {
-  const text = document.getElementById(`val-${name}`);
-  if (text) text.innerText = `${val}%`;
-  // Psychoacoustic frequency adjustments based on stem levels
-  if (eqFilters.length === 10) {
-    if (name === 'vocals') {
-      const g = ((val - 100) / 100) * 12;
-      eqFilters[5].gain.value = g; // 1kHz
-      eqFilters[6].gain.value = g; // 2kHz
-    } else if (name === 'bass') {
-      const g = ((val - 100) / 100) * 14;
-      eqFilters[0].gain.value = g; // 31Hz
-      eqFilters[1].gain.value = g; // 62Hz
-      eqFilters[2].gain.value = g * 0.7; // 125Hz
-    } else if (name === 'drums') {
-      const g = ((val - 100) / 100) * 10;
-      eqFilters[3].gain.value = g; // 250Hz
-      eqFilters[8].gain.value = g; // 8kHz
-      eqFilters[9].gain.value = g; // 16kHz
-    } else if (name === 'melodies') {
-      const g = ((val - 100) / 100) * 8;
-      eqFilters[4].gain.value = g; // 500Hz
-      eqFilters[7].gain.value = g; // 4kHz
-    }
-  }
 }
 
 Object.keys(stemSliders).forEach(key => {
@@ -241,80 +281,449 @@ document.querySelectorAll('.preset-chips .chip').forEach(chip => {
   });
 });
 
-// Real-time Canvas FFT Visualizer
-const canvas = document.getElementById('party-canvas');
-const ctx = canvas ? canvas.getContext('2d') : null;
-
+// ==========================================
+// 6. VISUALIZER & PARTY FFT LOOP
+// ==========================================
 function resizeCanvas() {
-  if (!canvas) return;
-  canvas.width = canvas.parentElement.clientWidth;
-  canvas.height = canvas.parentElement.clientHeight;
+  if (!canvas || !canvas.parentElement) return;
+  const w = canvas.parentElement.clientWidth;
+  const h = canvas.parentElement.clientHeight;
+  if (w > 0 && h > 0) {
+    canvas.width = w;
+    canvas.height = h;
+  }
 }
 window.addEventListener('resize', resizeCanvas);
-setTimeout(resizeCanvas, 200);
 
 function startVisualizerLoop() {
   if (!analyserNode || !ctx) return;
   const bufferLength = analyserNode.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
 
+  // Cached VU meters
+  const vuVocals = document.getElementById('vu-vocals');
+  const vuDrums = document.getElementById('vu-drums');
+  const vuBass = document.getElementById('vu-bass');
+  const vuMelodies = document.getElementById('vu-melodies');
+  const strobeBorder = document.querySelector('.canvas-visualizer-wrapper');
+  const chkPulse = document.getElementById('chk-strobe-pulse');
+
   function draw() {
     requestAnimationFrame(draw);
     analyserNode.getByteFrequencyData(dataArray);
 
-    ctx.fillStyle = 'rgba(5, 6, 12, 0.3)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (canvas.width > 0 && canvas.height > 0) {
+      ctx.fillStyle = 'rgba(5, 6, 12, 0.35)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Calculate Bass Energy for Strobe and VU Meters
+      // Spectrum Bars
+      const barCount = 48;
+      const barWidth = Math.max(2, (canvas.width / barCount) - 3);
+      for (let i = 0; i < barCount; i++) {
+        const val = dataArray[i * 3];
+        const barHeight = (val / 255) * (canvas.height * 0.85);
+        const x = i * (barWidth + 3);
+        const y = canvas.height - barHeight;
+
+        const hue = (i / barCount) * 260 + 170;
+        ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+        ctx.fillRect(x, y, barWidth, barHeight);
+      }
+    }
+
+    // VU Meters & Strobe Pulse
     let bassSum = 0;
-    for (let i = 0; i < 8; i++) bassSum += dataArray[i];
-    const bassAvg = bassSum / 8; // 0 to 255
-    const bassRatio = bassAvg / 255;
+    for (let i = 0; i < 6; i++) bassSum += dataArray[i];
+    const bassRatio = (bassSum / 6) / 255;
 
-    // VU meter updates
-    const vuVocals = document.getElementById('vu-vocals');
-    const vuDrums = document.getElementById('vu-drums');
-    const vuBass = document.getElementById('vu-bass');
-    const vuMelodies = document.getElementById('vu-melodies');
+    if (vuBass) vuBass.style.width = `${Math.min(100, bassRatio * 135)}%`;
+    if (vuDrums) vuDrums.style.width = `${Math.min(100, (dataArray[16] / 255) * 125)}%`;
+    if (vuVocals) vuVocals.style.width = `${Math.min(100, (dataArray[45] / 255) * 125)}%`;
+    if (vuMelodies) vuMelodies.style.width = `${Math.min(100, (dataArray[28] / 255) * 125)}%`;
 
-    if (vuBass) vuBass.style.width = `${Math.min(100, bassRatio * 130)}%`;
-    if (vuDrums) vuDrums.style.width = `${Math.min(100, (dataArray[20] / 255) * 120)}%`;
-    if (vuVocals) vuVocals.style.width = `${Math.min(100, (dataArray[50] / 255) * 120)}%`;
-    if (vuMelodies) vuMelodies.style.width = `${Math.min(100, (dataArray[35] / 255) * 120)}%`;
-
-    // Strobe neon border effect
-    const strobeBorder = document.querySelector('.canvas-visualizer-wrapper');
-    const chkPulse = document.getElementById('chk-strobe-pulse');
     if (strobeBorder && chkPulse?.checked && isPlaying) {
-      if (bassRatio > 0.6) {
-        strobeBorder.style.borderColor = `hsl(${Date.now() % 360}, 100%, 60%)`;
-        strobeBorder.style.boxShadow = `0 0 ${bassRatio * 40}px hsl(${Date.now() % 360}, 100%, 60%)`;
+      if (bassRatio > 0.58) {
+        strobeBorder.style.borderColor = `hsl(${Date.now() % 360}, 100%, 65%)`;
+        strobeBorder.style.boxShadow = `0 0 ${bassRatio * 35}px hsl(${Date.now() % 360}, 100%, 65%)`;
       } else {
         strobeBorder.style.borderColor = 'transparent';
         strobeBorder.style.boxShadow = 'none';
       }
     }
-
-    // Draw Spectrum Bars
-    const barCount = 64;
-    const barWidth = (canvas.width / barCount) - 2;
-    for (let i = 0; i < barCount; i++) {
-      const val = dataArray[i * 2];
-      const barHeight = (val / 255) * (canvas.height * 0.8);
-      const x = i * (barWidth + 2);
-      const y = canvas.height - barHeight;
-
-      const hue = (i / barCount) * 280 + 160;
-      ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
-      ctx.fillRect(x, y, barWidth, barHeight);
-    }
   }
   draw();
 }
 
-// File & Folder Scanning (Electron + Browser/PWA Fallback)
+// Fullscreen Party Mode
+document.getElementById('btn-party-fullscreen')?.addEventListener('click', () => {
+  const container = document.querySelector('.canvas-visualizer-wrapper');
+  if (!container) return;
+  if (!document.fullscreenElement) {
+    container.requestFullscreen?.().then(() => resizeCanvas()).catch(e => console.log(e));
+  } else {
+    document.exitFullscreen?.().then(() => resizeCanvas()).catch(e => console.log(e));
+  }
+});
+document.addEventListener('fullscreenchange', () => setTimeout(resizeCanvas, 100));
+
+// ==========================================
+// 7. TIME & SYNCED KARAOKE LYRICS
+// ==========================================
+function formatTime(secs) {
+  if (!isFinite(secs) || isNaN(secs) || secs < 0) return '0:00';
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+const sampleLyrics = [
+  { time: 0, text: "✨ DaVE Player — Audio HD Master Pro" },
+  { time: 4, text: "🎶 Sintetizadores en estéreo y bajos 808" },
+  { time: 8, text: "🎛️ AI Stem Mixer aislando frecuencias en vivo" },
+  { time: 12, text: "🔥 Siente el ritmo con el ecualizador de 10 bandas" },
+  { time: 16, text: "🎤 Modo Karaoke activo: canta tu tema favorito" },
+  { time: 20, text: "⚡ Disfruta la mejor música sin anuncios y sin cortes" }
+];
+
+function renderLyrics(currentTime) {
+  const box = document.getElementById('lyrics-box');
+  if (!box) return;
+
+  // Render on track start
+  if (box.children.length !== sampleLyrics.length) {
+    box.innerHTML = '';
+    sampleLyrics.forEach((line) => {
+      const div = document.createElement('div');
+      div.className = 'lyric-line';
+      div.dataset.time = line.time;
+      div.innerText = line.text;
+      div.addEventListener('click', () => {
+        audio.currentTime = line.time;
+      });
+      box.appendChild(div);
+    });
+  }
+
+  // Find active line
+  let activeIdx = 0;
+  for (let i = 0; i < sampleLyrics.length; i++) {
+    if (currentTime >= sampleLyrics[i].time) {
+      activeIdx = i;
+    }
+  }
+
+  const lines = box.querySelectorAll('.lyric-line');
+  lines.forEach((l, idx) => {
+    if (idx === activeIdx) {
+      l.classList.add('active');
+      l.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      l.classList.remove('active');
+    }
+  });
+}
+
+// ==========================================
+// 8. CORE PLAYBACK ENGINE
+// ==========================================
+function playTrack(index) {
+  if (index < 0 || index >= playlist.length) return;
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  currentIndex = index;
+  const track = playlist[index];
+
+  // Set audio source
+  if (track.demoUrl) {
+    audio.src = track.demoUrl;
+  } else if (track.streamUrl) {
+    audio.src = track.streamUrl;
+  } else if (track.fileObj) {
+    audio.src = URL.createObjectURL(track.fileObj);
+  } else if (track.path) {
+    audio.src = `file://${track.path}`;
+  }
+
+  audio.play().then(() => {
+    isPlaying = true;
+    updatePlayPauseUI();
+  }).catch(err => {
+    console.warn('Playback error / autoplay blocked:', err);
+    isPlaying = false;
+    updatePlayPauseUI();
+  });
+
+  playerTitle.innerText = track.title;
+  playerArtist.innerText = track.artist;
+  if (track.coverUrl) {
+    playerArt.src = track.coverUrl;
+    ambientGlow.style.background = `radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.35), rgba(6, 182, 212, 0.25), transparent 70%)`;
+  } else {
+    playerArt.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23181824"/><circle cx="50" cy="50" r="25" fill="%236366f1"/></svg>';
+  }
+  artGlow.style.opacity = '1';
+
+  // Update Lyrics header
+  const lyrTitle = document.getElementById('lyrics-song-title');
+  const lyrArtist = document.getElementById('lyrics-song-artist');
+  if (lyrTitle) lyrTitle.innerText = track.title;
+  if (lyrArtist) lyrArtist.innerText = track.artist;
+
+  // Update Like button state
+  const trackId = track.title + track.artist;
+  if (favorites.has(trackId)) {
+    btnLike?.classList.add('active');
+    btnLike.innerHTML = '<i class="fa-solid fa-heart"></i>';
+  } else {
+    btnLike?.classList.remove('active');
+    btnLike.innerHTML = '<i class="fa-regular fa-heart"></i>';
+  }
+
+  renderTrackList();
+}
+
+function updatePlayPauseUI() {
+  if (isPlaying) {
+    playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+    artGlow.style.opacity = '1';
+  } else {
+    playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    artGlow.style.opacity = '0';
+  }
+}
+
+// Play / Pause Toggle
+playBtn.addEventListener('click', () => {
+  if (playlist.length === 0) return;
+  if (currentIndex === -1) {
+    playTrack(0);
+    return;
+  }
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  if (audio.paused) {
+    audio.play().then(() => {
+      isPlaying = true;
+      updatePlayPauseUI();
+    }).catch(e => console.log(e));
+  } else {
+    audio.pause();
+    isPlaying = false;
+    updatePlayPauseUI();
+  }
+  renderTrackList();
+});
+
+// Previous Track
+prevBtn.addEventListener('click', () => {
+  if (playlist.length === 0) return;
+  if (currentIndex > 0) playTrack(currentIndex - 1);
+  else playTrack(playlist.length - 1);
+});
+
+// Next Track
+nextBtn.addEventListener('click', () => {
+  if (playlist.length === 0) return;
+  if (isShuffle) {
+    const rnd = Math.floor(Math.random() * playlist.length);
+    playTrack(rnd);
+  } else if (currentIndex < playlist.length - 1) {
+    playTrack(currentIndex + 1);
+  } else {
+    playTrack(0);
+  }
+});
+
+// Shuffle Button Toggle
+shuffleBtn?.addEventListener('click', () => {
+  isShuffle = !isShuffle;
+  shuffleBtn.classList.toggle('active', isShuffle);
+});
+
+// Repeat Button Toggle (Off -> Repeat All -> Repeat One -> Off)
+repeatBtn?.addEventListener('click', () => {
+  repeatMode = (repeatMode + 1) % 3;
+  if (repeatMode === 0) {
+    repeatBtn.classList.remove('active');
+    repeatBtn.innerHTML = '<i class="fa-solid fa-repeat"></i>';
+    repeatBtn.title = 'Repetir: Desactivado';
+  } else if (repeatMode === 1) {
+    repeatBtn.classList.add('active');
+    repeatBtn.innerHTML = '<i class="fa-solid fa-repeat"></i>';
+    repeatBtn.title = 'Repetir: Toda la lista';
+  } else {
+    repeatBtn.classList.add('active');
+    repeatBtn.innerHTML = '<i class="fa-solid fa-repeat"></i><span style="font-size:0.6rem; vertical-align:super;">1</span>';
+    repeatBtn.title = 'Repetir: Esta canción';
+  }
+});
+
+// Audio Time Updates
+audio.addEventListener('timeupdate', () => {
+  if (!audio.duration || !isFinite(audio.duration)) return;
+  const ratio = audio.currentTime / audio.duration;
+  progressFill.style.width = `${ratio * 100}%`;
+  currentTimeEl.innerText = formatTime(audio.currentTime);
+  totalTimeEl.innerText = formatTime(audio.duration);
+  renderLyrics(audio.currentTime);
+});
+
+// Audio Ended Event
+audio.addEventListener('ended', () => {
+  if (repeatMode === 2) {
+    playTrack(currentIndex);
+  } else if (repeatMode === 1 || isShuffle) {
+    nextBtn.click();
+  } else {
+    // Repeat off: advance if not at the end, else stop
+    if (currentIndex < playlist.length - 1) {
+      playTrack(currentIndex + 1);
+    } else {
+      isPlaying = false;
+      updatePlayPauseUI();
+    }
+  }
+});
+
+// Scrubber Seeking
+progressContainer.addEventListener('click', (e) => {
+  if (!audio.duration || !isFinite(audio.duration)) return;
+  const rect = progressContainer.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+  audio.currentTime = ratio * audio.duration;
+});
+
+// Volume Slider
+volumeSlider.addEventListener('input', (e) => {
+  const val = e.target.value / 100;
+  currentVolume = val;
+  if (masterGain) masterGain.gain.value = val;
+  isMuted = (val === 0);
+  updateVolumeIcon(val);
+});
+
+function updateVolumeIcon(val) {
+  if (val === 0) muteBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+  else if (val < 0.5) muteBtn.innerHTML = '<i class="fa-solid fa-volume-low"></i>';
+  else muteBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+}
+
+muteBtn.addEventListener('click', () => {
+  if (isMuted) {
+    currentVolume = previousVolume || 0.8;
+    volumeSlider.value = currentVolume * 100;
+    if (masterGain) masterGain.gain.value = currentVolume;
+    isMuted = false;
+  } else {
+    previousVolume = currentVolume;
+    currentVolume = 0;
+    volumeSlider.value = 0;
+    if (masterGain) masterGain.gain.value = 0;
+    isMuted = true;
+  }
+  updateVolumeIcon(currentVolume);
+});
+
+// Favorite Toggle
+btnLike?.addEventListener('click', () => {
+  if (currentIndex === -1 || playlist.length === 0) return;
+  const currentTrack = playlist[currentIndex];
+  const trackId = currentTrack.title + currentTrack.artist;
+
+  if (favorites.has(trackId)) {
+    favorites.delete(trackId);
+    btnLike.classList.remove('active');
+    btnLike.innerHTML = '<i class="fa-regular fa-heart"></i>';
+  } else {
+    favorites.add(trackId);
+    btnLike.classList.add('active');
+    btnLike.innerHTML = '<i class="fa-solid fa-heart"></i>';
+  }
+
+  if (favoritesCount) favoritesCount.innerText = `${favorites.size} canciones`;
+  if (pstatFavs) pstatFavs.innerText = favorites.size;
+  localStorage.setItem('dave_favorites', JSON.stringify(Array.from(favorites)));
+});
+
+// Favorites Playlist Card Click
+document.querySelector('.favorites-card')?.addEventListener('click', () => {
+  switchTab('songs');
+  const favSongs = playlist.filter(t => favorites.has(t.title + t.artist));
+  if (favSongs.length > 0) {
+    renderTrackList(favSongs);
+  } else {
+    alert('Aún no has marcado canciones como favoritas. Pulsa el corazón en el reproductor para agregarlas.');
+  }
+});
+
+// ==========================================
+// 9. TRACKLIST & SEARCH (BUG FIXED: INDEXOF)
+// ==========================================
+function renderTrackList(filtered = null) {
+  const list = filtered || playlist;
+  if (songsCount) songsCount.innerText = list.length;
+
+  if (list.length === 0) {
+    emptyState?.classList.remove('hidden');
+    trackTable?.classList.add('hidden');
+    return;
+  }
+
+  emptyState?.classList.add('hidden');
+  trackTable?.classList.remove('hidden');
+  if (!trackList) return;
+  trackList.innerHTML = '';
+
+  list.forEach((track) => {
+    const tr = document.createElement('tr');
+    const isThisPlaying = (currentIndex !== -1 && playlist[currentIndex] === track);
+    tr.className = `track-row ${isThisPlaying ? 'playing' : ''}`;
+    const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
+    const displayIndex = playlist.indexOf(track) + 1;
+
+    tr.innerHTML = `
+      <td>${isThisPlaying && isPlaying ? '<i class="fa-solid fa-volume-high"></i>' : displayIndex}</td>
+      <td class="track-title-cell">
+        <img src="${cover}" class="track-cover-mini" alt="Cover">
+        <span>${track.title}</span>
+      </td>
+      <td>${track.artist}</td>
+      <td>${track.album}</td>
+      <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
+    `;
+    // FIX: Click plays the exact index in playlist, not filtered index!
+    tr.addEventListener('click', () => playTrack(playlist.indexOf(track)));
+    trackList.appendChild(tr);
+  });
+}
+
+// Search Filter
+searchInput?.addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) {
+    renderTrackList();
+    return;
+  }
+  const filtered = playlist.filter(t => 
+    t.title.toLowerCase().includes(q) ||
+    t.artist.toLowerCase().includes(q) ||
+    t.album.toLowerCase().includes(q)
+  );
+  renderTrackList(filtered);
+});
+
+// ==========================================
+// 10. FILE SCANNING & DRAG & DROP
+// ==========================================
 const fileInputBrowser = document.getElementById('file-input-browser');
 const folderInputBrowser = document.getElementById('folder-input-browser');
 
@@ -322,7 +731,6 @@ async function addFolder() {
   if (window.electronAPI) {
     const folder = await window.electronAPI.openFolderDialog();
     if (!folder) return;
-
     scannedFolders.add(folder);
     renderFoldersList();
     const files = await window.electronAPI.scanFolder(folder);
@@ -340,7 +748,6 @@ async function importFiles() {
   if (window.electronAPI) {
     const files = await window.electronAPI.openFilesDialog();
     if (!files || files.length === 0) return;
-
     for (const filePath of files) {
       const meta = await window.electronAPI.parseMetadata(filePath);
       playlist.push(meta);
@@ -351,7 +758,6 @@ async function importFiles() {
   }
 }
 
-// Browser File Pickers event listeners
 fileInputBrowser?.addEventListener('change', (e) => {
   handleBrowserFiles(Array.from(e.target.files));
 });
@@ -359,7 +765,7 @@ fileInputBrowser?.addEventListener('change', (e) => {
 folderInputBrowser?.addEventListener('change', (e) => {
   const files = Array.from(e.target.files);
   if (files.length > 0) {
-    const folderName = files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : 'Carpeta Local';
+    const folderName = files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : 'Carpeta PC';
     scannedFolders.add(folderName);
     renderFoldersList();
   }
@@ -382,12 +788,11 @@ function handleBrowserFiles(files) {
   renderTrackList();
 }
 
-// Drag and Drop support
+// Drag & Drop
 window.addEventListener('dragover', (e) => {
   e.preventDefault();
   e.stopPropagation();
 });
-
 window.addEventListener('drop', (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -397,8 +802,7 @@ window.addEventListener('drop', (e) => {
 });
 
 document.getElementById('btn-add-folder')?.addEventListener('click', addFolder);
-document.getElementById('btn-add-folder-2')?.addEventListener('click', addFolder);
-document.getElementById('btn-empty-scan')?.addEventListener('click', addFolder);
+document.getElementById('btn-empty-scan')?.addEventListener('click', importFiles);
 document.getElementById('btn-import-files')?.addEventListener('click', importFiles);
 
 function renderFoldersList() {
@@ -416,193 +820,13 @@ function renderFoldersList() {
   });
 }
 
-function formatTime(secs) {
-  if (isNaN(secs) || secs < 0) return '0:00';
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
-}
-
-function renderTrackList(filtered = null) {
-  const list = filtered || playlist;
-  if (songsCount) songsCount.innerText = list.length;
-
-  if (list.length === 0) {
-    emptyState.classList.remove('hidden');
-    trackTable.classList.add('hidden');
-    return;
-  }
-
-  emptyState.classList.add('hidden');
-  trackTable.classList.remove('hidden');
-  trackList.innerHTML = '';
-
-  list.forEach((track, idx) => {
-    const tr = document.createElement('tr');
-    tr.className = `track-row ${currentIndex === idx ? 'playing' : ''}`;
-    const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%233a3d52"/></svg>';
-    tr.innerHTML = `
-      <td>${currentIndex === idx && isPlaying ? '<i class="fa-solid fa-volume-high"></i>' : idx + 1}</td>
-      <td class="track-title-cell">
-        <img src="${cover}" class="track-cover-mini" alt="Cover">
-        <span>${track.title}</span>
-      </td>
-      <td>${track.artist}</td>
-      <td>${track.album}</td>
-      <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
-    `;
-    tr.addEventListener('click', () => playTrack(idx));
-    trackList.appendChild(tr);
-  });
-}
-
-function playTrack(index) {
-  if (index < 0 || index >= playlist.length) return;
-  initAudioEngine();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-
-  currentIndex = index;
-  const track = playlist[index];
-
-  if (track.fileObj) {
-    audio.src = URL.createObjectURL(track.fileObj);
-  } else if (track.path) {
-    audio.src = `file://${track.path}`;
-  }
-
-  audio.play().then(() => {
-    isPlaying = true;
-    updatePlayPauseUI();
-  }).catch(err => console.error('Play error:', err));
-
-  playerTitle.innerText = track.title;
-  playerArtist.innerText = track.artist;
-  if (track.coverUrl) {
-    playerArt.src = track.coverUrl;
-    document.getElementById('ambient-glow').style.background = `radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.35), rgba(6, 182, 212, 0.25), transparent 70%)`;
-  }
-  artGlow.style.opacity = '1';
-
-  // Update Lyrics header
-  const lyrTitle = document.getElementById('lyrics-song-title');
-  const lyrArtist = document.getElementById('lyrics-song-artist');
-  if (lyrTitle) lyrTitle.innerText = track.title;
-  if (lyrArtist) lyrArtist.innerText = track.artist;
-
-  renderTrackList();
-}
-
-function updatePlayPauseUI() {
-  if (isPlaying) {
-    playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-    artGlow.style.opacity = '1';
-  } else {
-    playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
-    artGlow.style.opacity = '0';
-  }
-}
-
-playBtn.addEventListener('click', () => {
-  if (playlist.length === 0) return;
-  if (currentIndex === -1) {
-    playTrack(0);
-    return;
-  }
-  initAudioEngine();
-  if (audio.paused) {
-    audio.play();
-    isPlaying = true;
-  } else {
-    audio.pause();
-    isPlaying = false;
-  }
-  updatePlayPauseUI();
-  renderTrackList();
-});
-
-prevBtn.addEventListener('click', () => {
-  if (currentIndex > 0) playTrack(currentIndex - 1);
-  else playTrack(playlist.length - 1);
-});
-
-nextBtn.addEventListener('click', () => {
-  if (isShuffle) {
-    const rnd = Math.floor(Math.random() * playlist.length);
-    playTrack(rnd);
-  } else if (currentIndex < playlist.length - 1) {
-    playTrack(currentIndex + 1);
-  } else {
-    playTrack(0);
-  }
-});
-
-audio.addEventListener('timeupdate', () => {
-  if (!audio.duration) return;
-  const ratio = audio.currentTime / audio.duration;
-  progressFill.style.width = `${ratio * 100}%`;
-  currentTimeEl.innerText = formatTime(audio.currentTime);
-  totalTimeEl.innerText = formatTime(audio.duration);
-});
-
-audio.addEventListener('ended', () => {
-  if (repeatMode === 2) {
-    playTrack(currentIndex);
-  } else {
-    nextBtn.click();
-  }
-});
-
-progressContainer.addEventListener('click', (e) => {
-  if (!audio.duration) return;
-  const rect = progressContainer.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const ratio = clickX / rect.width;
-  audio.currentTime = ratio * audio.duration;
-});
-
-volumeSlider.addEventListener('input', (e) => {
-  const val = e.target.value / 100;
-  audio.volume = val;
-  if (masterGain) masterGain.gain.value = val;
-  updateVolumeIcon(val);
-});
-
-function updateVolumeIcon(val) {
-  if (val === 0) muteBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
-  else if (val < 0.5) muteBtn.innerHTML = '<i class="fa-solid fa-volume-low"></i>';
-  else muteBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
-}
-
-muteBtn.addEventListener('click', () => {
-  if (isMuted) {
-    audio.volume = previousVolume;
-    volumeSlider.value = previousVolume * 100;
-    isMuted = false;
-  } else {
-    previousVolume = audio.volume;
-    audio.volume = 0;
-    volumeSlider.value = 0;
-    isMuted = true;
-  }
-  updateVolumeIcon(audio.volume);
-});
-
-// Search filter
-searchInput.addEventListener('input', (e) => {
-  const q = e.target.value.toLowerCase();
-  const filtered = playlist.filter(t => 
-    t.title.toLowerCase().includes(q) ||
-    t.artist.toLowerCase().includes(q) ||
-    t.album.toLowerCase().includes(q)
-  );
-  renderTrackList(filtered);
-});
-
-// Demo Track Synthesizer (Generates an authentic retro synthwave beat)
+// ==========================================
+// 11. SYNTHWAVE DEMO TRACK GENERATOR
+// ==========================================
 function generateSynthwaveWav() {
   const sampleRate = 44100;
   const bpm = 120;
-  const seconds = 24; // 12 bars loop
+  const seconds = 24;
   const totalSamples = sampleRate * seconds;
   const buffer = new Float32Array(totalSamples);
   const beatSec = 60 / bpm;
@@ -624,41 +848,39 @@ function generateSynthwaveWav() {
 
     let sample = 0;
 
-    // 1. Kick (Drums) on every beat
+    // Kick
     const beatPos = (t % beatSec);
     if (beatPos < 0.2) {
       const kickFreq = 150 * Math.exp(-beatPos * 30);
       sample += Math.sin(2 * Math.PI * kickFreq * beatPos) * Math.exp(-beatPos * 15) * 0.7;
     }
 
-    // 2. Snare / Claps (Drums) on beats 2 and 4
+    // Snare
     if ((beatInBar >= 1 && beatInBar < 1.3) || (beatInBar >= 3 && beatInBar < 3.3)) {
       const snarePos = beatInBar % 2;
-      const noise = (Math.random() * 2 - 1) * Math.exp(-snarePos * 12) * 0.35;
-      sample += noise;
+      sample += (Math.random() * 2 - 1) * Math.exp(-snarePos * 12) * 0.35;
     }
 
-    // 3. Hi-Hats (Drums) on 16th notes
+    // Hi-hats
     const hihatPos = (t % sixteenth);
     if (hihatPos < 0.05) {
       sample += (Math.random() * 2 - 1) * Math.exp(-hihatPos * 60) * 0.15;
     }
 
-    // 4. Rolling 808 Bassline (Bass)
+    // 808 Bass
     const bassNote = currentChord[0] / 2;
     const bassPulse = (t % (sixteenth * 2));
     const bassEnv = Math.exp(-bassPulse * 8);
-    const bassWave = Math.sin(2 * Math.PI * bassNote * t) + 0.3 * Math.sin(4 * Math.PI * bassNote * t);
-    sample += bassWave * bassEnv * 0.45;
+    sample += (Math.sin(2 * Math.PI * bassNote * t) + 0.3 * Math.sin(4 * Math.PI * bassNote * t)) * bassEnv * 0.45;
 
-    // 5. Synthwave Pad / Melodies (Melodies)
+    // Melodies
     let pad = 0;
     currentChord.forEach((f) => {
       pad += Math.sin(2 * Math.PI * f * t) + 0.25 * Math.sin(2 * Math.PI * f * 2 * t);
     });
     sample += pad * 0.12;
 
-    // 6. Lead Synth / Vocals Arp (Vocals / Lead)
+    // Vocals / Lead Synth
     const arpFreq = currentChord[Math.floor((t / sixteenth) % currentChord.length)] * 2;
     const arpEnv = Math.exp(-(t % sixteenth) * 6);
     sample += Math.sin(2 * Math.PI * arpFreq * t) * arpEnv * 0.18;
@@ -666,9 +888,7 @@ function generateSynthwaveWav() {
     buffer[i] = Math.max(-1, Math.min(1, sample));
   }
 
-  // Convert Float32Array to WAV Blob
-  const wavBlob = encodeWav(buffer, sampleRate);
-  return URL.createObjectURL(wavBlob);
+  return URL.createObjectURL(encodeWav(buffer, sampleRate));
 }
 
 function encodeWav(samples, sampleRate) {
@@ -681,9 +901,7 @@ function encodeWav(samples, sampleRate) {
   const view = new DataView(buffer);
 
   function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
+    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
   }
 
   writeString(view, 0, 'RIFF');
@@ -691,7 +909,7 @@ function encodeWav(samples, sampleRate) {
   writeString(view, 8, 'WAVE');
   writeString(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
+  view.setUint16(20, 1, true);
   view.setUint16(22, numChannels, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, byteRate, true);
@@ -730,102 +948,53 @@ function loadDemoTrack() {
 document.getElementById('btn-demo-track')?.addEventListener('click', loadDemoTrack);
 document.getElementById('btn-empty-demo')?.addEventListener('click', loadDemoTrack);
 
-// Enhanced playTrack with demoUrl & streaming support
-const originalPlayTrack = playTrack;
-playTrack = function(index) {
-  if (index < 0 || index >= playlist.length) return;
-  const track = playlist[index];
-  initAudioEngine();
-  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-  currentIndex = index;
+// ==========================================
+// 12. TAB SWITCHING & NAVBAR LINKS
+// ==========================================
+function switchTab(name) {
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  
+  const navBtn = document.querySelector(`.nav-item[data-tab="${name}"]`);
+  if (navBtn) navBtn.classList.add('active');
 
-  if (track.demoUrl) {
-    audio.src = track.demoUrl;
-  } else if (track.streamUrl) {
-    audio.src = track.streamUrl;
-  } else if (track.fileObj) {
-    audio.src = URL.createObjectURL(track.fileObj);
-  } else if (track.path) {
-    audio.src = `file://${track.path}`;
+  const tabContent = document.getElementById(`tab-${name}`);
+  if (tabContent) tabContent.classList.add('active');
+
+  if (name === 'club-party') {
+    setTimeout(resizeCanvas, 50);
   }
+}
 
-  audio.play().then(() => {
-    isPlaying = true;
-    updatePlayPauseUI();
-  }).catch(err => console.error('Play error:', err));
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchTab(btn.dataset.tab);
+  });
+});
 
-  playerTitle.innerText = track.title;
-  playerArtist.innerText = track.artist;
-  if (track.coverUrl) {
-    playerArt.src = track.coverUrl;
-  } else {
-    playerArt.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23181824"/><circle cx="50" cy="50" r="25" fill="%236366f1"/></svg>';
-  }
-  artGlow.style.opacity = '1';
-  renderTrackList();
-};
+document.getElementById('btn-quick-stem')?.addEventListener('click', () => switchTab('stem-mixer'));
+document.getElementById('btn-quick-lyrics')?.addEventListener('click', () => switchTab('lyrics'));
+document.getElementById('btn-quick-eq')?.addEventListener('click', () => switchTab('equalizer'));
+
+// Navbar anchors
+document.querySelector('a[href="#stem-mixer-info"]')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('player-section')?.scrollIntoView({ behavior: 'smooth' });
+  switchTab('stem-mixer');
+});
 
 // ==========================================
-// 👤 USER AUTHENTICATION & CLOUD ACCOUNT
+// 13. USER AUTH & PHONE SYNC
 // ==========================================
-let currentUser = null;
-let phoneTracks = [];
-
-const modalAuth = document.getElementById('modal-auth');
-const modalSync = document.getElementById('modal-sync');
-const btnLoginModal = document.getElementById('btn-login-modal');
-const btnCloseAuth = document.getElementById('btn-close-auth');
-const btnCloseSync = document.getElementById('btn-close-sync');
-const authForm = document.getElementById('auth-form');
-const authFormContainer = document.getElementById('auth-form-container');
-const authUserProfile = document.getElementById('auth-user-profile');
-const userDisplayName = document.getElementById('user-display-name');
-const profileName = document.getElementById('profile-name');
-const profileEmail = document.getElementById('profile-email');
-const pstatSongs = document.getElementById('pstat-songs');
-const pstatFavs = document.getElementById('pstat-favs');
-const phoneSongsCount = document.getElementById('phone-songs-count');
-const phoneSyncStatus = document.getElementById('phone-sync-status');
-const phoneTrackTable = document.getElementById('phone-track-table');
-const phoneTrackList = document.getElementById('phone-track-list');
-const phoneEmptyState = document.getElementById('phone-empty-state');
-const syncFeedback = document.getElementById('sync-feedback');
-
-// Open/Close Modals
 btnLoginModal?.addEventListener('click', () => {
   modalAuth?.classList.remove('hidden');
   updateUserUI();
 });
-
 btnCloseAuth?.addEventListener('click', () => modalAuth?.classList.add('hidden'));
 btnCloseSync?.addEventListener('click', () => modalSync?.classList.add('hidden'));
 
-document.getElementById('btn-open-sync-modal')?.addEventListener('click', () => {
-  modalSync?.classList.remove('hidden');
-});
-
-document.getElementById('btn-empty-phone-connect')?.addEventListener('click', () => {
-  modalSync?.classList.remove('hidden');
-});
-
-// Load user from storage
-function loadStoredUserData() {
-  const savedUser = localStorage.getItem('dave_user');
-  if (savedUser) {
-    try {
-      currentUser = JSON.parse(savedUser);
-      updateUserUI();
-    } catch (e) { console.error(e); }
-  }
-
-  const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
-  if (savedPhoneTracks) {
-    try {
-      phoneTracks = JSON.parse(savedPhoneTracks);
-      renderPhoneTracksList();
-    } catch (e) { console.error(e); }
-  }
-}
+document.getElementById('btn-open-sync-modal')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
+document.getElementById('btn-empty-phone-connect')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
 
 function updateUserUI() {
   if (currentUser) {
@@ -846,28 +1015,21 @@ function updateUserUI() {
   }
 }
 
-// Auth Form Submit
 authForm?.addEventListener('submit', (e) => {
   e.preventDefault();
   const email = document.getElementById('auth-email').value;
   const name = email.split('@')[0];
-  
   currentUser = {
     email: email,
     name: name.charAt(0).toUpperCase() + name.slice(1),
     loggedInAt: new Date().toISOString()
   };
-
   localStorage.setItem('dave_user', JSON.stringify(currentUser));
   updateUserUI();
-
-  // Auto load Cloud Phone library if empty
-  if (phoneTracks.length === 0) {
-    syncCloudPhoneLibrary();
-  }
+  if (phoneTracks.length === 0) syncCloudPhoneLibrary();
+  setTimeout(() => modalAuth?.classList.add('hidden'), 500);
 });
 
-// Demo Account link
 document.getElementById('auth-link-demo')?.addEventListener('click', (e) => {
   e.preventDefault();
   currentUser = {
@@ -878,9 +1040,9 @@ document.getElementById('auth-link-demo')?.addEventListener('click', (e) => {
   localStorage.setItem('dave_user', JSON.stringify(currentUser));
   updateUserUI();
   syncCloudPhoneLibrary();
+  setTimeout(() => modalAuth?.classList.add('hidden'), 500);
 });
 
-// Google Login
 document.getElementById('btn-google-login')?.addEventListener('click', () => {
   currentUser = {
     email: 'usuario.google@gmail.com',
@@ -890,9 +1052,9 @@ document.getElementById('btn-google-login')?.addEventListener('click', () => {
   localStorage.setItem('dave_user', JSON.stringify(currentUser));
   updateUserUI();
   syncCloudPhoneLibrary();
+  setTimeout(() => modalAuth?.classList.add('hidden'), 500);
 });
 
-// Logout
 document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
   currentUser = null;
   localStorage.removeItem('dave_user');
@@ -900,19 +1062,13 @@ document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
   modalAuth?.classList.add('hidden');
 });
 
-// Sync from profile button
 document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
   modalAuth?.classList.add('hidden');
   modalSync?.classList.remove('hidden');
 });
 
-// ==========================================
-// 📱 MOBILE PHONE SYNC & STREAMING
-// ==========================================
-
 function syncCloudPhoneLibrary() {
-  // Cloud catalog associated with user's mobile library
-  const cloudMobileSongs = [
+  const cloudSongs = [
     {
       title: 'Midnight City Drive',
       artist: 'DaVE Mobile Synced',
@@ -942,13 +1098,12 @@ function syncCloudPhoneLibrary() {
     }
   ];
 
-  phoneTracks = cloudMobileSongs;
+  phoneTracks = cloudSongs;
   localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
   renderPhoneTracksList();
   updateUserUI();
 }
 
-// Connect with Mobile IP / WiFi
 document.getElementById('btn-test-connect')?.addEventListener('click', async () => {
   let ip = document.getElementById('sync-ip-input').value.trim();
   if (!ip) {
@@ -981,22 +1136,20 @@ document.getElementById('btn-test-connect')?.addEventListener('click', async () 
         localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
         renderPhoneTracksList();
         updateUserUI();
-        showSyncFeedback(`¡Conectado con éxito! Se cargaron ${phoneTracks.length} canciones de tu celular.`, 'success');
-        setTimeout(() => modalSync?.classList.add('hidden'), 1500);
+        showSyncFeedback(`¡Conectado! Se cargaron ${phoneTracks.length} canciones de tu celular.`, 'success');
+        setTimeout(() => modalSync?.classList.add('hidden'), 1200);
         return;
       }
     }
   } catch (err) {
-    console.log('Direct WiFi fetch fallback:', err);
+    console.log('Direct WiFi error, using Cloud fallback:', err);
   }
 
-  // Fallback to Cloud Sync if WiFi IP is not reachable from public HTTPS
   syncCloudPhoneLibrary();
-  showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones asociadas a tu cuenta.`, 'success');
-  setTimeout(() => modalSync?.classList.add('hidden'), 1500);
+  showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones de tu cuenta.`, 'success');
+  setTimeout(() => modalSync?.classList.add('hidden'), 1200);
 });
 
-// Cloud fetch button
 document.getElementById('btn-cloud-fetch')?.addEventListener('click', () => {
   syncCloudPhoneLibrary();
   showSyncFeedback('¡Biblioteca móvil de tu cuenta sincronizada con éxito!', 'success');
@@ -1022,36 +1175,97 @@ function renderPhoneTracksList() {
 
   phoneEmptyState?.classList.add('hidden');
   phoneTrackTable?.classList.remove('hidden');
-  if (phoneTrackList) {
-    phoneTrackList.innerHTML = '';
-    phoneTracks.forEach((track, idx) => {
-      const tr = document.createElement('tr');
-      tr.className = 'track-row';
-      const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
-      tr.innerHTML = `
-        <td><i class="fa-solid fa-mobile-screen" style="color: var(--accent-cyan); font-size: 0.8rem;"></i></td>
-        <td class="track-title-cell">
-          <img src="${cover}" class="track-cover-mini" alt="Cover">
-          <span>${track.title}</span>
-        </td>
-        <td>${track.artist}</td>
-        <td>${track.album}</td>
-        <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
-      `;
-      tr.addEventListener('click', () => {
-        // Add to main playlist if not present and play
-        if (!playlist.includes(track)) {
-          playlist = [track, ...playlist];
-          renderTrackList();
-        }
-        playTrack(playlist.indexOf(track));
-      });
-      phoneTrackList.appendChild(tr);
+  if (!phoneTrackList) return;
+  phoneTrackList.innerHTML = '';
+
+  phoneTracks.forEach((track) => {
+    const tr = document.createElement('tr');
+    tr.className = 'track-row';
+    const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
+    tr.innerHTML = `
+      <td><i class="fa-solid fa-mobile-screen" style="color: var(--accent-cyan); font-size: 0.8rem;"></i></td>
+      <td class="track-title-cell">
+        <img src="${cover}" class="track-cover-mini" alt="Cover">
+        <span>${track.title}</span>
+      </td>
+      <td>${track.artist}</td>
+      <td>${track.album}</td>
+      <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
+    `;
+    tr.addEventListener('click', () => {
+      if (!playlist.includes(track)) {
+        playlist = [track, ...playlist];
+        renderTrackList();
+      }
+      playTrack(playlist.indexOf(track));
     });
-  }
+    phoneTrackList.appendChild(tr);
+  });
 }
 
-// Initialize on page load
-loadStoredUserData();
+// ==========================================
+// 14. KEYBOARD SHORTCUTS
+// ==========================================
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    playBtn.click();
+  } else if (e.code === 'ArrowRight') {
+    if (e.shiftKey) nextBtn.click();
+    else if (audio.duration) audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+  } else if (e.code === 'ArrowLeft') {
+    if (e.shiftKey) prevBtn.click();
+    else audio.currentTime = Math.max(0, audio.currentTime - 5);
+  } else if (e.code === 'ArrowUp') {
+    e.preventDefault();
+    volumeSlider.value = Math.min(100, parseInt(volumeSlider.value) + 5);
+    volumeSlider.dispatchEvent(new Event('input'));
+  } else if (e.code === 'ArrowDown') {
+    e.preventDefault();
+    volumeSlider.value = Math.max(0, parseInt(volumeSlider.value) - 5);
+    volumeSlider.dispatchEvent(new Event('input'));
+  } else if (e.code === 'KeyM') {
+    muteBtn.click();
+  } else if (e.code === 'KeyF') {
+    document.getElementById('btn-party-fullscreen')?.click();
+  }
+});
 
+// ==========================================
+// 15. STARTUP INITIALIZATION
+// ==========================================
+function initApp() {
+  // 1. Render EQ Sliders immediately
+  renderEqualizerUI();
 
+  // 2. Load stored user & favorites
+  const savedFavs = localStorage.getItem('dave_favorites');
+  if (savedFavs) {
+    try {
+      favorites = new Set(JSON.parse(savedFavs));
+      if (favoritesCount) favoritesCount.innerText = `${favorites.size} canciones`;
+    } catch (e) {}
+  }
+
+  const savedUser = localStorage.getItem('dave_user');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      updateUserUI();
+    } catch (e) {}
+  }
+
+  const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
+  if (savedPhoneTracks) {
+    try {
+      phoneTracks = JSON.parse(savedPhoneTracks);
+      renderPhoneTracksList();
+    } catch (e) {}
+  }
+
+  // 3. Auto-load synthwave demo track so player is ready to play with 1-click
+  loadDemoTrack();
+}
+
+initApp();
