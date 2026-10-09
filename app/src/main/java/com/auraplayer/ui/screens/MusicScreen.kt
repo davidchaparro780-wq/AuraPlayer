@@ -308,398 +308,385 @@ fun MusicScreen(
     }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Aesthetic Search & Quick Actions Bar
+        // Top Header Bar: Branding & Quick Action Controls
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Neon Glow Search Input Field
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF13182E))
-                    .border(
-                        1.dp,
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color(0xFF8B5CF6).copy(alpha = 0.45f),
-                                Color(0xFF38BDF8).copy(alpha = 0.35f)
-                            )
-                        ),
-                        RoundedCornerShape(24.dp)
-                    )
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.CenterStart
+            // App Branding
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "DaVE",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "Player",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Quick Actions Cluster
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                // Sort Menu Button
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF13182E))
+                            .border(1.dp, Color(0xFFA855F7).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                AuraHaptic.click(view)
+                                showSortMenu = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sort,
+                            contentDescription = "Ordenar",
+                            tint = Color(0xFFA855F7),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showSortMenu,
+                        onDismissRequest = { showSortMenu = false },
+                        modifier = Modifier.background(Color(0xFF0F172A))
+                    ) {
+                        DropdownMenuItem(text = { Text("🔤 Título (A-Z)", color = Color.White) }, onClick = { selectedSortMode = 0; showSortMenu = false })
+                        DropdownMenuItem(text = { Text("👤 Artista", color = Color.White) }, onClick = { selectedSortMode = 1; showSortMenu = false })
+                        DropdownMenuItem(text = { Text("⏱️ Mayor Duración", color = Color.White) }, onClick = { selectedSortMode = 2; showSortMenu = false })
+                        DropdownMenuItem(text = { Text("🔥 Más Reproducidas", color = Color.White) }, onClick = { selectedSortMode = 3; showSortMenu = false })
+                    }
+                }
+
+                // Sleep Timer Button
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF13182E))
+                        .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .clickable {
+                            AuraHaptic.click(view)
+                            onOpenSleepTimer()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = "Temporizador",
                         tint = Color(0xFF38BDF8),
                         modifier = Modifier.size(20.dp)
                     )
+                }
 
-                    Spacer(modifier = Modifier.width(10.dp))
-
+                // Magic Tools Button
+                Box {
                     Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Buscar canción, artista...",
-                                fontSize = 13.sp,
-                                color = Color(0xFF94A3B8).copy(alpha = 0.7f),
-                                maxLines = 1
-                            )
-                        }
-                        androidx.compose.foundation.text.BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Normal
-                            ),
-                            cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF38BDF8)),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(
-                            onClick = {
-                                searchQuery = ""
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF13182E))
+                            .border(1.dp, Color(0xFFFFD700).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable {
                                 AuraHaptic.click(view)
+                                showToolsMenu = true
                             },
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "Limpiar",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Whatshot,
+                            contentDescription = "Herramientas Pro",
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = showToolsMenu,
+                        onDismissRequest = { showToolsMenu = false },
+                        modifier = Modifier.background(Color(0xFF0F172A))
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("🔔 Buscar Actualizaciones", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onCheckUpdates() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎲 Ruleta Musical", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenRoulette() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🧰 Diagnóstico de Biblioteca", color = Color(0xFF00F0FF)) },
+                            onClick = { showToolsMenu = false; onOpenDiagnostic() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎰 Modo Jukebox Retro", color = Color(0xFFFF6600)) },
+                            onClick = { showToolsMenu = false; onOpenJukebox() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🏆 Torneo de Canciones", color = Color(0xFFFFD700)) },
+                            onClick = { showToolsMenu = false; onOpenTournament() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🔮 El Oráculo de DaVE", color = Color(0xFFE040FB)) },
+                            onClick = { showToolsMenu = false; onOpenOracle() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🌅 Alarma Musical Suave", color = Color(0xFF10B981)) },
+                            onClick = { showToolsMenu = false; onOpenAlarm() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎮 DaVE Music Quiz", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenQuiz() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🏆 Nivel & Logros", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenAchievements() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🏃 Playlists por Ritmo BPM", color = Color(0xFF00F0FF)) },
+                            onClick = { showToolsMenu = false; onOpenBpmWorkout() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🧠 Ondas Binaurales & Ruido", color = Color(0xFF38BDF8)) },
+                            onClick = { showToolsMenu = false; onOpenBinaural() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🌧️ Modo Ambiente & Relax", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showRelaxDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⏳ Cápsula del Tiempo", color = Color(0xFFFFD700)) },
+                            onClick = { showToolsMenu = false; onOpenTimeCapsule() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🪄 Limpiador de Nombres", color = Color(0xFF10B981)) },
+                            onClick = { showToolsMenu = false; onOpenBatchCleaner() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isBubbleActive) "🫧 Burbuja Flotante: ACTIVA" else "🫧 Burbuja Flotante",
+                                    color = if (isBubbleActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleBubble() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isAirGesturesActive) "✋ Gestos en el Aire: ACTIVOS" else "✋ Gestos en el Aire",
+                                    color = if (isAirGesturesActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleAirGestures() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isShakeActive) "📳 Agitar Canción: ACTIVO" else "📳 Agitar para Aleatorio",
+                                    color = if (isShakeActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleShake() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isFlashlightActive) "🔦 Linterna Rítmica: ACTIVA" else "🔦 Linterna al Ritmo",
+                                    color = if (isFlashlightActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleFlashlight() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isVirtualDjActive) "📻 Locutor DJ: ACTIVO" else "📻 Locutor Radio Virtual",
+                                    color = if (isVirtualDjActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleVirtualDj() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isWifiServerRunning) "🌐 Servidor WiFi: ACTIVO (8080)" else "🌐 Activar Servidor WiFi",
+                                    color = if (isWifiServerRunning) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleWifiServer() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenHeadphones() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚙️ Ajustes & Confort", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenSettings() }
+                        )
+                        val currentUser = userManager.currentUser
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (currentUser != null) "👤 Mi Perfil (${currentUser.name})" else "👤 Iniciar Sesión con Correo",
+                                    color = Color(0xFFFFD700),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            onClick = {
+                                showToolsMenu = false
+                                if (currentUser != null) onOpenProfile() else onOpenAuth()
+                            }
+                        )
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Sort Menu Button (Aesthetic Neon Squircle)
-            Box {
+                // User Profile / Auth Button
+                val activeUser = userManager.currentUser
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF13182E))
                         .border(
                             1.dp,
-                            Color(0xFFA855F7).copy(alpha = 0.4f),
-                            RoundedCornerShape(16.dp)
+                            if (activeUser != null) Color(0xFFFFD700).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.4f),
+                            RoundedCornerShape(12.dp)
                         )
-                        .clickable { showSortMenu = true },
+                        .clickable {
+                            if (activeUser != null) onOpenProfile() else onOpenAuth()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (activeUser != null) {
+                        Text(activeUser.avatarEmoji, fontSize = 18.sp)
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = "Iniciar Sesión",
+                            tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                // Settings Button
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF13182E))
+                        .border(
+                            1.dp,
+                            Color(0xFF38BDF8).copy(alpha = 0.4f),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            AuraHaptic.click(view)
+                            onOpenSettings()
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Sort,
-                        contentDescription = "Ordenar",
-                        tint = Color(0xFFA855F7),
-                        modifier = Modifier.size(22.dp)
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Ajustes",
+                        tint = Color(0xFF38BDF8),
+                        modifier = Modifier.size(20.dp)
                     )
-                }
-
-                DropdownMenu(
-                    expanded = showSortMenu,
-                    onDismissRequest = { showSortMenu = false },
-                    modifier = Modifier.background(Color(0xFF0F172A))
-                ) {
-                    DropdownMenuItem(text = { Text("🔤 Título (A-Z)", color = Color.White) }, onClick = { selectedSortMode = 0; showSortMenu = false })
-                    DropdownMenuItem(text = { Text("👤 Artista", color = Color.White) }, onClick = { selectedSortMode = 1; showSortMenu = false })
-                    DropdownMenuItem(text = { Text("⏱️ Mayor Duración", color = Color.White) }, onClick = { selectedSortMode = 2; showSortMenu = false })
-                    DropdownMenuItem(text = { Text("🔥 Más Reproducidas", color = Color.White) }, onClick = { selectedSortMode = 3; showSortMenu = false })
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Sleep Timer Button (Aesthetic Neon Squircle)
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF13182E))
-                    .border(
-                        1.dp,
-                        Color(0xFF38BDF8).copy(alpha = 0.4f),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .clickable { onOpenSleepTimer() },
-                contentAlignment = Alignment.Center
+        // Dedicated Full-Width Neon Search Input Field
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+                .height(48.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF13182E))
+                .border(
+                    1.dp,
+                    Brush.horizontalGradient(
+                        listOf(
+                            Color(0xFF8B5CF6).copy(alpha = 0.5f),
+                            Color(0xFF38BDF8).copy(alpha = 0.4f)
+                        )
+                    ),
+                    RoundedCornerShape(24.dp)
+                )
+                .padding(horizontal = 14.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Timer,
-                    contentDescription = "Temporizador",
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Buscar canciones",
                     tint = Color(0xFF38BDF8),
                     modifier = Modifier.size(22.dp)
                 )
-            }
 
-            Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-            // In-App Updates Button (Aesthetic Neon Squircle)
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF13182E))
-                    .border(
-                        1.dp,
-                        Brush.linearGradient(
-                            listOf(
-                                Color(0xFF8B5CF6).copy(alpha = 0.5f),
-                                Color(0xFFEC4899).copy(alpha = 0.5f)
-                            )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Buscar canciones, artistas, álbumes...",
+                            fontSize = 14.sp,
+                            color = Color(0xFF94A3B8).copy(alpha = 0.7f),
+                            maxLines = 1
+                        )
+                    }
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Normal
                         ),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .clickable { onCheckUpdates() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.NotificationsActive,
-                    contentDescription = "Buscar Actualizaciones",
-                    tint = Color(0xFFEC4899),
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Magic Tools Button (Suite Épica Dropdown)
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF13182E))
-                        .border(
-                            1.dp,
-                            Color(0xFFFFD700).copy(alpha = 0.5f),
-                            RoundedCornerShape(16.dp)
-                        )
-                        .clickable { showToolsMenu = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Whatshot,
-                        contentDescription = "Herramientas Pro",
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(22.dp)
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF38BDF8)),
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                DropdownMenu(
-                    expanded = showToolsMenu,
-                    onDismissRequest = { showToolsMenu = false },
-                    modifier = Modifier.background(Color(0xFF0F172A))
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("🎲 Ruleta Musical", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
-                        onClick = { showToolsMenu = false; onOpenRoulette() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🧰 Diagnóstico de Biblioteca", color = Color(0xFF00F0FF)) },
-                        onClick = { showToolsMenu = false; onOpenDiagnostic() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🎰 Modo Jukebox Retro", color = Color(0xFFFF6600)) },
-                        onClick = { showToolsMenu = false; onOpenJukebox() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🏆 Torneo de Canciones", color = Color(0xFFFFD700)) },
-                        onClick = { showToolsMenu = false; onOpenTournament() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🔮 El Oráculo de DaVE", color = Color(0xFFE040FB)) },
-                        onClick = { showToolsMenu = false; onOpenOracle() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🌅 Alarma Musical Suave", color = Color(0xFF10B981)) },
-                        onClick = { showToolsMenu = false; onOpenAlarm() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🎮 DaVE Music Quiz", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
-                        onClick = { showToolsMenu = false; onOpenQuiz() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🏆 Nivel & Logros", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
-                        onClick = { showToolsMenu = false; onOpenAchievements() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🏃 Playlists por Ritmo BPM", color = Color(0xFF00F0FF)) },
-                        onClick = { showToolsMenu = false; onOpenBpmWorkout() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🧠 Ondas Binaurales & Ruido", color = Color(0xFF38BDF8)) },
-                        onClick = { showToolsMenu = false; onOpenBinaural() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🌧️ Modo Ambiente & Relax", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
-                        onClick = { showToolsMenu = false; showRelaxDialog = true }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("⏳ Cápsula del Tiempo", color = Color(0xFFFFD700)) },
-                        onClick = { showToolsMenu = false; onOpenTimeCapsule() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🪄 Limpiador de Nombres", color = Color(0xFF10B981)) },
-                        onClick = { showToolsMenu = false; onOpenBatchCleaner() }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isBubbleActive) "🫧 Burbuja Flotante: ACTIVA" else "🫧 Burbuja Flotante",
-                                color = if (isBubbleActive) Color(0xFF00FF00) else Color.White
-                            )
-                        },
-                        onClick = { showToolsMenu = false; onToggleBubble() }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isAirGesturesActive) "✋ Gestos en el Aire: ACTIVOS" else "✋ Gestos en el Aire",
-                                color = if (isAirGesturesActive) Color(0xFF00FF00) else Color.White
-                            )
-                        },
-                        onClick = { showToolsMenu = false; onToggleAirGestures() }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isShakeActive) "📳 Agitar Canción: ACTIVO" else "📳 Agitar para Aleatorio",
-                                color = if (isShakeActive) Color(0xFF00FF00) else Color.White
-                            )
-                        },
-                        onClick = { showToolsMenu = false; onToggleShake() }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isFlashlightActive) "🔦 Linterna Rítmica: ACTIVA" else "🔦 Linterna al Ritmo",
-                                color = if (isFlashlightActive) Color(0xFF00FF00) else Color.White
-                            )
-                        },
-                        onClick = { showToolsMenu = false; onToggleFlashlight() }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isVirtualDjActive) "📻 Locutor DJ: ACTIVO" else "📻 Locutor Radio Virtual",
-                                color = if (isVirtualDjActive) Color(0xFF00FF00) else Color.White
-                            )
-                        },
-                        onClick = { showToolsMenu = false; onToggleVirtualDj() }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isWifiServerRunning) "🌐 Servidor WiFi: ACTIVO (8080)" else "🌐 Activar Servidor WiFi",
-                                color = if (isWifiServerRunning) Color(0xFF00FF00) else Color.White
-                            )
-                        },
-                        onClick = { showToolsMenu = false; onToggleWifiServer() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
-                        onClick = { showToolsMenu = false; onOpenHeadphones() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("⚙️ Ajustes & Confort", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
-                        onClick = { showToolsMenu = false; onOpenSettings() }
-                    )
-                    val currentUser = userManager.currentUser
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (currentUser != null) "👤 Mi Perfil (${currentUser.name})" else "👤 Iniciar Sesión con Correo",
-                                color = Color(0xFFFFD700),
-                                fontWeight = FontWeight.Bold
-                            )
-                        },
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
                         onClick = {
-                            showToolsMenu = false
-                            if (currentUser != null) onOpenProfile() else onOpenAuth()
-                        }
-                    )
+                            searchQuery = ""
+                            AuraHaptic.click(view)
+                        },
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = "Limpiar",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // User Profile / Auth Button (Aesthetic Neon Squircle)
-            val activeUser = userManager.currentUser
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF13182E))
-                    .border(
-                        1.dp,
-                        if (activeUser != null) Color(0xFFFFD700).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.4f),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .clickable {
-                        if (activeUser != null) onOpenProfile() else onOpenAuth()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                if (activeUser != null) {
-                    Text(activeUser.avatarEmoji, fontSize = 22.sp)
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Iniciar Sesión",
-                        tint = Color(0xFF8B5CF6),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Settings Button (Aesthetic Neon Squircle)
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF13182E))
-                    .border(
-                        1.dp,
-                        Color(0xFF38BDF8).copy(alpha = 0.4f),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .clickable {
-                        AuraHaptic.click(view)
-                        onOpenSettings()
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Ajustes",
-                    tint = Color(0xFF38BDF8),
-                    modifier = Modifier.size(22.dp)
-                )
             }
         }
 

@@ -1,7 +1,7 @@
 {
-  "versionCode": 52,
-  "versionName": "2.7.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.0/app-debug.apk",
-  "changelog": "✨ DaVE v2.7.0 — Ultimate UX Overhaul (Experiencia de Usuario al Máximo Nivel):\n• 🔊 Control de Volumen Vertical por Gestos con HUD Neón: Desliza verticalmente en la mitad derecha del reproductor para ajustar el volumen con barra luminosa, porcentaje y respuesta háptica.\n• 🔒 Modo Candado de Bolsillo (Pocket Lock): Bloquea la pantalla del reproductor con un toque para evitar saltos o toques accidentales al caminar o llevar el teléfono en la mano.\n• ⏩ Deslizar Canción (Swipe-to-Action): Desliza a la derecha en cualquier canción para ponerla a 'Reproducir Siguiente', o a la izquierda para alternar Favorito al instante.\n• 🔍 Burbujas de Búsquedas Recientes: Chips interactivos debajo del buscador para acceder a tus búsquedas frecuentes en un toque con botón de borrado.\n• 🌙 Temporizador Inteligente 'Al terminar la canción': Apaga la reproducción automáticamente justo cuando termine la canción que estás escuchando.",
+  "versionCode": 53,
+  "versionName": "2.7.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.1/app-debug.apk",
+  "changelog": "✨ DaVE v2.7.1 — Restauración y Rediseño de la Barra de Búsqueda:\n• 🔍 Barra de Búsqueda Dedicada a Ancho Completo: Se independizó el buscador en su propia fila de 100% ancho con borde neón, icono luminoso y texto cómodo para que nunca vuelva a ocultarse ni comprimirse.\n• 👑 Nueva Cabecera Ergonómica: Agrupación elegante de controles (Ordenar, Temporizador, Herramientas Pro, Perfil y Ajustes) junto al logo de DaVE Player.\n• ⚡ Todas las funciones de v2.7.0 activas: Control de volumen vertical por gestos con HUD neón, Modo candado de bolsillo (Pocket lock), Swipe-to-action en canciones, historial de búsquedas y temporizador inteligente.",
   "fileSizeMb": 24.5
 }
