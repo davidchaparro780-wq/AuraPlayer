@@ -999,7 +999,7 @@ fun PlayerScreen(
                     }
 
                     // Animated Neon Seek Badge Overlay (+10s / -10s)
-                    AnimatedVisibility(
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = showSeekBadge,
                         enter = fadeIn() + scaleIn(initialScale = 0.65f),
                         exit = fadeOut() + scaleOut(targetScale = 1.35f),
@@ -1042,7 +1042,7 @@ fun PlayerScreen(
                     }
 
                     // Animated Glowing Neon Heart Burst Overlay
-                    AnimatedVisibility(
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = showHeartBurst,
                         enter = fadeIn() + scaleIn(initialScale = 0.35f),
                         exit = fadeOut() + scaleOut(targetScale = 1.6f),
