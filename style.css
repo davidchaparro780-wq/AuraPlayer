@@ -1,4 +1,4 @@
-/* DaVE Player — Web & Desktop Stylesheet */
+/* DaVE Player — Web & Desktop Enhanced Stylesheet (v3.4.0) */
 
 :root {
   --bg-dark: #07090e;
@@ -37,4 +37,542 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.28);
+}
+
+/* ==========================================================================
+   1. TOAST NOTIFICATION SYSTEM
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  top: 1.2rem;
+  right: 1.5rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(13, 16, 26, 0.95);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-md);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7), 0 0 15px rgba(99, 102, 241, 0.25);
+  animation: slideToastIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.25s ease;
+}
+
+.toast.removing {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+}
+
+.toast i {
+  font-size: 1.1rem;
+}
+
+.toast.info i { color: var(--accent-cyan); }
+.toast.success i { color: var(--accent-green); }
+.toast.heart i { color: #f43f5e; }
+.toast.warning i { color: #f59e0b; }
+
+@keyframes slideToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ==========================================================================
+   2. SOUND WAVE LIVE EQUALIZER ANIMATION (ACTIVE SONG)
+   ========================================================================== */
+.sound-wave-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 15px;
+  width: 16px;
+  vertical-align: middle;
+}
+
+.sound-wave-bars span {
+  width: 2.5px;
+  height: 100%;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  animation: waveBarBounce 0.75s ease-in-out infinite alternate;
+}
+
+.sound-wave-bars span:nth-child(1) { animation-delay: 0.1s; height: 35%; }
+.sound-wave-bars span:nth-child(2) { animation-delay: 0.35s; height: 85%; }
+.sound-wave-bars span:nth-child(3) { animation-delay: 0.2s; height: 55%; }
+.sound-wave-bars span:nth-child(4) { animation-delay: 0.45s; height: 100%; }
+
+.sound-wave-bars.paused span {
+  animation-play-state: paused;
+  height: 30% !important;
+}
+
+@keyframes waveBarBounce {
+  0% { height: 25%; }
+  100% { height: 100%; }
+}
+
+/* ==========================================================================
+   3. TRACK TABLE HOVER ACTIONS & ROW STYLES
+   ========================================================================== */
+.track-row {
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  position: relative;
+}
+
+.track-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.track-row.playing {
+  background: rgba(6, 182, 212, 0.08);
+}
+
+.track-row.playing td {
+  color: var(--accent-cyan) !important;
+  font-weight: 600;
+}
+
+.track-row .row-num-cell {
+  position: relative;
+  text-align: center;
+  width: 45px;
+}
+
+.track-row .row-index-num {
+  display: block;
+}
+
+.track-row .row-hover-play {
+  display: none;
+  color: var(--accent-cyan);
+  font-size: 0.95rem;
+}
+
+.track-row:hover .row-index-num {
+  display: none;
+}
+
+.track-row:hover .row-hover-play {
+  display: inline-block;
+}
+
+.track-row.playing .row-index-num {
+  display: none;
+}
+
+.track-row.playing .row-hover-play {
+  display: none;
+}
+
+.track-row.playing .sound-wave-bars {
+  display: inline-flex;
+}
+
+/* Track In-Row Actions */
+.row-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.btn-row-action {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.88rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.5;
+}
+
+.track-row:hover .btn-row-action,
+.btn-row-action.active {
+  opacity: 1;
+}
+
+.btn-row-action:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.15);
+}
+
+.btn-row-action.heart.active {
+  color: #f43f5e;
+  opacity: 1;
+}
+
+.btn-row-action.download:hover {
+  color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   4. CATEGORY / GENRE FILTER CHIPS
+   ========================================================================== */
+.filter-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0 0.8rem 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.filter-chips-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  padding: 0.38rem 0.9rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.filter-chip.active {
+  background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 3px 12px var(--primary-glow);
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   5. SCRUBBER PROGRESS BAR TOOLTIP & HOVER FX
+   ========================================================================== */
+.scrubber-dock {
+  position: relative;
+}
+
+.scrubber-bar-wrap {
+  position: relative;
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.scrubber-tooltip {
+  position: absolute;
+  top: -26px;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border-glow);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+
+.scrubber-bar-wrap:hover .scrubber-tooltip {
+  opacity: 1;
+}
+
+.scrubber-bar-bg {
+  transition: height 0.15s ease;
+}
+
+.scrubber-bar-wrap:hover .scrubber-bar-bg {
+  height: 6px;
+}
+
+.scrubber-bar-fill {
+  position: relative;
+  border-radius: 2px;
+}
+
+.scrubber-bar-fill::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.scrubber-bar-wrap:hover .scrubber-bar-fill::after {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* ==========================================================================
+   6. DRAG AND DROP OVERLAY
+   ========================================================================== */
+.drag-drop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 9, 14, 0.92);
+  backdrop-filter: blur(25px);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed var(--accent-cyan);
+  margin: 1.2rem;
+  border-radius: var(--radius-xl);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.drag-drop-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drag-drop-overlay i {
+  font-size: 4rem;
+  color: var(--accent-cyan);
+  margin-bottom: 1.2rem;
+  animation: pulseIcon 1.5s infinite alternate;
+}
+
+@keyframes pulseIcon {
+  from { transform: scale(0.95); opacity: 0.8; }
+  to { transform: scale(1.08); opacity: 1; }
+}
+
+.drag-drop-overlay h2 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 0.4rem;
+}
+
+.drag-drop-overlay p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* ==========================================================================
+   7. SEARCH CLEAR BUTTON
+   ========================================================================== */
+.search-clear-btn {
+  position: absolute;
+  right: 0.9rem;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 0.88rem;
+  cursor: pointer;
+  padding: 4px;
+  display: none;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.search-clear-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ==========================================================================
+   8. KEYBOARD SHORTCUTS MODAL CHEAT SHEET
+   ========================================================================== */
+.shortcut-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.kbd-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  font-family: monospace;
+}
+
+/* ==========================================================================
+   9. MOBILE & TABLET RESPONSIVENESS
+   ========================================================================== */
+@media (max-width: 900px) {
+  .song-table th:nth-child(4),
+  .song-table td:nth-child(4) {
+    display: none; /* Hide Album column on smaller screens */
+  }
+  .search-wrapper {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 0.8rem;
+    gap: 0.6rem;
+  }
+  .brand-group {
+    min-width: auto;
+  }
+  .brand-title {
+    font-size: 1.05rem;
+  }
+  .brand-badge {
+    display: none;
+  }
+  .btn-download-apk span,
+  .btn-action-pill span {
+    display: none;
+  }
+  .btn-action-pill {
+    padding: 0.45rem 0.6rem;
+  }
+  .search-wrapper {
+    max-width: 140px;
+  }
+  .search-input {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.8rem 0.5rem 2rem;
+  }
+  .search-icon {
+    left: 0.75rem;
+    font-size: 0.78rem;
+  }
+  
+  /* Mobile Workspace Layout */
+  .workspace {
+    flex-direction: column-reverse;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 0.4rem 0.6rem;
+    border-right: none;
+    border-top: 1px solid var(--border-subtle);
+    gap: 0.5rem;
+    background: rgba(11, 14, 22, 0.98);
+  }
+  .sidebar-section-title {
+    display: none;
+  }
+  .nav-list {
+    flex-direction: row;
+    gap: 0.4rem;
+  }
+  .nav-btn span {
+    display: none;
+  }
+  .nav-btn {
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--radius-md);
+  }
+  .nav-btn i {
+    width: auto;
+    font-size: 1.15rem;
+  }
+  .welcome-banner {
+    display: none; /* Conserve vertical space on mobile */
+  }
+  .viewport-content {
+    padding: 0.8rem;
+  }
+  
+  /* Mobile Bottom Player */
+  .bottom-player {
+    padding: 0 0.8rem;
+    gap: 0.6rem;
+    height: 74px;
+  }
+  .now-playing {
+    width: auto;
+    max-width: 150px;
+    gap: 0.5rem;
+  }
+  .art-frame {
+    width: 42px;
+    height: 42px;
+  }
+  .song-title-text {
+    font-size: 0.82rem;
+  }
+  .song-artist-text {
+    font-size: 0.7rem;
+  }
+  .player-center-dock {
+    max-width: none;
+  }
+  .player-right-dock {
+    width: auto;
+    gap: 0.4rem;
+  }
+  .volume-cluster {
+    display: none; /* Handled by native phone volume rockers */
+  }
+  #btn-quick-stem,
+  #btn-quick-eq {
+    display: none; /* Move to mobile drawer / topbar */
+  }
+  .btn-play-hero {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
 }
