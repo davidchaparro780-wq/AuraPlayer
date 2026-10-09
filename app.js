@@ -314,33 +314,87 @@ function startVisualizerLoop() {
   draw();
 }
 
-// File & Folder Scanning
-async function addFolder() {
-  if (!window.electronAPI) return;
-  const folder = await window.electronAPI.openFolderDialog();
-  if (!folder) return;
+// File & Folder Scanning (Electron + Browser/PWA Fallback)
+const fileInputBrowser = document.getElementById('file-input-browser');
+const folderInputBrowser = document.getElementById('folder-input-browser');
 
-  scannedFolders.add(folder);
-  renderFoldersList();
-  const files = await window.electronAPI.scanFolder(folder);
-  for (const filePath of files) {
-    const meta = await window.electronAPI.parseMetadata(filePath);
-    playlist.push(meta);
+async function addFolder() {
+  if (window.electronAPI) {
+    const folder = await window.electronAPI.openFolderDialog();
+    if (!folder) return;
+
+    scannedFolders.add(folder);
+    renderFoldersList();
+    const files = await window.electronAPI.scanFolder(folder);
+    for (const filePath of files) {
+      const meta = await window.electronAPI.parseMetadata(filePath);
+      playlist.push(meta);
+    }
+    renderTrackList();
+  } else {
+    folderInputBrowser?.click();
   }
-  renderTrackList();
 }
 
 async function importFiles() {
-  if (!window.electronAPI) return;
-  const files = await window.electronAPI.openFilesDialog();
-  if (!files || files.length === 0) return;
+  if (window.electronAPI) {
+    const files = await window.electronAPI.openFilesDialog();
+    if (!files || files.length === 0) return;
 
-  for (const filePath of files) {
-    const meta = await window.electronAPI.parseMetadata(filePath);
-    playlist.push(meta);
+    for (const filePath of files) {
+      const meta = await window.electronAPI.parseMetadata(filePath);
+      playlist.push(meta);
+    }
+    renderTrackList();
+  } else {
+    fileInputBrowser?.click();
   }
+}
+
+// Browser File Pickers event listeners
+fileInputBrowser?.addEventListener('change', (e) => {
+  handleBrowserFiles(Array.from(e.target.files));
+});
+
+folderInputBrowser?.addEventListener('change', (e) => {
+  const files = Array.from(e.target.files);
+  if (files.length > 0) {
+    const folderName = files[0].webkitRelativePath ? files[0].webkitRelativePath.split('/')[0] : 'Carpeta Local';
+    scannedFolders.add(folderName);
+    renderFoldersList();
+  }
+  handleBrowserFiles(files);
+});
+
+function handleBrowserFiles(files) {
+  const audioFiles = files.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|flac|m4a|aac|ogg|opus)$/i.test(f.name));
+  audioFiles.forEach(file => {
+    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    playlist.push({
+      title: nameWithoutExt,
+      artist: 'Biblioteca Local',
+      album: 'PC Audio',
+      duration: 0,
+      fileObj: file,
+      coverUrl: null
+    });
+  });
   renderTrackList();
 }
+
+// Drag and Drop support
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+});
+
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+    handleBrowserFiles(Array.from(e.dataTransfer.files));
+  }
+});
 
 document.getElementById('btn-add-folder')?.addEventListener('click', addFolder);
 document.getElementById('btn-add-folder-2')?.addEventListener('click', addFolder);
@@ -395,7 +449,7 @@ function renderTrackList(filtered = null) {
       </td>
       <td>${track.artist}</td>
       <td>${track.album}</td>
-      <td>${formatTime(track.duration)}</td>
+      <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
     `;
     tr.addEventListener('click', () => playTrack(idx));
     trackList.appendChild(tr);
@@ -410,7 +464,12 @@ function playTrack(index) {
   currentIndex = index;
   const track = playlist[index];
 
-  audio.src = `file://${track.path}`;
+  if (track.fileObj) {
+    audio.src = URL.createObjectURL(track.fileObj);
+  } else if (track.path) {
+    audio.src = `file://${track.path}`;
+  }
+
   audio.play().then(() => {
     isPlaying = true;
     updatePlayPauseUI();
