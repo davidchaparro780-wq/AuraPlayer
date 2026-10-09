@@ -3,618 +3,1507 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DaVE Player — El Reproductor de Música Definitivo (Web & Desktop)</title>
-  <meta name="description" content="DaVE Player: Reproductor de música con AI Stem Mixer, Ecualizador 10-Bandas, Modo Club Strobe y Letras Sincronizadas. 100% Gratis y Sin Anuncios.">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <title>DaVE Player — Web & Desktop Edition</title>
+  <meta name="description" content="DaVE Player: Reproductor de música profesional con AI Stem Mixer, Ecualizador 10-Bandas y Sincronización con Celular.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css?v=3.3.1">
+
+  <style>
+    /* CRITICAL INLINE STYLES (Guarantees zero-cache rendering) */
+    :root {
+      --bg-dark: #07090e;
+      --bg-surface: #0e121b;
+      --bg-panel: rgba(16, 20, 30, 0.85);
+      --bg-card: rgba(24, 29, 44, 0.7);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(99, 102, 241, 0.35);
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.5);
+      --accent-cyan: #06b6d4;
+      --accent-pink: #ec4899;
+      --accent-green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --radius-xl: 20px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --sidebar-width: 250px;
+      --topbar-height: 64px;
+      --player-height: 84px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Ambient Glow Background */
+    .ambient-glow {
+      position: fixed;
+      top: -20%;
+      left: 15%;
+      width: 70vw;
+      height: 70vw;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.22), rgba(6, 182, 212, 0.12), transparent 70%);
+      filter: blur(120px);
+      z-index: 0;
+      pointer-events: none;
+      transition: background 1s ease;
+    }
+
+    /* Main App Layout */
+    .app-viewport {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* Top Navigation Bar */
+    .topbar {
+      height: var(--topbar-height);
+      background: rgba(11, 14, 22, 0.95);
+      backdrop-filter: blur(25px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      gap: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-width: 220px;
+    }
+
+    .brand-icon {
+      font-size: 1.6rem;
+      color: var(--accent-cyan);
+      animation: spinVinyl 12s linear infinite;
+    }
+
+    @keyframes spinVinyl {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--primary), var(--accent-pink));
+      font-size: 0.65rem;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-weight: 800;
+      color: white;
+      margin-left: 0.3rem;
+    }
+
+    .search-wrapper {
+      flex: 1;
+      max-width: 480px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1.1rem;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.65rem 1rem 0.65rem 2.6rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 30px;
+      color: white;
+      font-size: 0.88rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .btn-action-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 30px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-action-pill:hover {
+      background: rgba(255, 255, 255, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-pill.accent-sync {
+      border-color: rgba(6, 182, 212, 0.4);
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--accent-cyan);
+    }
+
+    .btn-action-pill.accent-sync:hover {
+      background: var(--accent-cyan);
+      color: #000;
+    }
+
+    .btn-action-pill.btn-download-apk {
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      color: white;
+      border-color: transparent;
+      box-shadow: 0 2px 12px var(--primary-glow);
+    }
+
+    .btn-action-pill.btn-download-apk:hover {
+      box-shadow: 0 4px 18px rgba(6, 182, 212, 0.6);
+    }
+
+    .btn-action-pill.btn-user-auth {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(99, 102, 241, 0.12);
+      color: #a5b4fc;
+    }
+
+    /* Main Content Area */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 0.75rem;
+      gap: 1.4rem;
+      flex-shrink: 0;
+      overflow-y: auto;
+    }
+
+    .sidebar-section-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      color: var(--text-dim);
+      padding: 0 0.75rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .nav-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.65rem 0.85rem;
+      background: transparent;
+      border: none;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .nav-btn i {
+      font-size: 1rem;
+      width: 22px;
+      text-align: center;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
+
+    .nav-btn.active {
+      background: linear-gradient(90deg, rgba(99, 102, 241, 0.22), rgba(99, 102, 241, 0.06));
+      color: #fff;
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .nav-btn .badge-pill {
+      margin-left: auto;
+      font-size: 0.7rem;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 7px;
+      border-radius: 10px;
+      color: var(--text-dim);
+    }
+
+    .nav-btn.active .badge-pill {
+      background: var(--accent-cyan);
+      color: #000;
+      font-weight: 700;
+    }
+
+    .nav-btn .pill-neon {
+      margin-left: auto;
+      font-size: 0.65rem;
+      background: var(--accent-pink);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 800;
+    }
+
+    /* Central Content Area */
+    .viewport-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 1.2rem 1.5rem;
+      background: rgba(10, 12, 19, 0.5);
+    }
+
+    /* Welcome Banner inside Player */
+    .welcome-banner {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(6, 182, 212, 0.12));
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.2rem;
+      gap: 1rem;
+    }
+
+    .banner-text h2 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .banner-text p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .banner-actions {
+      display: flex;
+      gap: 0.6rem;
+      flex-shrink: 0;
+    }
+
+    .btn-glow-primary {
+      padding: 0.55rem 1.1rem;
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      color: white;
+      border: none;
+      border-radius: 30px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px var(--primary-glow);
+      transition: all 0.2s ease;
+    }
+
+    .btn-glow-primary:hover {
+      transform: scale(1.03);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+
+    .btn-outline-secondary {
+      padding: 0.55rem 1.1rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: white;
+      border-radius: 30px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s ease;
+    }
+
+    .btn-outline-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Tab Panes */
+    .tab-pane {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .tab-pane.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Table Component */
+    .table-container {
+      flex: 1;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .empty-shelf {
+      margin: auto;
+      text-align: center;
+      padding: 3rem;
+      max-width: 440px;
+    }
+
+    .empty-shelf i {
+      font-size: 3rem;
+      color: var(--accent-cyan);
+      margin-bottom: 1rem;
+      opacity: 0.8;
+    }
+
+    .empty-shelf h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .empty-shelf p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.2rem;
+    }
+
+    .song-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    .song-table th {
+      padding: 0.8rem 1rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .song-table td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+    }
+
+    .track-row {
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .track-row:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .track-row.playing td {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+
+    .title-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      color: #fff;
+    }
+
+    .cover-thumb {
+      width: 38px;
+      height: 38px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #1e2230;
+    }
+
+    /* AI Stem Studio View */
+    .stem-view {
+      flex: 1;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .stem-header h3 {
+      font-size: 1.3rem;
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stem-header p {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.2rem;
+    }
+
+    .chip-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .chip-btn {
+      padding: 0.4rem 0.9rem;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .chip-btn.active {
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      border-color: transparent;
+      color: #fff;
+    }
+
+    .faders-deck {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      background: rgba(9, 11, 18, 0.6);
+      border-radius: var(--radius-md);
+      padding: 1.5rem;
+      flex: 1;
+      align-items: center;
+      justify-items: center;
+    }
+
+    .fader-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .fader-icon-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .c-vocal { color: #38bdf8; }
+    .c-drum { color: #f43f5e; }
+    .c-bass { color: #a855f7; }
+    .c-melody { color: #10b981; }
+
+    .fader-track {
+      height: 160px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vertical-slider {
+      -webkit-appearance: none;
+      width: 140px;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      transform: rotate(-90deg);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .vertical-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+    }
+
+    .fader-level {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .mini-vu {
+      width: 42px;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .mini-vu-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-green), #fbbf24, #ef4444);
+      transition: width 0.08s ease;
+    }
+
+    /* Equalizer View */
+    .eq-view {
+      flex: 1;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .eq-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .eq-header-row select {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-subtle);
+      color: white;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-md);
+      outline: none;
+      font-size: 0.85rem;
+    }
+
+    .eq-board {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: rgba(9, 11, 18, 0.6);
+      border-radius: var(--radius-md);
+      padding: 1.2rem;
+      flex: 1;
+    }
+
+    .eq-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .eq-col span {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* Karaoke Lyrics View */
+    .lyrics-view {
+      flex: 1;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 1.8rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .lyrics-scroll-box {
+      flex: 1;
+      width: 100%;
+      max-width: 580px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      padding: 2rem 0;
+    }
+
+    .lyric-line {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .lyric-line:hover {
+      color: var(--text-muted);
+    }
+
+    .lyric-line.active {
+      color: var(--accent-cyan);
+      font-size: 1.5rem;
+      font-weight: 800;
+      text-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+    }
+
+    /* Party View */
+    .party-view {
+      flex: 1;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-subtle);
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .canvas-visualizer-wrapper {
+      flex: 1;
+      background: #000;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      position: relative;
+      border: 2px solid transparent;
+      transition: border-color 0.1s ease;
+    }
+
+    #party-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Bottom Player Bar */
+    .bottom-player {
+      height: var(--player-height);
+      background: rgba(11, 14, 22, 0.98);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      gap: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .now-playing {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      width: 280px;
+    }
+
+    .art-frame {
+      position: relative;
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
+    }
+
+    .art-frame img {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #191c28;
+    }
+
+    .art-pulse {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      border-radius: 8px;
+      box-shadow: 0 0 20px var(--primary-glow);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .meta-col {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .song-title-text {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .song-artist-text {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-icon-round {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0.4rem;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .btn-icon-round:hover {
+      color: #fff;
+      transform: scale(1.1);
+    }
+
+    .btn-icon-round.active {
+      color: var(--accent-cyan);
+    }
+
+    .btn-icon-round.heart.active {
+      color: #f43f5e;
+    }
+
+    .player-center-dock {
+      flex: 1;
+      max-width: 540px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .transport-btns {
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+    }
+
+    .btn-play-hero {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      color: white;
+      border: none;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 3px 15px var(--primary-glow);
+      transition: all 0.2s ease;
+    }
+
+    .btn-play-hero:hover {
+      transform: scale(1.08);
+      box-shadow: 0 5px 22px rgba(6, 182, 212, 0.6);
+    }
+
+    .scrubber-dock {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .time-tag {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+      width: 32px;
+    }
+
+    .scrubber-bar-wrap {
+      flex: 1;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .scrubber-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .scrubber-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--accent-cyan));
+    }
+
+    .player-right-dock {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      width: 280px;
+      justify-content: flex-end;
+    }
+
+    .volume-cluster {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .vol-slider {
+      -webkit-appearance: none;
+      width: 82px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(14px);
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal-box {
+      background: #0d101a;
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius-xl);
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(99, 102, 241, 0.2);
+      overflow: hidden;
+      animation: popModal 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes popModal {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.1rem 1.4rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(16, 20, 32, 0.5);
+    }
+
+    .modal-top h3 {
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-close-x {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+
+    .modal-content {
+      padding: 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      text-align: left;
+    }
+
+    .form-field label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-field input {
+      padding: 0.7rem 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: white;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .form-field input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .btn-block {
+      width: 100%;
+      justify-content: center;
+      padding: 0.75rem;
+    }
+
+    .user-profile-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 1rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .avatar-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: white;
+    }
+
+    .sync-feedback-badge {
+      padding: 0.65rem;
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    .sync-feedback-badge.success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--accent-green);
+      color: #a7f3d0;
+    }
+
+    .sync-feedback-badge.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
 
-  <!-- Dynamic Ambient Glow -->
+  <!-- Ambient Glow -->
   <div id="ambient-glow" class="ambient-glow"></div>
 
-  <!-- Top Navbar -->
-  <header class="navbar">
-    <div class="nav-brand">
-      <i class="fa-solid fa-compact-disc spin-logo"></i>
-      <span class="brand-name">DaVE <strong>Player</strong></span>
-      <span class="badge-version">v3.3.0 PRO</span>
-    </div>
-    <nav class="nav-links">
-      <a href="#player-section" class="nav-link active"><i class="fa-solid fa-play"></i> Reproductor</a>
-      <a href="#features" class="nav-link"><i class="fa-solid fa-wand-magic-sparkles"></i> Funciones</a>
-      <a href="#stem-mixer-info" class="nav-link"><i class="fa-solid fa-sliders"></i> AI Stem Mixer</a>
-      <a href="#downloads" class="nav-link highlight"><i class="fa-solid fa-download"></i> Descargas</a>
-    </nav>
-    <div class="nav-actions">
-      <button id="btn-login-modal" class="btn-login-glow">
-        <i class="fa-solid fa-user"></i> <span id="user-display-name">Iniciar Sesión</span>
-      </button>
-      <a href="https://github.com/davidchaparro780-wq/AuraPlayer" target="_blank" class="btn-github">
-        <i class="fa-brands fa-github"></i> <span>GitHub</span>
-      </a>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-content">
-      <div class="hero-pill">
-        <i class="fa-solid fa-bolt"></i> Nueva Actualización v3.3.0 Master Pro Suite
-      </div>
-      <h1 class="hero-title">
-        La experiencia musical <br>
-        <span class="gradient-text">que ninguna otra app tiene</span>
-      </h1>
-      <p class="hero-subtitle">
-        Separa pistas en vivo con el <strong>AI Stem Mixer</strong>, ilumina tu fiesta con el <strong>Modo Club Strobe</strong>, oculta tu música con la <strong>Calculadora Secreta</strong> y ecualiza como en un estudio profesional.
-      </p>
-      <div class="hero-buttons">
-        <a href="#player-section" class="btn-hero-primary">
-          <i class="fa-solid fa-play"></i> Probar Reproductor Web
-        </a>
-        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" class="btn-hero-secondary">
-          <i class="fa-brands fa-android"></i> Descargar APK (Android)
-        </a>
-        <a href="#downloads" class="btn-hero-outline">
-          <i class="fa-brands fa-windows"></i> Usar en PC
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Embedded Web Player Studio Section -->
-  <section id="player-section" class="player-wrapper-section">
-    <div class="section-badge"><i class="fa-solid fa-sliders"></i> ESTUDIO EN VIVO</div>
-    <h2 class="section-heading">DaVE Web & Desktop Player Studio</h2>
-    <p class="section-subtext">Carga tus canciones o prueba nuestra pista synthwave de demostración:</p>
-
-    <div class="app-container">
-      
-      <!-- Studio Header / Search -->
-      <div class="content-header">
-        <div class="search-box">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" id="search-input" placeholder="Buscar canción, artista o género...">
-        </div>
-        <div class="header-actions">
-          <button id="btn-demo-track" class="btn-primary-glow" style="padding: 0.55rem 1rem;">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> Cargar Pista Demo
-          </button>
-          <button id="btn-import-files" class="btn-secondary">
-            <i class="fa-solid fa-file-audio"></i> Cargar Archivos de PC
-          </button>
-          <button id="btn-add-folder" class="btn-secondary">
-            <i class="fa-solid fa-folder-open"></i> Carpeta
-          </button>
-        </div>
-      </div>
-
-      <!-- Main Layout -->
-      <div class="main-body">
-        
-        <!-- Sidebar Navigation -->
-        <nav class="sidebar">
-          <div class="nav-section">
-            <span class="section-title">BIBLIOTECA</span>
-            <button class="nav-item active" data-tab="songs">
-              <i class="fa-solid fa-music"></i> <span>Canciones</span>
-              <span class="count-badge" id="songs-count">0</span>
-            </button>
-            <button class="nav-item" data-tab="folders">
-              <i class="fa-solid fa-folder-open"></i> <span>Carpetas PC</span>
-            </button>
-            <button class="nav-item special-phone" data-tab="phone">
-              <i class="fa-solid fa-mobile-screen-button"></i> <span>Mi Celular</span>
-              <span class="count-badge" id="phone-songs-count">0</span>
-            </button>
-            <button class="nav-item" data-tab="playlists">
-              <i class="fa-solid fa-list-ul"></i> <span>Playlists</span>
-            </button>
-          </div>
-
-          <div class="nav-section">
-            <span class="section-title">MASTER PRO SUITE</span>
-            <button class="nav-item special-stem" data-tab="stem-mixer">
-              <i class="fa-solid fa-sliders"></i> <span>AI Stem Mixer</span>
-              <span class="pill-new">AI</span>
-            </button>
-            <button class="nav-item" data-tab="lyrics">
-              <i class="fa-solid fa-microphone-lines"></i> <span>Karaoke & Letras</span>
-            </button>
-            <button class="nav-item" data-tab="equalizer">
-              <i class="fa-solid fa-chart-simple"></i> <span>Ecualizador 10-Band</span>
-            </button>
-            <button class="nav-item special-party" data-tab="club-party">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Modo Club Party</span>
-            </button>
-          </div>
-        </nav>
-
-        <!-- Central Content View -->
-        <main class="content-area">
-          
-          <!-- TAB: CANCIONES -->
-          <section id="tab-songs" class="tab-content active">
-            <div class="track-table-container" id="drop-zone">
-              <div id="empty-state" class="empty-state">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                <h2>Tu biblioteca está lista</h2>
-                <p>Arrastra archivos de audio desde tu computadora o pulsa <strong>"Cargar Pista Demo"</strong> para probar el ecualizador y el Stem Mixer ahora mismo.</p>
-                <div style="display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;">
-                  <button id="btn-empty-demo" class="btn-primary-glow"><i class="fa-solid fa-play"></i> Probar Demo Synthwave</button>
-                  <button id="btn-empty-scan" class="btn-secondary"><i class="fa-solid fa-folder-open"></i> Seleccionar Archivos</button>
-                </div>
-              </div>
-
-              <table id="track-table" class="track-table hidden">
-                <thead>
-                  <tr>
-                    <th style="width: 40px;">#</th>
-                    <th>Título</th>
-                    <th>Artista</th>
-                    <th>Álbum</th>
-                    <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
-                  </tr>
-                </thead>
-                <tbody id="track-list"></tbody>
-              </table>
-            </div>
-          </section>
-
-          <!-- TAB: CARPETAS -->
-          <section id="tab-folders" class="tab-content">
-            <div class="folders-view">
-              <h2>Carpetas Sincronizadas</h2>
-              <p class="subtitle">Ubicaciones de tu computadora vinculadas a DaVE Player.</p>
-              <div id="folders-list" class="folders-list"></div>
-            </div>
-          </section>
-
-          <!-- TAB: MI CELULAR -->
-          <section id="tab-phone" class="tab-content">
-            <div class="phone-sync-view">
-              <div class="sync-banner">
-                <div class="sync-banner-info">
-                  <h2><i class="fa-solid fa-mobile-screen-button"></i> Música de mi Celular</h2>
-                  <p id="phone-sync-status">Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.</p>
-                </div>
-                <div class="sync-banner-actions">
-                  <button id="btn-open-sync-modal" class="btn-primary-glow">
-                    <i class="fa-solid fa-arrows-rotate"></i> Conectar Celular / Sincronizar
-                  </button>
-                </div>
-              </div>
-
-              <!-- Phone Tracks Table / State -->
-              <div class="track-table-container" style="margin-top: 1rem;">
-                <div id="phone-empty-state" class="empty-state">
-                  <i class="fa-solid fa-mobile-screen-button"></i>
-                  <h2>No hay canciones sincronizadas aún</h2>
-                  <p>Inicia sesión con tu correo electrónico o abre DaVE Player en tu teléfono > <strong>🌐 Control Remoto PC</strong> para transferir tu lista al instante.</p>
-                  <button id="btn-empty-phone-connect" class="btn-primary-glow"><i class="fa-solid fa-wifi"></i> Conectar Mi Teléfono Ahora</button>
-                </div>
-
-                <table id="phone-track-table" class="track-table hidden">
-                  <thead>
-                    <tr>
-                      <th style="width: 40px;">#</th>
-                      <th>Título</th>
-                      <th>Artista</th>
-                      <th>Álbum</th>
-                      <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
-                    </tr>
-                  </thead>
-                  <tbody id="phone-track-list"></tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-
-          <!-- TAB: PLAYLISTS -->
-          <section id="tab-playlists" class="tab-content">
-            <div class="playlists-view">
-              <div class="section-header-row">
-                <h2>Tus Listas de Reproducción</h2>
-              </div>
-              <div id="playlists-grid" class="playlists-grid">
-                <div class="playlist-card favorites-card">
-                  <div class="playlist-icon"><i class="fa-solid fa-heart"></i></div>
-                  <div class="playlist-info">
-                    <h3>Mis Favoritas</h3>
-                    <span id="favorites-count">0 canciones</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- TAB: AI STEM MIXER -->
-          <section id="tab-stem-mixer" class="tab-content">
-            <div class="stem-studio-container">
-              <div class="stem-header">
-                <h2><i class="fa-solid fa-sliders"></i> Live AI Stem Mixer Studio</h2>
-                <p>Aisla o reduce Voces, Baterías, Bajos y Melodías en tiempo real con filtros psicoacústicos.</p>
-              </div>
-
-              <div class="preset-chips">
-                <button class="chip" data-preset="karaoke">🎤 Karaoke (Sin Voz)</button>
-                <button class="chip" data-preset="acapella">🗣️ Acapella (Solo Voz)</button>
-                <button class="chip" data-preset="bass">🔊 808 Bass Boost</button>
-                <button class="chip" data-preset="instrumental">🎸 Instrumental</button>
-                <button class="chip active" data-preset="reset">🔄 Mezcla Original</button>
-              </div>
-
-              <div class="faders-grid">
-                <div class="fader-column">
-                  <div class="fader-icon vocal-glow"><i class="fa-solid fa-microphone"></i></div>
-                  <span class="fader-label">Vocals</span>
-                  <div class="slider-wrapper">
-                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-vocals">
-                  </div>
-                  <span class="fader-value" id="val-vocals">100%</span>
-                  <div class="vu-meter"><div class="vu-fill" id="vu-vocals"></div></div>
-                </div>
-
-                <div class="fader-column">
-                  <div class="fader-icon drum-glow"><i class="fa-solid fa-drum"></i></div>
-                  <span class="fader-label">Drums</span>
-                  <div class="slider-wrapper">
-                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-drums">
-                  </div>
-                  <span class="fader-value" id="val-drums">100%</span>
-                  <div class="vu-meter"><div class="vu-fill" id="vu-drums"></div></div>
-                </div>
-
-                <div class="fader-column">
-                  <div class="fader-icon bass-glow"><i class="fa-solid fa-bolt"></i></div>
-                  <span class="fader-label">Bass</span>
-                  <div class="slider-wrapper">
-                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-bass">
-                  </div>
-                  <span class="fader-value" id="val-bass">100%</span>
-                  <div class="vu-meter"><div class="vu-fill" id="vu-bass"></div></div>
-                </div>
-
-                <div class="fader-column">
-                  <div class="fader-icon melody-glow"><i class="fa-solid fa-guitar"></i></div>
-                  <span class="fader-label">Melodies</span>
-                  <div class="slider-wrapper">
-                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-melodies">
-                  </div>
-                  <span class="fader-value" id="val-melodies">100%</span>
-                  <div class="vu-meter"><div class="vu-fill" id="vu-melodies"></div></div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- TAB: KARAOKE & LYRICS -->
-          <section id="tab-lyrics" class="tab-content">
-            <div class="lyrics-container">
-              <div class="lyrics-header">
-                <h2 id="lyrics-song-title">DaVE Player Karaoke</h2>
-                <p id="lyrics-song-artist">Letras sincronizadas en tiempo real</p>
-              </div>
-              <div class="lyrics-scroll-box" id="lyrics-box">
-                <div class="lyric-line active">✨ Reproduciendo en DaVE Player Studio</div>
-                <div class="lyric-line">🎶 Disfruta la música con audio de alta fidelidad</div>
-                <div class="lyric-line">🔥 Activa el modo karaoke para cantar</div>
-                <div class="lyric-line">🎧 Siente el bajo con el ecualizador de 10 bandas</div>
-              </div>
-            </div>
-          </section>
-
-          <!-- TAB: EQUALIZER -->
-          <section id="tab-equalizer" class="tab-content">
-            <div class="eq-container">
-              <div class="eq-header">
-                <h2><i class="fa-solid fa-chart-simple"></i> Ecualizador Gráfico de 10 Bandas</h2>
-                <div class="eq-preset-select">
-                  <label>Preajuste:</label>
-                  <select id="eq-preset-dropdown">
-                    <option value="flat">Plano / Flat</option>
-                    <option value="bass">Bass Boost</option>
-                    <option value="rock">Rock</option>
-                    <option value="pop">Pop</option>
-                    <option value="vocal">Claridad Vocal</option>
-                    <option value="electronic">Electrónica / Club</option>
-                    <option value="acoustic">Acústico</option>
-                  </select>
-                </div>
-              </div>
-              <div class="eq-bands-grid" id="eq-bands"></div>
-            </div>
-          </section>
-
-          <!-- TAB: CLUB PARTY MODE -->
-          <section id="tab-club-party" class="tab-content">
-            <div class="party-container">
-              <div class="party-header">
-                <h2><i class="fa-solid fa-wand-magic-sparkles"></i> Modo Club Strobe & Visualizador Neón</h2>
-                <p>Efectos de iluminación estroboscópica perimetral y visualizador de partículas reactivas a los graves (FFT).</p>
-              </div>
-
-              <div class="party-controls">
-                <button id="btn-party-fullscreen" class="btn-primary-glow"><i class="fa-solid fa-expand"></i> Pantalla Completa Fiesta</button>
-                <label class="switch-label">
-                  <input type="checkbox" id="chk-strobe-pulse" checked>
-                  <span>Pulso de Borde Neón Reactivo</span>
-                </label>
-              </div>
-
-              <div class="canvas-visualizer-wrapper">
-                <canvas id="party-canvas"></canvas>
-              </div>
-            </div>
-          </section>
-
-        </main>
-      </div>
-
-      <!-- Bottom Player Bar -->
-      <footer class="player-bar">
-        <div class="now-playing-info">
-          <div class="album-art-wrapper">
-            <img id="player-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23181824'/><circle cx='50' cy='50' r='25' fill='%236366f1'/></svg>" alt="Album Art">
-            <div class="art-pulse-glow" id="art-glow"></div>
-          </div>
-          <div class="song-meta">
-            <div class="title-scroller"><span id="player-title">DaVE Player Web</span></div>
-            <span id="player-artist" class="artist-name">Listo para reproducir</span>
-          </div>
-          <button id="btn-like" class="btn-icon heart" title="Añadir a Favoritos"><i class="fa-regular fa-heart"></i></button>
-        </div>
-
-        <div class="player-center">
-          <div class="control-buttons">
-            <button id="btn-shuffle" class="btn-icon small" title="Aleatorio"><i class="fa-solid fa-shuffle"></i></button>
-            <button id="btn-prev" class="btn-icon" title="Anterior"><i class="fa-solid fa-backward-step"></i></button>
-            <button id="btn-play-pause" class="btn-play-main" title="Reproducir/Pausar (Espacio)"><i class="fa-solid fa-play"></i></button>
-            <button id="btn-next" class="btn-icon" title="Siguiente"><i class="fa-solid fa-forward-step"></i></button>
-            <button id="btn-repeat" class="btn-icon small" title="Repetir"><i class="fa-solid fa-repeat"></i></button>
-          </div>
-
-          <div class="scrubber-row">
-            <span id="current-time" class="time-label">0:00</span>
-            <div class="progress-bar-container" id="progress-container">
-              <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="progress-fill"></div>
-              </div>
-            </div>
-            <span id="total-time" class="time-label">0:00</span>
-          </div>
-        </div>
-
-        <div class="player-right">
-          <button id="btn-quick-stem" class="btn-icon" title="AI Stem Mixer"><i class="fa-solid fa-sliders"></i></button>
-          <button id="btn-quick-lyrics" class="btn-icon" title="Karaoke & Letras"><i class="fa-solid fa-microphone-lines"></i></button>
-          <button id="btn-quick-eq" class="btn-icon" title="Ecualizador"><i class="fa-solid fa-chart-simple"></i></button>
-          
-          <div class="volume-container">
-            <button id="btn-mute" class="btn-icon" title="Silenciar (M)"><i class="fa-solid fa-volume-high"></i></button>
-            <input type="range" id="volume-slider" min="0" max="100" value="80" class="volume-slider">
-          </div>
-        </div>
-      </footer>
-
-    </div>
-  </section>
-
-  <!-- Feature Showcase Grid -->
-  <section id="features" class="features-section">
-    <div class="section-badge"><i class="fa-solid fa-gem"></i> LO QUE NOS HACE ÚNICOS</div>
-    <h2 class="section-heading">Diseñado para los que aman la música</h2>
+  <!-- Fullscreen App Viewport -->
+  <div class="app-viewport">
     
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon icon-cyan"><i class="fa-solid fa-sliders"></i></div>
-        <h3>Live AI Stem Mixer</h3>
-        <p>Aisla o silencia la voz del cantante para hacer Karaoke en cualquier canción, o potencia baterías y bajos al instante.</p>
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="brand-group">
+        <i class="fa-solid fa-compact-disc brand-icon"></i>
+        <div class="brand-title">DaVE <strong>Player</strong></div>
+        <span class="brand-badge">PRO v3.3.0</span>
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon icon-pink"><i class="fa-solid fa-bolt"></i></div>
-        <h3>Modo Club Strobe</h3>
-        <p>La linterna física de tu teléfono y el borde de tu pantalla parpadean al compás de los bajos con análisis FFT en tiempo real.</p>
+      <div class="search-wrapper">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="search-input" class="search-input" placeholder="Buscar canciones, artistas, géneros...">
       </div>
 
-      <div class="feature-card">
-        <div class="feature-icon icon-purple"><i class="fa-solid fa-calculator"></i></div>
-        <h3>Calculadora Secreta</h3>
-        <p>Camuflaje instantáneo: la pantalla se convierte en una calculadora matemática real mientras tu música sigue sonando.</p>
-      </div>
+      <div class="top-actions">
+        <button id="btn-open-sync-modal" class="btn-action-pill accent-sync" title="Conectar celular por WiFi">
+          <i class="fa-solid fa-mobile-screen-button"></i> <span>Mi Celular</span>
+        </button>
 
-      <div class="feature-card">
-        <div class="feature-icon icon-green"><i class="fa-solid fa-chart-simple"></i></div>
-        <h3>Ecualizador de 10 Bandas</h3>
-        <p>Control de frecuencias quirúrgico con Bass Booster 808, amplificador de volumen y perfiles para todos los géneros.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon icon-amber"><i class="fa-solid fa-microphone-lines"></i></div>
-        <h3>Letras Sincronizadas</h3>
-        <p>Disfruta de letras en formato Karaoke en tiempo real que se iluminan al compás del cantante.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon icon-red"><i class="fa-solid fa-ban"></i></div>
-        <h3>100% Sin Anuncios</h3>
-        <p>Sin interrupciones, sin suscripciones de pago y con descargas ilimitadas de audio y video en alta definición.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Download Section -->
-  <section id="downloads" class="downloads-section">
-    <div class="section-badge"><i class="fa-solid fa-download"></i> DESCARGAS DIRECTAS</div>
-    <h2 class="section-heading">Consigue DaVE Player en tus dispositivos</h2>
-    <p class="section-subtext">Selecciona tu plataforma preferida y empieza a escuchar:</p>
-
-    <div class="download-cards-container">
-      <!-- Android -->
-      <div class="download-card highlight-card">
-        <div class="card-tag">Recomendado</div>
-        <div class="card-icon"><i class="fa-brands fa-android"></i></div>
-        <h3>DaVE para Android</h3>
-        <p class="card-desc">Versión completa con soporte de linterna LED, widgets flotantes y descargas.</p>
-        <span class="version-label">Versión 3.3.0 • APK Directo</span>
-        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" class="btn-download-main">
-          <i class="fa-solid fa-download"></i> Descargar APK (25 MB)
+        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" class="btn-action-pill btn-download-apk" title="Descargar APK para Android">
+          <i class="fa-brands fa-android"></i> <span>Descargar APK</span>
         </a>
-      </div>
 
-      <!-- Windows PC -->
-      <div class="download-card">
-        <div class="card-icon"><i class="fa-brands fa-windows"></i></div>
-        <h3>DaVE para Windows PC</h3>
-        <p class="card-desc">Lanzador de escritorio con aceleración gráfica GPU y atajos de teclado.</p>
-        <span class="version-label">Desktop Edition • Portable</span>
-        <a href="#player-section" class="btn-download-secondary">
-          <i class="fa-solid fa-play"></i> Usar en PC
-        </a>
+        <button id="btn-login-modal" class="btn-action-pill btn-user-auth">
+          <i class="fa-solid fa-user"></i> <span id="user-display-name">Iniciar Sesión</span>
+        </button>
       </div>
-    </div>
-  </section>
+    </header>
 
-  <!-- Footer -->
-  <footer class="site-footer">
-    <div class="footer-content">
-      <div class="footer-brand">
-        <i class="fa-solid fa-compact-disc"></i>
-        <span>DaVE Player — Creado con ❤️ para los amantes de la música.</span>
-      </div>
-      <div class="footer-links">
-        <a href="https://github.com/davidchaparro780-wq/AuraPlayer" target="_blank"><i class="fa-brands fa-github"></i> Repositorio GitHub</a>
-        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/tag/v3.3.0" target="_blank"><i class="fa-solid fa-tag"></i> Release v3.3.0</a>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Modal: Iniciar Sesión / Cuenta -->
-  <div id="modal-auth" class="modal-overlay hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">
-          <i class="fa-solid fa-user-shield" style="color: var(--accent-cyan);"></i>
-          <h3>Cuenta DaVE Cloud</h3>
+    <!-- Main Workspace -->
+    <div class="workspace">
+      
+      <!-- Sidebar -->
+      <nav class="sidebar">
+        <div class="sidebar-section-title">BIBLIOTECA</div>
+        <div class="nav-list">
+          <button class="nav-btn active" data-tab="songs">
+            <i class="fa-solid fa-music"></i> <span>Canciones</span>
+            <span class="badge-pill" id="songs-count">0</span>
+          </button>
+          <button class="nav-btn" data-tab="phone">
+            <i class="fa-solid fa-mobile-screen-button"></i> <span>Mi Celular</span>
+            <span class="badge-pill" id="phone-songs-count">0</span>
+          </button>
+          <button class="nav-btn" data-tab="folders">
+            <i class="fa-solid fa-folder-open"></i> <span>Carpetas PC</span>
+          </button>
+          <button class="nav-btn favorites-card" data-tab="playlists">
+            <i class="fa-solid fa-heart" style="color: #f43f5e;"></i> <span>Favoritas</span>
+            <span class="badge-pill" id="favorites-count">0</span>
+          </button>
         </div>
-        <button class="btn-close-modal" id="btn-close-auth"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="modal-body" id="auth-form-container">
-        <p class="modal-desc">Inicia sesión para sincronizar automáticamente tu música, listas de reproducción y favoritos de tu celular.</p>
+
+        <div class="sidebar-section-title" style="margin-top: 0.8rem;">MASTER PRO SUITE</div>
+        <div class="nav-list">
+          <button class="nav-btn" data-tab="stem-mixer">
+            <i class="fa-solid fa-sliders" style="color: var(--accent-cyan);"></i> <span>AI Stem Mixer</span>
+            <span class="pill-neon">AI</span>
+          </button>
+          <button class="nav-btn" data-tab="lyrics">
+            <i class="fa-solid fa-microphone-lines" style="color: #38bdf8;"></i> <span>Karaoke & Letras</span>
+          </button>
+          <button class="nav-btn" data-tab="equalizer">
+            <i class="fa-solid fa-chart-simple" style="color: var(--accent-green);"></i> <span>Ecualizador 10-Band</span>
+          </button>
+          <button class="nav-btn" data-tab="club-party">
+            <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-pink);"></i> <span>Modo Club Party</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Center Content -->
+      <main class="viewport-content">
         
+        <!-- Welcome Action Banner -->
+        <div class="welcome-banner">
+          <div class="banner-text">
+            <h2>✨ DaVE Player — Web & Desktop Studio</h2>
+            <p>Escucha música en alta fidelidad, aisla voces o instrumentos en vivo y sincroniza con tu celular.</p>
+          </div>
+          <div class="banner-actions">
+            <button id="btn-demo-track" class="btn-glow-primary">
+              <i class="fa-solid fa-play"></i> Probar Demo Synthwave
+            </button>
+            <button id="btn-import-files" class="btn-outline-secondary">
+              <i class="fa-solid fa-folder-open"></i> Cargar Archivos de PC
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 1: CANCIONES -->
+        <section id="tab-songs" class="tab-pane active">
+          <div class="table-container" id="drop-zone">
+            <div id="empty-state" class="empty-shelf">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <h3>Tu biblioteca está lista</h3>
+              <p>Arrastra archivos de audio desde tu computadora o pulsa el botón para probar el reproductor ahora mismo.</p>
+              <div style="display:flex; gap:0.6rem; justify-content:center;">
+                <button id="btn-empty-demo" class="btn-glow-primary"><i class="fa-solid fa-wand-magic-sparkles"></i> Probar Demo</button>
+                <button id="btn-empty-scan" class="btn-outline-secondary"><i class="fa-solid fa-file-audio"></i> Cargar Archivos</button>
+              </div>
+            </div>
+
+            <table id="track-table" class="song-table hidden">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Título</th>
+                  <th>Artista</th>
+                  <th>Álbum</th>
+                  <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
+                </tr>
+              </thead>
+              <tbody id="track-list"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB 2: MI CELULAR -->
+        <section id="tab-phone" class="tab-pane">
+          <div class="table-container">
+            <div style="padding: 1.2rem; background: rgba(6,182,212,0.06); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 style="color:var(--accent-cyan); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-mobile-screen-button"></i> Música de mi Celular</h3>
+                <p id="phone-sync-status" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Conecta tu celular por WiFi o inicia sesión para reproducir tu biblioteca móvil.</p>
+              </div>
+              <button id="btn-phone-sync-trigger" class="btn-glow-primary" style="padding:0.45rem 0.9rem;">
+                <i class="fa-solid fa-arrows-rotate"></i> Conectar Celular
+              </button>
+            </div>
+
+            <div id="phone-empty-state" class="empty-shelf">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+              <h3>No hay canciones sincronizadas</h3>
+              <p>Inicia sesión con tu correo o conecta tu teléfono mediante WiFi local (Servidor PC) para cargar tus pistas.</p>
+              <button id="btn-empty-phone-connect" class="btn-glow-primary"><i class="fa-solid fa-wifi"></i> Conectar Mi Celular</button>
+            </div>
+
+            <table id="phone-track-table" class="song-table hidden">
+              <thead>
+                <tr>
+                  <th style="width: 45px;">#</th>
+                  <th>Título</th>
+                  <th>Artista</th>
+                  <th>Álbum</th>
+                  <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
+                </tr>
+              </thead>
+              <tbody id="phone-track-list"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- TAB 3: CARPETAS -->
+        <section id="tab-folders" class="tab-pane">
+          <div class="table-container" style="padding: 1.5rem;">
+            <h3 style="margin-bottom: 0.5rem;">Carpetas Sincronizadas de PC</h3>
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">Explora ubicaciones locales vinculadas.</p>
+            <div id="folders-list"></div>
+            <button id="btn-add-folder" class="btn-glow-primary" style="margin-top: 1rem;"><i class="fa-solid fa-folder-plus"></i> Vincular Carpeta</button>
+          </div>
+        </section>
+
+        <!-- TAB 4: AI STEM MIXER -->
+        <section id="tab-stem-mixer" class="tab-pane">
+          <div class="stem-view">
+            <div class="stem-header">
+              <h3><i class="fa-solid fa-sliders"></i> Live AI Stem Mixer Studio</h3>
+              <p>Separa y modula Voces, Baterías, Bajos y Melodías en tiempo real con filtros psychoacústicos independientes.</p>
+            </div>
+
+            <div class="chip-row">
+              <button class="chip-btn" data-preset="karaoke">🎤 Karaoke (Sin Voz)</button>
+              <button class="chip-btn" data-preset="acapella">🗣️ Acapella (Solo Voz)</button>
+              <button class="chip-btn" data-preset="bass">🔊 808 Bass Boost</button>
+              <button class="chip-btn" data-preset="instrumental">🎸 Instrumental</button>
+              <button class="chip-btn active" data-preset="reset">🔄 Mezcla Original</button>
+            </div>
+
+            <div class="faders-deck">
+              <!-- Vocals -->
+              <div class="fader-unit">
+                <div class="fader-icon-circle c-vocal"><i class="fa-solid fa-microphone"></i></div>
+                <span style="font-size:0.8rem; font-weight:700;">VOCALS</span>
+                <div class="fader-track">
+                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-vocals">
+                </div>
+                <span class="fader-level" id="val-vocals">100%</span>
+                <div class="mini-vu"><div class="mini-vu-bar" id="vu-vocals"></div></div>
+              </div>
+
+              <!-- Drums -->
+              <div class="fader-unit">
+                <div class="fader-icon-circle c-drum"><i class="fa-solid fa-drum"></i></div>
+                <span style="font-size:0.8rem; font-weight:700;">DRUMS</span>
+                <div class="fader-track">
+                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-drums">
+                </div>
+                <span class="fader-level" id="val-drums">100%</span>
+                <div class="mini-vu"><div class="mini-vu-bar" id="vu-drums"></div></div>
+              </div>
+
+              <!-- Bass -->
+              <div class="fader-unit">
+                <div class="fader-icon-circle c-bass"><i class="fa-solid fa-bolt"></i></div>
+                <span style="font-size:0.8rem; font-weight:700;">BASS</span>
+                <div class="fader-track">
+                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-bass">
+                </div>
+                <span class="fader-level" id="val-bass">100%</span>
+                <div class="mini-vu"><div class="mini-vu-bar" id="vu-bass"></div></div>
+              </div>
+
+              <!-- Melodies -->
+              <div class="fader-unit">
+                <div class="fader-icon-circle c-melody"><i class="fa-solid fa-guitar"></i></div>
+                <span style="font-size:0.8rem; font-weight:700;">MELODIES</span>
+                <div class="fader-track">
+                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-melodies">
+                </div>
+                <span class="fader-level" id="val-melodies">100%</span>
+                <div class="mini-vu"><div class="mini-vu-bar" id="vu-melodies"></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: KARAOKE & LYRICS -->
+        <section id="tab-lyrics" class="tab-pane">
+          <div class="lyrics-view">
+            <h3 id="lyrics-song-title" style="font-size:1.3rem; margin-bottom:0.2rem;">Letras Sincronizadas</h3>
+            <p id="lyrics-song-artist" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">Modo Karaoke interactivo</p>
+            <div class="lyrics-scroll-box" id="lyrics-box"></div>
+          </div>
+        </section>
+
+        <!-- TAB 6: EQUALIZER -->
+        <section id="tab-equalizer" class="tab-pane">
+          <div class="eq-view">
+            <div class="eq-header-row">
+              <h3 style="color:var(--accent-green); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-chart-simple"></i> Ecualizador Gráfico de 10 Bandas</h3>
+              <div>
+                <label style="font-size:0.82rem; color:var(--text-muted); margin-right:0.5rem;">Preajuste:</label>
+                <select id="eq-preset-dropdown">
+                  <option value="flat">Plano / Flat</option>
+                  <option value="bass">Bass Boost</option>
+                  <option value="rock">Rock</option>
+                  <option value="pop">Pop</option>
+                  <option value="vocal">Claridad Vocal</option>
+                  <option value="electronic">Electrónica / Club</option>
+                  <option value="acoustic">Acústico</option>
+                </select>
+              </div>
+            </div>
+            <div class="eq-board" id="eq-bands"></div>
+          </div>
+        </section>
+
+        <!-- TAB 7: CLUB PARTY -->
+        <section id="tab-club-party" class="tab-pane">
+          <div class="party-view">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 style="color:var(--accent-pink); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Modo Club Party & Visualizador</h3>
+                <p style="font-size:0.82rem; color:var(--text-muted);">Visualizador reactivo a los graves con borde neón.</p>
+              </div>
+              <div style="display:flex; gap:1rem; align-items:center;">
+                <label style="font-size:0.82rem; display:flex; align-items:center; gap:0.4rem; cursor:pointer;">
+                  <input type="checkbox" id="chk-strobe-pulse" checked> Pulso Neón
+                </label>
+                <button id="btn-party-fullscreen" class="btn-glow-primary"><i class="fa-solid fa-expand"></i> Pantalla Completa</button>
+              </div>
+            </div>
+            <div class="canvas-visualizer-wrapper">
+              <canvas id="party-canvas"></canvas>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- Bottom Player Bar -->
+    <footer class="bottom-player">
+      <!-- Song Meta -->
+      <div class="now-playing">
+        <div class="art-frame">
+          <img id="player-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23191c28'/><circle cx='50' cy='50' r='25' fill='%236366f1'/></svg>" alt="Art">
+          <div class="art-pulse" id="art-glow"></div>
+        </div>
+        <div class="meta-col">
+          <div class="song-title-text" id="player-title">DaVE Player</div>
+          <div class="song-artist-text" id="player-artist">Listo para reproducir</div>
+        </div>
+        <button id="btn-like" class="btn-icon-round heart" title="Favoritos"><i class="fa-regular fa-heart"></i></button>
+      </div>
+
+      <!-- Controls & Scrubber -->
+      <div class="player-center-dock">
+        <div class="transport-btns">
+          <button id="btn-shuffle" class="btn-icon-round" title="Aleatorio"><i class="fa-solid fa-shuffle"></i></button>
+          <button id="btn-prev" class="btn-icon-round" title="Anterior"><i class="fa-solid fa-backward-step"></i></button>
+          <button id="btn-play-pause" class="btn-play-hero" title="Reproducir/Pausar"><i class="fa-solid fa-play"></i></button>
+          <button id="btn-next" class="btn-icon-round" title="Siguiente"><i class="fa-solid fa-forward-step"></i></button>
+          <button id="btn-repeat" class="btn-icon-round" title="Repetir"><i class="fa-solid fa-repeat"></i></button>
+        </div>
+
+        <div class="scrubber-dock">
+          <span class="time-tag" id="current-time">0:00</span>
+          <div class="scrubber-bar-wrap" id="progress-container">
+            <div class="scrubber-bar-bg">
+              <div class="scrubber-bar-fill" id="progress-fill"></div>
+            </div>
+          </div>
+          <span class="time-tag" id="total-time">0:00</span>
+        </div>
+      </div>
+
+      <!-- Volume & Mode Toggles -->
+      <div class="player-right-dock">
+        <button id="btn-quick-stem" class="btn-icon-round" title="AI Stem Mixer"><i class="fa-solid fa-sliders"></i></button>
+        <button id="btn-quick-lyrics" class="btn-icon-round" title="Karaoke & Letras"><i class="fa-solid fa-microphone-lines"></i></button>
+        <button id="btn-quick-eq" class="btn-icon-round" title="Ecualizador"><i class="fa-solid fa-chart-simple"></i></button>
+        <div class="volume-cluster">
+          <button id="btn-mute" class="btn-icon-round"><i class="fa-solid fa-volume-high"></i></button>
+          <input type="range" id="volume-slider" min="0" max="100" value="80" class="vol-slider">
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Modal: Iniciar Sesión -->
+  <div id="modal-auth" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-user-shield" style="color:var(--accent-cyan);"></i> Cuenta DaVE Cloud</h3>
+        <button class="btn-close-x" id="btn-close-auth"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content" id="auth-form-container">
+        <p style="font-size:0.85rem; color:var(--text-muted);">Inicia sesión con tu correo para sincronizar automáticamente tu música y listas de tu celular.</p>
         <form id="auth-form">
-          <div class="form-group">
+          <div class="form-field">
             <label><i class="fa-regular fa-envelope"></i> Correo Electrónico</label>
             <input type="email" id="auth-email" placeholder="ejemplo@correo.com" required>
           </div>
-          <div class="form-group">
+          <div class="form-field" style="margin-top:0.6rem;">
             <label><i class="fa-solid fa-lock"></i> Contraseña o PIN</label>
             <input type="password" id="auth-password" placeholder="••••••••" required>
           </div>
-          <div class="form-options">
+          <div style="display:flex; justify-content:space-between; margin-top:0.6rem; font-size:0.75rem; color:var(--text-muted);">
             <label><input type="checkbox" id="auth-remember" checked> Recordar en esta PC</label>
-            <a href="#" id="auth-link-demo">Usar cuenta Demo</a>
+            <a href="#" id="auth-link-demo" style="color:var(--accent-cyan); text-decoration:none;">Cuenta Demo</a>
           </div>
-          <button type="submit" class="btn-primary-glow btn-full" style="margin-top: 1rem;">
+          <button type="submit" class="btn-glow-primary btn-block" style="margin-top:1rem;">
             <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión y Sincronizar
           </button>
         </form>
-
-        <div class="auth-divider"><span>O CONTINUAR CON</span></div>
-        <button id="btn-google-login" class="btn-secondary btn-full">
+        <button id="btn-google-login" class="btn-outline-secondary btn-block">
           <i class="fa-brands fa-google"></i> Continuar con Google
         </button>
       </div>
 
-      <!-- Logged In User State -->
-      <div class="modal-body hidden" id="auth-user-profile">
-        <div class="user-profile-header">
-          <div class="user-avatar" id="profile-avatar"><i class="fa-solid fa-user"></i></div>
-          <div class="user-info">
+      <!-- Logged In Profile State -->
+      <div class="modal-content hidden" id="auth-user-profile">
+        <div class="user-profile-card">
+          <div class="avatar-circle"><i class="fa-solid fa-user"></i></div>
+          <div>
             <h4 id="profile-name">Usuario DaVE</h4>
-            <span id="profile-email">usuario@correo.com</span>
-            <span class="badge-status-cloud"><i class="fa-solid fa-cloud-check"></i> Sincronización Activa</span>
+            <span id="profile-email" style="font-size:0.8rem; color:var(--text-muted);">correo@gmail.com</span>
+            <div style="font-size:0.75rem; color:var(--accent-green); font-weight:700; margin-top:0.2rem;"><i class="fa-solid fa-circle-check"></i> Sincronización Activa</div>
           </div>
         </div>
-
-        <div class="profile-stats">
-          <div class="pstat">
-            <strong id="pstat-songs">0</strong>
-            <span>Canciones Celular</span>
-          </div>
-          <div class="pstat">
-            <strong id="pstat-favs">0</strong>
-            <span>Favoritas</span>
-          </div>
+        <div style="display:flex; justify-content:space-around; background:rgba(255,255,255,0.04); padding:0.8rem; border-radius:10px;">
+          <div style="text-align:center;"><strong id="pstat-songs" style="color:var(--accent-cyan); font-size:1.2rem;">0</strong><div style="font-size:0.7rem; color:var(--text-dim);">Canciones Celular</div></div>
+          <div style="text-align:center;"><strong id="pstat-favs" style="color:#f43f5e; font-size:1.2rem;">0</strong><div style="font-size:0.7rem; color:var(--text-dim);">Favoritas</div></div>
         </div>
-
-        <div class="profile-actions">
-          <button id="btn-profile-sync" class="btn-primary-glow btn-full">
-            <i class="fa-solid fa-arrows-rotate"></i> Sincronizar con mi Celular Ahora
-          </button>
-          <button id="btn-profile-logout" class="btn-secondary btn-full" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
-            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
-          </button>
-        </div>
+        <button id="btn-profile-sync" class="btn-glow-primary btn-block"><i class="fa-solid fa-arrows-rotate"></i> Sincronizar con mi Celular Ahora</button>
+        <button id="btn-profile-logout" class="btn-outline-secondary btn-block" style="color:#ef4444; border-color:rgba(239,68,68,0.3);"><i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal: Conexión con Celular (WiFi / IP / Cloud) -->
+  <!-- Modal: Conectar con Celular -->
   <div id="modal-sync" class="modal-overlay hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <div class="modal-title">
-          <i class="fa-solid fa-mobile-screen-button" style="color: var(--accent-cyan);"></i>
-          <h3>Conectar con DaVE Mobile</h3>
-        </div>
-        <button class="btn-close-modal" id="btn-close-sync"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-box">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-mobile-screen-button" style="color:var(--accent-cyan);"></i> Conectar con Celular</h3>
+        <button class="btn-close-x" id="btn-close-sync"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body">
-        <div class="sync-instructions">
-          <div class="step-badge">Paso 1</div>
-          <p>Abre <strong>DaVE Player en tu teléfono</strong> y pulsa en <strong>🌐 Control Remoto PC</strong> en el menú.</p>
-        </div>
-
-        <div class="sync-instructions" style="margin-top: 0.8rem;">
-          <div class="step-badge">Paso 2</div>
-          <p>Introduce la dirección IP o puerto que muestra tu celular:</p>
-        </div>
-
-        <div class="form-group" style="margin-top: 0.8rem;">
-          <label><i class="fa-solid fa-network-wired"></i> Dirección IP del Celular (Ej. 192.168.1.5:8080)</label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input type="text" id="sync-ip-input" placeholder="192.168.1.X:8080" style="flex: 1;">
-            <button id="btn-test-connect" class="btn-primary-glow" style="padding: 0.5rem 1rem;">
-              <i class="fa-solid fa-bolt"></i> Conectar
-            </button>
+      <div class="modal-content">
+        <p style="font-size:0.85rem; color:var(--text-muted);">Abre <strong>DaVE Player en tu teléfono</strong> y ve a <strong>🌐 Control Remoto PC</strong> para ver tu dirección IP.</p>
+        <div class="form-field">
+          <label>IP del Celular (Ej. 192.168.1.15:8080)</label>
+          <div style="display:flex; gap:0.5rem;">
+            <input type="text" id="sync-ip-input" placeholder="192.168.1.X:8080" style="flex:1;">
+            <button id="btn-test-connect" class="btn-glow-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-bolt"></i> Conectar</button>
           </div>
         </div>
-
-        <div class="auth-divider"><span>O CARGAR MÚSICA DE MI CUENTA</span></div>
-
-        <button id="btn-cloud-fetch" class="btn-secondary btn-full">
-          <i class="fa-solid fa-cloud-arrow-down"></i> Sincronizar Biblioteca de mi Cuenta Cloud
-        </button>
-
-        <div id="sync-feedback" class="sync-feedback hidden"></div>
+        <div style="text-align:center; font-size:0.75rem; color:var(--text-dim); margin:0.4rem 0;">O VINCULAR CON CUENTA CLOUD</div>
+        <button id="btn-cloud-fetch" class="btn-outline-secondary btn-block"><i class="fa-solid fa-cloud-arrow-down"></i> Cargar Canciones de mi Cuenta</button>
+        <div id="sync-feedback" class="sync-feedback-badge hidden"></div>
       </div>
     </div>
   </div>
 
-  <!-- Hidden Inputs -->
+  <!-- Hidden File Pickers -->
   <input type="file" id="file-input-browser" accept="audio/*" multiple style="display: none;">
   <input type="file" id="folder-input-browser" webkitdirectory directory multiple style="display: none;">
 
   <!-- Audio Element -->
-  <audio id="audio-player" crossorigin="anonymous"></audio>
+  <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js"></script>
+  <script src="app.js?v=3.3.1"></script>
 </body>
 </html>

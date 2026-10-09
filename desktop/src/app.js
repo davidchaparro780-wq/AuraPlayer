@@ -952,10 +952,10 @@ document.getElementById('btn-empty-demo')?.addEventListener('click', loadDemoTra
 // 12. TAB SWITCHING & NAVBAR LINKS
 // ==========================================
 function switchTab(name) {
-  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item, .nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane, .tab-content').forEach(t => t.classList.remove('active'));
   
-  const navBtn = document.querySelector(`.nav-item[data-tab="${name}"]`);
+  const navBtn = document.querySelector(`.nav-item[data-tab="${name}"], .nav-btn[data-tab="${name}"]`);
   if (navBtn) navBtn.classList.add('active');
 
   const tabContent = document.getElementById(`tab-${name}`);
@@ -966,9 +966,11 @@ function switchTab(name) {
   }
 }
 
-document.querySelectorAll('.nav-item').forEach(btn => {
+document.querySelectorAll('.nav-item, .nav-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    switchTab(btn.dataset.tab);
+    if (btn.dataset.tab) {
+      switchTab(btn.dataset.tab);
+    }
   });
 });
 
@@ -995,6 +997,7 @@ btnCloseSync?.addEventListener('click', () => modalSync?.classList.add('hidden')
 
 document.getElementById('btn-open-sync-modal')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
 document.getElementById('btn-empty-phone-connect')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
+document.getElementById('btn-phone-sync-trigger')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
 
 function updateUserUI() {
   if (currentUser) {
