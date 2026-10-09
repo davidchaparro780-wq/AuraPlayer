@@ -1498,7 +1498,7 @@ fun AuraApp(
                             .build()
                         controller?.let { ctrl ->
                             ctrl.addMediaItem(queueItem)
-                            Toast.makeText(this@MainActivity, "✓ '${onlineTrack.title}' añadida a la cola", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "✓ '${onlineTrack.title}' añadida a la cola", Toast.LENGTH_SHORT).show()
                         }
                     }
                 },
