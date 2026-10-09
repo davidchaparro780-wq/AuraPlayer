@@ -220,9 +220,9 @@ fun StandByScreen(
                             .border(2.dp, Color(0xFF8B5CF6).copy(alpha = 0.5f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (currentMedia.albumArtUri != null) {
+                        if (currentMedia.artworkUri != null) {
                             AsyncImage(
-                                model = currentMedia.albumArtUri,
+                                model = currentMedia.artworkUri,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(90.dp)
