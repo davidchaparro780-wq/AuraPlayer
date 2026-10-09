@@ -1264,13 +1264,22 @@ document.getElementById('btn-direct-browser-open')?.addEventListener('click', ()
 document.getElementById('btn-test-connect')?.addEventListener('click', async () => {
   let ip = document.getElementById('sync-ip-input').value.trim();
   if (!ip) {
-    showSyncFeedback('Por favor introduce la IP que muestra tu celular (ej. 192.168.1.15:8080)', 'error');
+    showSyncFeedback('Por favor introduce la IP que muestra tu celular (ej. 192.168.0.161:8080)', 'error');
     return;
   }
   if (!ip.startsWith('http://') && !ip.startsWith('https://')) {
     ip = `http://${ip}`;
   }
   ip = ip.replace(/\/+$/, '');
+
+  // If on HTTPS (GitHub Pages), the browser prevents background fetch to private LAN IPs.
+  // Seamlessly open the phone console in a new tab so the user sees all their songs immediately!
+  if (window.location.protocol === 'https:') {
+    window.open(ip, '_blank');
+    showSyncFeedback(`¡Abriendo tu celular (${ip}) en una nueva pestaña! En esa pestaña tienes todas tus canciones listas.`, 'success');
+    setTimeout(() => modalSync?.classList.add('hidden'), 2000);
+    return;
+  }
 
   showSyncFeedback('Conectando con DaVE Player en tu teléfono...', 'success');
 
@@ -1300,17 +1309,12 @@ document.getElementById('btn-test-connect')?.addEventListener('click', async () 
       }
     }
   } catch (err) {
-    console.log('Direct WiFi error (posible bloqueo HTTPS o IP inaccesible):', err);
+    console.log('Direct WiFi error:', err);
   }
 
-  // If on HTTPS (GitHub Pages), warn the user to use the direct browser open button
-  if (window.location.protocol === 'https:') {
-    showSyncFeedback('Tu navegador bloquea conexiones HTTP locales desde páginas HTTPS. Pulsa el botón "Abrir Consola en Nueva Pestaña" para abrir directamente la consola de tu teléfono.', 'error');
-  } else {
-    syncCloudPhoneLibrary();
-    showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones de tu cuenta.`, 'success');
-    setTimeout(() => modalSync?.classList.add('hidden'), 1200);
-  }
+  syncCloudPhoneLibrary();
+  showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones de tu cuenta.`, 'success');
+  setTimeout(() => modalSync?.classList.add('hidden'), 1200);
 });
 
 document.getElementById('btn-cloud-fetch')?.addEventListener('click', () => {
