@@ -3,339 +3,451 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DaVE Player — Desktop Edition</title>
+  <title>DaVE Player — El Reproductor de Música Definitivo (Web & Desktop)</title>
+  <meta name="description" content="DaVE Player: Reproductor de música con AI Stem Mixer, Ecualizador 10-Bandas, Modo Club Strobe y Letras Sincronizadas. 100% Gratis y Sin Anuncios.">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <!-- Dynamic Ambient Background Glow -->
+
+  <!-- Dynamic Ambient Glow -->
   <div id="ambient-glow" class="ambient-glow"></div>
 
-  <!-- App Wrapper -->
-  <div class="app-container">
-    
-    <!-- Custom Windows Titlebar -->
-    <header class="titlebar">
-      <div class="titlebar-drag-region">
-        <div class="app-logo">
-          <i class="fa-solid fa-compact-disc spin-logo"></i>
-          <span>DaVE <strong>Player</strong></span>
-          <span class="badge">PRO</span>
-        </div>
-      </div>
-      <div class="window-controls">
-        <button id="btn-minimize" class="win-btn" title="Minimizar"><i class="fa-solid fa-minus"></i></button>
-        <button id="btn-maximize" class="win-btn" title="Maximizar"><i class="fa-regular fa-square"></i></button>
-        <button id="btn-close" class="win-btn close" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-    </header>
-
-    <!-- Main Layout -->
-    <div class="main-body">
-      
-      <!-- Sidebar Navigation -->
-      <nav class="sidebar">
-        <div class="nav-section">
-          <span class="section-title">BIBLIOTECA</span>
-          <button class="nav-item active" data-tab="songs">
-            <i class="fa-solid fa-music"></i> <span>Canciones</span>
-            <span class="count-badge" id="songs-count">0</span>
-          </button>
-          <button class="nav-item" data-tab="folders">
-            <i class="fa-solid fa-folder-open"></i> <span>Carpetas PC</span>
-          </button>
-          <button class="nav-item" data-tab="playlists">
-            <i class="fa-solid fa-list-ul"></i> <span>Playlists</span>
-          </button>
-        </div>
-
-        <div class="nav-section">
-          <span class="section-title">MASTER PRO SUITE</span>
-          <button class="nav-item special-stem" data-tab="stem-mixer">
-            <i class="fa-solid fa-sliders"></i> <span>AI Stem Mixer</span>
-            <span class="pill-new">AI</span>
-          </button>
-          <button class="nav-item" data-tab="lyrics">
-            <i class="fa-solid fa-microphone-lines"></i> <span>Karaoke & Letras</span>
-          </button>
-          <button class="nav-item" data-tab="equalizer">
-            <i class="fa-solid fa-chart-simple"></i> <span>Ecualizador 10-Band</span>
-          </button>
-          <button class="nav-item special-party" data-tab="club-party">
-            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Modo Club Party</span>
-          </button>
-        </div>
-
-        <div class="sidebar-footer">
-          <button id="btn-add-folder" class="btn-primary-action">
-            <i class="fa-solid fa-folder-plus"></i> Añadir Carpeta PC
-          </button>
-        </div>
-      </nav>
-
-      <!-- Central Content View -->
-      <main class="content-area">
-        
-        <!-- Header Actions / Search -->
-        <div class="content-header">
-          <div class="search-box">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="search-input" placeholder="Buscar por título, artista o álbum...">
-          </div>
-          <div class="header-actions">
-            <button id="btn-import-files" class="btn-secondary" title="Cargar archivos individuales">
-              <i class="fa-solid fa-file-audio"></i> Cargar Archivos
-            </button>
-            <button id="btn-toggle-visualizer" class="btn-icon" title="Modo Visualizador">
-              <i class="fa-solid fa-wave-square"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- TAB: CANCIONES -->
-        <section id="tab-songs" class="tab-content active">
-          <div class="track-table-container" id="drop-zone">
-            <div id="empty-state" class="empty-state">
-              <i class="fa-solid fa-cloud-arrow-up"></i>
-              <h2>Tu biblioteca está vacía</h2>
-              <p>Arrastra y suelta aquí tus archivos de música o pulsa "Añadir Carpeta PC" para escanear tu disco duro.</p>
-              <button id="btn-empty-scan" class="btn-primary-glow"><i class="fa-solid fa-folder-open"></i> Seleccionar Carpeta de Música</button>
-            </div>
-
-            <table id="track-table" class="track-table hidden">
-              <thead>
-                <tr>
-                  <th style="width: 40px;">#</th>
-                  <th>Título</th>
-                  <th>Artista</th>
-                  <th>Álbum</th>
-                  <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
-                </tr>
-              </thead>
-              <tbody id="track-list">
-                <!-- Injected via JS -->
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- TAB: CARPETAS -->
-        <section id="tab-folders" class="tab-content">
-          <div class="folders-view">
-            <h2>Carpetas Sincronizadas</h2>
-            <p class="subtitle">Administra las ubicaciones de tu PC donde tienes guardada tu música.</p>
-            <div id="folders-list" class="folders-list">
-              <!-- Folders list -->
-            </div>
-            <button id="btn-add-folder-2" class="btn-primary-glow" style="margin-top: 1.5rem;">
-              <i class="fa-solid fa-folder-plus"></i> Vincular Nueva Carpeta
-            </button>
-          </div>
-        </section>
-
-        <!-- TAB: PLAYLISTS -->
-        <section id="tab-playlists" class="tab-content">
-          <div class="playlists-view">
-            <div class="section-header-row">
-              <h2>Tus Listas de Reproducción</h2>
-              <button id="btn-new-playlist" class="btn-secondary"><i class="fa-solid fa-plus"></i> Nueva Lista</button>
-            </div>
-            <div id="playlists-grid" class="playlists-grid">
-              <div class="playlist-card favorites-card" id="card-favorites">
-                <div class="playlist-icon"><i class="fa-solid fa-heart"></i></div>
-                <div class="playlist-info">
-                  <h3>Mis Favoritas</h3>
-                  <span id="favorites-count">0 canciones</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: AI STEM MIXER -->
-        <section id="tab-stem-mixer" class="tab-content">
-          <div class="stem-studio-container">
-            <div class="stem-header">
-              <h2><i class="fa-solid fa-sliders"></i> Live AI Stem Mixer Studio</h2>
-              <p>Controla en tiempo real cada instrumento de la pista en reproducción con filtros psicoacústicos.</p>
-            </div>
-
-            <!-- Stem Presets Chips -->
-            <div class="preset-chips">
-              <button class="chip" data-preset="karaoke">🎤 Karaoke (Sin Voz)</button>
-              <button class="chip" data-preset="acapella">🗣️ Acapella (Solo Voz)</button>
-              <button class="chip" data-preset="bass">🔊 808 Bass Boost</button>
-              <button class="chip" data-preset="instrumental">🎸 Instrumental</button>
-              <button class="chip active" data-preset="reset">🔄 Mezcla Original</button>
-            </div>
-
-            <!-- 4 Faders Studio Grid -->
-            <div class="faders-grid">
-              <!-- Vocals -->
-              <div class="fader-column">
-                <div class="fader-icon vocal-glow"><i class="fa-solid fa-microphone"></i></div>
-                <span class="fader-label">Vocals</span>
-                <div class="slider-wrapper">
-                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-vocals">
-                </div>
-                <span class="fader-value" id="val-vocals">100%</span>
-                <div class="vu-meter"><div class="vu-fill" id="vu-vocals"></div></div>
-              </div>
-
-              <!-- Drums -->
-              <div class="fader-column">
-                <div class="fader-icon drum-glow"><i class="fa-solid fa-drum"></i></div>
-                <span class="fader-label">Drums</span>
-                <div class="slider-wrapper">
-                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-drums">
-                </div>
-                <span class="fader-value" id="val-drums">100%</span>
-                <div class="vu-meter"><div class="vu-fill" id="vu-drums"></div></div>
-              </div>
-
-              <!-- Bass -->
-              <div class="fader-column">
-                <div class="fader-icon bass-glow"><i class="fa-solid fa-bolt"></i></div>
-                <span class="fader-label">Bass</span>
-                <div class="slider-wrapper">
-                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-bass">
-                </div>
-                <span class="fader-value" id="val-bass">100%</span>
-                <div class="vu-meter"><div class="vu-fill" id="vu-bass"></div></div>
-              </div>
-
-              <!-- Melodies -->
-              <div class="fader-column">
-                <div class="fader-icon melody-glow"><i class="fa-solid fa-guitar"></i></div>
-                <span class="fader-label">Melodies</span>
-                <div class="slider-wrapper">
-                  <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-melodies">
-                </div>
-                <span class="fader-value" id="val-melodies">100%</span>
-                <div class="vu-meter"><div class="vu-fill" id="vu-melodies"></div></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: KARAOKE & LYRICS -->
-        <section id="tab-lyrics" class="tab-content">
-          <div class="lyrics-container">
-            <div class="lyrics-header">
-              <h2 id="lyrics-song-title">Selecciona una canción</h2>
-              <p id="lyrics-song-artist">Las letras sincronizadas aparecerán automáticamente</p>
-            </div>
-            <div class="lyrics-scroll-box" id="lyrics-box">
-              <div class="lyrics-placeholder">
-                <i class="fa-solid fa-microphone-lines"></i>
-                <p>Reproduce una pista para ver la letra sincronizada en tiempo real.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: EQUALIZER -->
-        <section id="tab-equalizer" class="tab-content">
-          <div class="eq-container">
-            <div class="eq-header">
-              <h2><i class="fa-solid fa-chart-simple"></i> Ecualizador Gráfico de 10 Bandas</h2>
-              <div class="eq-preset-select">
-                <label>Preajuste:</label>
-                <select id="eq-preset-dropdown">
-                  <option value="flat">Plano / Flat</option>
-                  <option value="bass">Bass Boost</option>
-                  <option value="rock">Rock</option>
-                  <option value="pop">Pop</option>
-                  <option value="vocal">Claridad Vocal</option>
-                  <option value="electronic">Electrónica / Club</option>
-                  <option value="acoustic">Acústico</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="eq-bands-grid" id="eq-bands">
-              <!-- 10 Sliders generated by JS -->
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: CLUB PARTY MODE -->
-        <section id="tab-club-party" class="tab-content">
-          <div class="party-container">
-            <div class="party-header">
-              <h2><i class="fa-solid fa-wand-magic-sparkles"></i> Modo Club Strobe & Visualizador Neón</h2>
-              <p>Efectos de iluminación estroboscópica perimetral y visualizador de partículas reactivas a los graves (FFT).</p>
-            </div>
-
-            <div class="party-controls">
-              <button id="btn-party-fullscreen" class="btn-primary-glow"><i class="fa-solid fa-expand"></i> Pantalla Completa Fiesta (F11)</button>
-              <label class="switch-label">
-                <input type="checkbox" id="chk-strobe-pulse" checked>
-                <span>Pulso de Borde Neón Reactivo</span>
-              </label>
-            </div>
-
-            <div class="canvas-visualizer-wrapper">
-              <canvas id="party-canvas"></canvas>
-            </div>
-          </div>
-        </section>
-
-      </main>
+  <!-- Top Navbar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <i class="fa-solid fa-compact-disc spin-logo"></i>
+      <span class="brand-name">DaVE <strong>Player</strong></span>
+      <span class="badge-version">v3.3.0 PRO</span>
     </div>
+    <nav class="nav-links">
+      <a href="#player-section" class="nav-link active"><i class="fa-solid fa-play"></i> Reproductor</a>
+      <a href="#features" class="nav-link"><i class="fa-solid fa-wand-magic-sparkles"></i> Funciones</a>
+      <a href="#stem-mixer-info" class="nav-link"><i class="fa-solid fa-sliders"></i> AI Stem Mixer</a>
+      <a href="#downloads" class="nav-link highlight"><i class="fa-solid fa-download"></i> Descargas</a>
+    </nav>
+    <div class="nav-actions">
+      <a href="https://github.com/davidchaparro780-wq/AuraPlayer" target="_blank" class="btn-github">
+        <i class="fa-brands fa-github"></i> <span>GitHub</span>
+      </a>
+    </div>
+  </header>
 
-    <!-- Bottom Player Bar -->
-    <footer class="player-bar">
-      <!-- Left: Song Info -->
-      <div class="now-playing-info">
-        <div class="album-art-wrapper">
-          <img id="player-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23181824'/><circle cx='50' cy='50' r='25' fill='%2328283a'/></svg>" alt="Album Art">
-          <div class="art-pulse-glow" id="art-glow"></div>
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <div class="hero-pill">
+        <i class="fa-solid fa-bolt"></i> Nueva Actualización v3.3.0 Master Pro Suite
+      </div>
+      <h1 class="hero-title">
+        La experiencia musical <br>
+        <span class="gradient-text">que ninguna otra app tiene</span>
+      </h1>
+      <p class="hero-subtitle">
+        Separa pistas en vivo con el <strong>AI Stem Mixer</strong>, ilumina tu fiesta con el <strong>Modo Club Strobe</strong>, oculta tu música con la <strong>Calculadora Secreta</strong> y ecualiza como en un estudio profesional.
+      </p>
+      <div class="hero-buttons">
+        <a href="#player-section" class="btn-hero-primary">
+          <i class="fa-solid fa-play"></i> Probar Reproductor Web
+        </a>
+        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" class="btn-hero-secondary">
+          <i class="fa-brands fa-android"></i> Descargar APK (Android)
+        </a>
+        <a href="#downloads" class="btn-hero-outline">
+          <i class="fa-brands fa-windows"></i> Usar en PC
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Embedded Web Player Studio Section -->
+  <section id="player-section" class="player-wrapper-section">
+    <div class="section-badge"><i class="fa-solid fa-sliders"></i> ESTUDIO EN VIVO</div>
+    <h2 class="section-heading">DaVE Web & Desktop Player Studio</h2>
+    <p class="section-subtext">Carga tus canciones o prueba nuestra pista synthwave de demostración:</p>
+
+    <div class="app-container">
+      
+      <!-- Studio Header / Search -->
+      <div class="content-header">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="search-input" placeholder="Buscar canción, artista o género...">
         </div>
-        <div class="song-meta">
-          <div class="title-scroller"><span id="player-title">DaVE Player</span></div>
-          <span id="player-artist" class="artist-name">Listo para reproducir</span>
+        <div class="header-actions">
+          <button id="btn-demo-track" class="btn-primary-glow" style="padding: 0.55rem 1rem;">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Cargar Pista Demo
+          </button>
+          <button id="btn-import-files" class="btn-secondary">
+            <i class="fa-solid fa-file-audio"></i> Cargar Archivos de PC
+          </button>
+          <button id="btn-add-folder" class="btn-secondary">
+            <i class="fa-solid fa-folder-open"></i> Carpeta
+          </button>
         </div>
-        <button id="btn-like" class="btn-icon heart" title="Añadir a Favoritos"><i class="fa-regular fa-heart"></i></button>
       </div>
 
-      <!-- Center: Controls & Scrubber -->
-      <div class="player-center">
-        <div class="control-buttons">
-          <button id="btn-shuffle" class="btn-icon small" title="Aleatorio"><i class="fa-solid fa-shuffle"></i></button>
-          <button id="btn-prev" class="btn-icon" title="Anterior (Flecha Izq)"><i class="fa-solid fa-backward-step"></i></button>
-          <button id="btn-play-pause" class="btn-play-main" title="Reproducir/Pausar (Espacio)"><i class="fa-solid fa-play"></i></button>
-          <button id="btn-next" class="btn-icon" title="Siguiente (Flecha Der)"><i class="fa-solid fa-forward-step"></i></button>
-          <button id="btn-repeat" class="btn-icon small" title="Repetir"><i class="fa-solid fa-repeat"></i></button>
-        </div>
-
-        <div class="scrubber-row">
-          <span id="current-time" class="time-label">0:00</span>
-          <div class="progress-bar-container" id="progress-container">
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill" id="progress-fill"></div>
-            </div>
-          </div>
-          <span id="total-time" class="time-label">0:00</span>
-        </div>
-      </div>
-
-      <!-- Right: Volume & Quick Modes -->
-      <div class="player-right">
-        <button id="btn-quick-stem" class="btn-icon" title="AI Stem Mixer"><i class="fa-solid fa-sliders"></i></button>
-        <button id="btn-quick-lyrics" class="btn-icon" title="Karaoke & Letras"><i class="fa-solid fa-microphone-lines"></i></button>
-        <button id="btn-quick-eq" class="btn-icon" title="Ecualizador"><i class="fa-solid fa-chart-simple"></i></button>
+      <!-- Main Layout -->
+      <div class="main-body">
         
-        <div class="volume-container">
-          <button id="btn-mute" class="btn-icon" title="Silenciar (M)"><i class="fa-solid fa-volume-high"></i></button>
-          <input type="range" id="volume-slider" min="0" max="100" value="80" class="volume-slider">
-        </div>
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+          <div class="nav-section">
+            <span class="section-title">BIBLIOTECA</span>
+            <button class="nav-item active" data-tab="songs">
+              <i class="fa-solid fa-music"></i> <span>Canciones</span>
+              <span class="count-badge" id="songs-count">0</span>
+            </button>
+            <button class="nav-item" data-tab="folders">
+              <i class="fa-solid fa-folder-open"></i> <span>Carpetas PC</span>
+            </button>
+            <button class="nav-item" data-tab="playlists">
+              <i class="fa-solid fa-list-ul"></i> <span>Playlists</span>
+            </button>
+          </div>
+
+          <div class="nav-section">
+            <span class="section-title">MASTER PRO SUITE</span>
+            <button class="nav-item special-stem" data-tab="stem-mixer">
+              <i class="fa-solid fa-sliders"></i> <span>AI Stem Mixer</span>
+              <span class="pill-new">AI</span>
+            </button>
+            <button class="nav-item" data-tab="lyrics">
+              <i class="fa-solid fa-microphone-lines"></i> <span>Karaoke & Letras</span>
+            </button>
+            <button class="nav-item" data-tab="equalizer">
+              <i class="fa-solid fa-chart-simple"></i> <span>Ecualizador 10-Band</span>
+            </button>
+            <button class="nav-item special-party" data-tab="club-party">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> <span>Modo Club Party</span>
+            </button>
+          </div>
+        </nav>
+
+        <!-- Central Content View -->
+        <main class="content-area">
+          
+          <!-- TAB: CANCIONES -->
+          <section id="tab-songs" class="tab-content active">
+            <div class="track-table-container" id="drop-zone">
+              <div id="empty-state" class="empty-state">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <h2>Tu biblioteca está lista</h2>
+                <p>Arrastra archivos de audio desde tu computadora o pulsa <strong>"Cargar Pista Demo"</strong> para probar el ecualizador y el Stem Mixer ahora mismo.</p>
+                <div style="display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;">
+                  <button id="btn-empty-demo" class="btn-primary-glow"><i class="fa-solid fa-play"></i> Probar Demo Synthwave</button>
+                  <button id="btn-empty-scan" class="btn-secondary"><i class="fa-solid fa-folder-open"></i> Seleccionar Archivos</button>
+                </div>
+              </div>
+
+              <table id="track-table" class="track-table hidden">
+                <thead>
+                  <tr>
+                    <th style="width: 40px;">#</th>
+                    <th>Título</th>
+                    <th>Artista</th>
+                    <th>Álbum</th>
+                    <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
+                  </tr>
+                </thead>
+                <tbody id="track-list"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- TAB: CARPETAS -->
+          <section id="tab-folders" class="tab-content">
+            <div class="folders-view">
+              <h2>Carpetas Sincronizadas</h2>
+              <p class="subtitle">Ubicaciones de tu computadora vinculadas a DaVE Player.</p>
+              <div id="folders-list" class="folders-list"></div>
+            </div>
+          </section>
+
+          <!-- TAB: PLAYLISTS -->
+          <section id="tab-playlists" class="tab-content">
+            <div class="playlists-view">
+              <div class="section-header-row">
+                <h2>Tus Listas de Reproducción</h2>
+              </div>
+              <div id="playlists-grid" class="playlists-grid">
+                <div class="playlist-card favorites-card">
+                  <div class="playlist-icon"><i class="fa-solid fa-heart"></i></div>
+                  <div class="playlist-info">
+                    <h3>Mis Favoritas</h3>
+                    <span id="favorites-count">0 canciones</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB: AI STEM MIXER -->
+          <section id="tab-stem-mixer" class="tab-content">
+            <div class="stem-studio-container">
+              <div class="stem-header">
+                <h2><i class="fa-solid fa-sliders"></i> Live AI Stem Mixer Studio</h2>
+                <p>Aisla o reduce Voces, Baterías, Bajos y Melodías en tiempo real con filtros psicoacústicos.</p>
+              </div>
+
+              <div class="preset-chips">
+                <button class="chip" data-preset="karaoke">🎤 Karaoke (Sin Voz)</button>
+                <button class="chip" data-preset="acapella">🗣️ Acapella (Solo Voz)</button>
+                <button class="chip" data-preset="bass">🔊 808 Bass Boost</button>
+                <button class="chip" data-preset="instrumental">🎸 Instrumental</button>
+                <button class="chip active" data-preset="reset">🔄 Mezcla Original</button>
+              </div>
+
+              <div class="faders-grid">
+                <div class="fader-column">
+                  <div class="fader-icon vocal-glow"><i class="fa-solid fa-microphone"></i></div>
+                  <span class="fader-label">Vocals</span>
+                  <div class="slider-wrapper">
+                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-vocals">
+                  </div>
+                  <span class="fader-value" id="val-vocals">100%</span>
+                  <div class="vu-meter"><div class="vu-fill" id="vu-vocals"></div></div>
+                </div>
+
+                <div class="fader-column">
+                  <div class="fader-icon drum-glow"><i class="fa-solid fa-drum"></i></div>
+                  <span class="fader-label">Drums</span>
+                  <div class="slider-wrapper">
+                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-drums">
+                  </div>
+                  <span class="fader-value" id="val-drums">100%</span>
+                  <div class="vu-meter"><div class="vu-fill" id="vu-drums"></div></div>
+                </div>
+
+                <div class="fader-column">
+                  <div class="fader-icon bass-glow"><i class="fa-solid fa-bolt"></i></div>
+                  <span class="fader-label">Bass</span>
+                  <div class="slider-wrapper">
+                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-bass">
+                  </div>
+                  <span class="fader-value" id="val-bass">100%</span>
+                  <div class="vu-meter"><div class="vu-fill" id="vu-bass"></div></div>
+                </div>
+
+                <div class="fader-column">
+                  <div class="fader-icon melody-glow"><i class="fa-solid fa-guitar"></i></div>
+                  <span class="fader-label">Melodies</span>
+                  <div class="slider-wrapper">
+                    <input type="range" min="0" max="150" value="100" class="vertical-slider" id="stem-melodies">
+                  </div>
+                  <span class="fader-value" id="val-melodies">100%</span>
+                  <div class="vu-meter"><div class="vu-fill" id="vu-melodies"></div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB: KARAOKE & LYRICS -->
+          <section id="tab-lyrics" class="tab-content">
+            <div class="lyrics-container">
+              <div class="lyrics-header">
+                <h2 id="lyrics-song-title">DaVE Player Karaoke</h2>
+                <p id="lyrics-song-artist">Letras sincronizadas en tiempo real</p>
+              </div>
+              <div class="lyrics-scroll-box" id="lyrics-box">
+                <div class="lyric-line active">✨ Reproduciendo en DaVE Player Studio</div>
+                <div class="lyric-line">🎶 Disfruta la música con audio de alta fidelidad</div>
+                <div class="lyric-line">🔥 Activa el modo karaoke para cantar</div>
+                <div class="lyric-line">🎧 Siente el bajo con el ecualizador de 10 bandas</div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB: EQUALIZER -->
+          <section id="tab-equalizer" class="tab-content">
+            <div class="eq-container">
+              <div class="eq-header">
+                <h2><i class="fa-solid fa-chart-simple"></i> Ecualizador Gráfico de 10 Bandas</h2>
+                <div class="eq-preset-select">
+                  <label>Preajuste:</label>
+                  <select id="eq-preset-dropdown">
+                    <option value="flat">Plano / Flat</option>
+                    <option value="bass">Bass Boost</option>
+                    <option value="rock">Rock</option>
+                    <option value="pop">Pop</option>
+                    <option value="vocal">Claridad Vocal</option>
+                    <option value="electronic">Electrónica / Club</option>
+                    <option value="acoustic">Acústico</option>
+                  </select>
+                </div>
+              </div>
+              <div class="eq-bands-grid" id="eq-bands"></div>
+            </div>
+          </section>
+
+          <!-- TAB: CLUB PARTY MODE -->
+          <section id="tab-club-party" class="tab-content">
+            <div class="party-container">
+              <div class="party-header">
+                <h2><i class="fa-solid fa-wand-magic-sparkles"></i> Modo Club Strobe & Visualizador Neón</h2>
+                <p>Efectos de iluminación estroboscópica perimetral y visualizador de partículas reactivas a los graves (FFT).</p>
+              </div>
+
+              <div class="party-controls">
+                <button id="btn-party-fullscreen" class="btn-primary-glow"><i class="fa-solid fa-expand"></i> Pantalla Completa Fiesta</button>
+                <label class="switch-label">
+                  <input type="checkbox" id="chk-strobe-pulse" checked>
+                  <span>Pulso de Borde Neón Reactivo</span>
+                </label>
+              </div>
+
+              <div class="canvas-visualizer-wrapper">
+                <canvas id="party-canvas"></canvas>
+              </div>
+            </div>
+          </section>
+
+        </main>
       </div>
-    </footer>
 
-  </div>
+      <!-- Bottom Player Bar -->
+      <footer class="player-bar">
+        <div class="now-playing-info">
+          <div class="album-art-wrapper">
+            <img id="player-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23181824'/><circle cx='50' cy='50' r='25' fill='%236366f1'/></svg>" alt="Album Art">
+            <div class="art-pulse-glow" id="art-glow"></div>
+          </div>
+          <div class="song-meta">
+            <div class="title-scroller"><span id="player-title">DaVE Player Web</span></div>
+            <span id="player-artist" class="artist-name">Listo para reproducir</span>
+          </div>
+          <button id="btn-like" class="btn-icon heart" title="Añadir a Favoritos"><i class="fa-regular fa-heart"></i></button>
+        </div>
 
-  <!-- Hidden file pickers for browser / desktop fallback -->
+        <div class="player-center">
+          <div class="control-buttons">
+            <button id="btn-shuffle" class="btn-icon small" title="Aleatorio"><i class="fa-solid fa-shuffle"></i></button>
+            <button id="btn-prev" class="btn-icon" title="Anterior"><i class="fa-solid fa-backward-step"></i></button>
+            <button id="btn-play-pause" class="btn-play-main" title="Reproducir/Pausar (Espacio)"><i class="fa-solid fa-play"></i></button>
+            <button id="btn-next" class="btn-icon" title="Siguiente"><i class="fa-solid fa-forward-step"></i></button>
+            <button id="btn-repeat" class="btn-icon small" title="Repetir"><i class="fa-solid fa-repeat"></i></button>
+          </div>
+
+          <div class="scrubber-row">
+            <span id="current-time" class="time-label">0:00</span>
+            <div class="progress-bar-container" id="progress-container">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progress-fill"></div>
+              </div>
+            </div>
+            <span id="total-time" class="time-label">0:00</span>
+          </div>
+        </div>
+
+        <div class="player-right">
+          <button id="btn-quick-stem" class="btn-icon" title="AI Stem Mixer"><i class="fa-solid fa-sliders"></i></button>
+          <button id="btn-quick-lyrics" class="btn-icon" title="Karaoke & Letras"><i class="fa-solid fa-microphone-lines"></i></button>
+          <button id="btn-quick-eq" class="btn-icon" title="Ecualizador"><i class="fa-solid fa-chart-simple"></i></button>
+          
+          <div class="volume-container">
+            <button id="btn-mute" class="btn-icon" title="Silenciar (M)"><i class="fa-solid fa-volume-high"></i></button>
+            <input type="range" id="volume-slider" min="0" max="100" value="80" class="volume-slider">
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </section>
+
+  <!-- Feature Showcase Grid -->
+  <section id="features" class="features-section">
+    <div class="section-badge"><i class="fa-solid fa-gem"></i> LO QUE NOS HACE ÚNICOS</div>
+    <h2 class="section-heading">Diseñado para los que aman la música</h2>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon icon-cyan"><i class="fa-solid fa-sliders"></i></div>
+        <h3>Live AI Stem Mixer</h3>
+        <p>Aisla o silencia la voz del cantante para hacer Karaoke en cualquier canción, o potencia baterías y bajos al instante.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon icon-pink"><i class="fa-solid fa-bolt"></i></div>
+        <h3>Modo Club Strobe</h3>
+        <p>La linterna física de tu teléfono y el borde de tu pantalla parpadean al compás de los bajos con análisis FFT en tiempo real.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon icon-purple"><i class="fa-solid fa-calculator"></i></div>
+        <h3>Calculadora Secreta</h3>
+        <p>Camuflaje instantáneo: la pantalla se convierte en una calculadora matemática real mientras tu música sigue sonando.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon icon-green"><i class="fa-solid fa-chart-simple"></i></div>
+        <h3>Ecualizador de 10 Bandas</h3>
+        <p>Control de frecuencias quirúrgico con Bass Booster 808, amplificador de volumen y perfiles para todos los géneros.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon icon-amber"><i class="fa-solid fa-microphone-lines"></i></div>
+        <h3>Letras Sincronizadas</h3>
+        <p>Disfruta de letras en formato Karaoke en tiempo real que se iluminan al compás del cantante.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon icon-red"><i class="fa-solid fa-ban"></i></div>
+        <h3>100% Sin Anuncios</h3>
+        <p>Sin interrupciones, sin suscripciones de pago y con descargas ilimitadas de audio y video en alta definición.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Section -->
+  <section id="downloads" class="downloads-section">
+    <div class="section-badge"><i class="fa-solid fa-download"></i> DESCARGAS DIRECTAS</div>
+    <h2 class="section-heading">Consigue DaVE Player en tus dispositivos</h2>
+    <p class="section-subtext">Selecciona tu plataforma preferida y empieza a escuchar:</p>
+
+    <div class="download-cards-container">
+      <!-- Android -->
+      <div class="download-card highlight-card">
+        <div class="card-tag">Recomendado</div>
+        <div class="card-icon"><i class="fa-brands fa-android"></i></div>
+        <h3>DaVE para Android</h3>
+        <p class="card-desc">Versión completa con soporte de linterna LED, widgets flotantes y descargas.</p>
+        <span class="version-label">Versión 3.3.0 • APK Directo</span>
+        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" class="btn-download-main">
+          <i class="fa-solid fa-download"></i> Descargar APK (25 MB)
+        </a>
+      </div>
+
+      <!-- Windows PC -->
+      <div class="download-card">
+        <div class="card-icon"><i class="fa-brands fa-windows"></i></div>
+        <h3>DaVE para Windows PC</h3>
+        <p class="card-desc">Lanzador de escritorio con aceleración gráfica GPU y atajos de teclado.</p>
+        <span class="version-label">Desktop Edition • Portable</span>
+        <a href="#player-section" class="btn-download-secondary">
+          <i class="fa-solid fa-play"></i> Usar en PC
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-content">
+      <div class="footer-brand">
+        <i class="fa-solid fa-compact-disc"></i>
+        <span>DaVE Player — Creado con ❤️ para los amantes de la música.</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/davidchaparro780-wq/AuraPlayer" target="_blank"><i class="fa-brands fa-github"></i> Repositorio GitHub</a>
+        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/tag/v3.3.0" target="_blank"><i class="fa-solid fa-tag"></i> Release v3.3.0</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Hidden Inputs -->
   <input type="file" id="file-input-browser" accept="audio/*" multiple style="display: none;">
   <input type="file" id="folder-input-browser" webkitdirectory directory multiple style="display: none;">
 
