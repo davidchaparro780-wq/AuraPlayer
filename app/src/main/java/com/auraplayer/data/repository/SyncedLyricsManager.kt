@@ -27,23 +27,31 @@ class SyncedLyricsManager(private val context: Context) {
 
     fun parseLrc(lrcText: String): List<LrcLine> {
         val lines = mutableListOf<LrcLine>()
-        val timePattern = Pattern.compile("\\[(\\d{2}):(\\d{2})(?:\\.(\\d{1,3}))?\\]")
+        val timePattern = Pattern.compile("\\[(\\d{1,2}):(\\d{2})(?:\\.(\\d{1,3}))?\\]")
 
         lrcText.lines().forEach { line ->
             val matcher = timePattern.matcher(line)
-            if (matcher.find()) {
+            val timestamps = mutableListOf<Long>()
+            var lastEnd = 0
+            while (matcher.find()) {
                 val min = matcher.group(1)?.toLongOrNull() ?: 0L
                 val sec = matcher.group(2)?.toLongOrNull() ?: 0L
                 val rawMillis = matcher.group(3) ?: "0"
                 val ms = when (rawMillis.length) {
-                    1 -> rawMillis.toLong() * 100
-                    2 -> rawMillis.toLong() * 10
-                    else -> rawMillis.take(3).toLong()
+                    1 -> rawMillis.toLongOrNull()?.times(100) ?: 0L
+                    2 -> rawMillis.toLongOrNull()?.times(10) ?: 0L
+                    else -> rawMillis.take(3).toLongOrNull() ?: 0L
                 }
                 val totalMs = (min * 60 + sec) * 1000 + ms
-                val text = line.substring(matcher.end()).trim()
+                timestamps.add(totalMs)
+                lastEnd = matcher.end()
+            }
+            if (timestamps.isNotEmpty()) {
+                val text = line.substring(lastEnd).trim()
                 if (text.isNotBlank()) {
-                    lines.add(LrcLine(totalMs, text))
+                    for (t in timestamps) {
+                        lines.add(LrcLine(t, text))
+                    }
                 }
             }
         }

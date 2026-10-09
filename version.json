@@ -1,7 +1,7 @@
 {
-  "versionCode": 62,
-  "versionName": "3.1.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.1.1/app-debug.apk",
-  "changelog": "✨ DaVE Player v3.1.1 — Hotfix UI & Ultra Motion:\n• 🧹 Eliminación Definitiva del Brazo/Aguja: Interfaz 100% limpia sin superposición sobre la barra de estado superior o 'DaVE SOUND'.\n• 💿 Disco de Vinilo Centrado & Optimizado: Proporciones visuales balanceadas al 82% con anillos acústicos perfectamente acotados.\n• 🌊 Aura Ripple Rings & Pulsos Acústicos: Anillos de luz concéntricos expansivos que brotan al ritmo de la música detrás de la carátula sin obstrucciones.\n• 🌌 Partículas de Polvo Estelar Flotantes: Luz cósmica a 60 fps danzando en el fondo del reproductor.\n• 💥 Botón Play/Pause con Elastic Morphing & Glow Burst: Micro-interacciones táctiles refinadas.\n• 🌊 Barra de Progreso Líquida & Shimmer Wave: Haz dinámico de luz en el scrubber.\n• 📻 Live Equalizer Mini en MiniPlayer: Indicador visual en vivo en la barra inferior.",
+  "versionCode": 63,
+  "versionName": "3.1.2",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.1.2/app-debug.apk",
+  "changelog": "✨ DaVE Player v3.1.2 — Estabilidad, Optimización & Fixes:\n• ⚡ Barra de Progreso Líquida Interactiva: Soporte para deslizamiento táctil continuo (scrubbing en tiempo real) y aceleración por GPU.\n• 🎤 Parser de Letras Sincronizadas LRC Multi-Marca: Soporte para múltiples marcas de tiempo por línea sin pérdida de texto.\n• 🔊 Limpieza Segura del Motor de Visualizador FFT: Desconexión nativa de callbacks de captura para evitar fugas de memoria en cambios de pista.\n• 🎬 Muxer de Extracción de Audio a 320k: Normalización de offsets de buffer para compatibilidad total con procesadores MediaTek, Snapdragon y Exynos.",
   "fileSizeMb": 25.0
 }

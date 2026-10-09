@@ -225,6 +225,7 @@ class RealtimeVisualizerManager private constructor() {
     fun release() {
         try {
             visualizer?.enabled = false
+            visualizer?.setDataCaptureListener(null, 0, false, false)
             visualizer?.release()
         } catch (_: Exception) {}
         visualizer = null

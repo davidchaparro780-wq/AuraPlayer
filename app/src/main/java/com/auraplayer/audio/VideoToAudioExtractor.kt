@@ -67,6 +67,7 @@ object VideoToAudioExtractor {
             val bufferInfo = MediaCodec.BufferInfo()
 
             while (true) {
+                bufferInfo.offset = 0
                 bufferInfo.size = extractor.readSampleData(buffer, 0)
                 if (bufferInfo.size < 0) {
                     break

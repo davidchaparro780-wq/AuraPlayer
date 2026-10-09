@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 
@@ -68,9 +70,22 @@ fun LiquidShimmerProgressBar(
             .height(28.dp)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
-                    val newProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                    val newProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
                     onSeek(newProgress)
                 }
+            }
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { offset ->
+                        val newProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                        onSeek(newProgress)
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        val newProgress = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                        onSeek(newProgress)
+                    }
+                )
             },
         contentAlignment = Alignment.CenterStart
     ) {
@@ -118,7 +133,11 @@ fun LiquidShimmerProgressBar(
         Box(
             modifier = Modifier
                 .offset(x = thumbOffset)
-                .size(16.dp * thumbScale)
+                .size(16.dp)
+                .graphicsLayer {
+                    scaleX = thumbScale
+                    scaleY = thumbScale
+                }
                 .shadow(8.dp, CircleShape, spotColor = activeColor)
                 .clip(CircleShape)
                 .background(Color.White)
