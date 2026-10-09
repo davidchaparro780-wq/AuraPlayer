@@ -1378,6 +1378,93 @@
       color: #fca5a5;
     }
 
+    /* Pantalla Completa Inicial de Inicio de Sesion (Regreso al Principio) */
+    .full-login-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 25%, #11172a 0%, #060810 80%);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .full-login-screen.hidden {
+      display: none !important;
+    }
+
+    .full-login-container {
+      background: rgba(14, 19, 32, 0.96);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 26px;
+      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85), 0 0 45px rgba(0, 240, 255, 0.12);
+      max-width: 480px;
+      width: 100%;
+      padding: 2.4rem 2rem;
+      text-align: center;
+      backdrop-filter: blur(25px);
+      animation: modalFadeIn 0.3s ease-out;
+    }
+
+    .login-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .login-brand-icon {
+      font-size: 2.2rem;
+      color: var(--accent-cyan);
+      animation: discSpin 10s linear infinite;
+    }
+
+    .login-brand h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .full-login-status-box {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      border-radius: 14px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 1.4rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.9rem;
+      text-align: left;
+    }
+
+    .full-login-status-box strong {
+      color: #fff;
+      font-size: 0.95rem;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .full-login-status-box p {
+      color: #fca5a5;
+      font-size: 0.84rem;
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .full-login-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      margin-top: 1rem;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -1387,6 +1474,49 @@
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- Pantalla Completa Inicial de Iniciar Sesión (Regreso al principio al desconectar servidor) -->
+  <div id="full-login-screen" class="full-login-screen hidden">
+    <div class="full-login-container">
+      <div class="login-brand">
+        <i class="fa-solid fa-compact-disc login-brand-icon"></i>
+        <h1>DaVE <strong>Player</strong></h1>
+        <span class="brand-badge">PRO CLOUD</span>
+      </div>
+
+      <div id="full-login-status-box" class="full-login-status-box">
+        <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; font-size:1.35rem; margin-top:0.15rem;"></i>
+        <div>
+          <strong id="full-login-status-title">Servidor del teléfono desconectado</strong>
+          <p id="full-login-status-desc">Se ha cerrado la conexión con tu celular. Inicia sesión con tu cuenta para acceder a todas las canciones que tenías en la nube.</p>
+        </div>
+      </div>
+
+      <form id="full-login-form">
+        <div class="form-field">
+          <label><i class="fa-regular fa-envelope"></i> Correo Electrónico</label>
+          <input type="email" id="full-login-email" value="david.chaparro@daveplayer.app" required placeholder="ejemplo@correo.com">
+        </div>
+        <div class="form-field" style="margin-top:0.75rem;">
+          <label><i class="fa-solid fa-lock"></i> Contraseña o PIN</label>
+          <input type="password" id="full-login-password" value="••••••••" required placeholder="••••••••">
+        </div>
+        
+        <button type="submit" class="btn-glow-primary btn-block" style="margin-top:1.1rem; padding:0.85rem; font-size:0.95rem;">
+          <i class="fa-solid fa-cloud-arrow-down"></i> Iniciar Sesión y Cargar Canciones de la Nube
+        </button>
+      </form>
+
+      <div class="full-login-actions">
+        <button id="btn-full-login-demo" class="btn-outline-secondary btn-block" style="font-size:0.85rem;">
+          <i class="fa-solid fa-bolt" style="color:var(--accent-cyan);"></i> Acceso Rápido (David Chaparro)
+        </button>
+        <button id="btn-full-login-google" class="btn-outline-secondary btn-block" style="font-size:0.85rem;">
+          <i class="fa-brands fa-google"></i> Continuar con Google
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Full Window Drag & Drop Overlay -->
   <div id="drag-drop-overlay" class="drag-drop-overlay">
@@ -1406,7 +1536,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.4.3</span>
+        <span class="brand-badge">PRO v3.4.4</span>
       </div>
 
       <div class="search-wrapper">
@@ -1973,6 +2103,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.4.3"></script>
+  <script src="app.js?v=3.4.4"></script>
 </body>
 </html>

@@ -537,9 +537,27 @@ function filterSongs(){
 }
 
 function onServerDisconnected(){
-  document.getElementById('connectionBadge').className = 'badge badge-danger';
-  document.getElementById('connectionBadge').innerText = '🔴 Servidor Desconectado';
-  document.getElementById('disconnectLoginModal').style.display = 'flex';
+  // 1. Vaciar completamente la lista de canciones para que no aparezca nada
+  var tbody = document.getElementById('songTbody');
+  if (tbody) tbody.innerHTML = '';
+
+  // 2. Ocultar la tabla de musica y los controles
+  var table = document.querySelector('table');
+  if (table) table.style.display = 'none';
+  var pcard = document.querySelector('.player-card');
+  if (pcard) pcard.style.display = 'none';
+  var sbox = document.querySelector('.search-container');
+  if (sbox) sbox.style.display = 'none';
+
+  // 3. Detener reproduccion
+  if (cloudAudio) { cloudAudio.pause(); cloudAudio.src = ''; }
+
+  // 4. Mostrar exclusivamente la ventana de inicio de sesion (100% opaca)
+  var modal = document.getElementById('disconnectLoginModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    modal.style.background = '#0a0e1a';
+  }
 }
 
 function submitCloudLogin(e){
@@ -554,6 +572,15 @@ function quickDemoLogin(){
 function restoreCloudLibrary(){
   isCloudMode = true;
   document.getElementById('disconnectLoginModal').style.display = 'none';
+
+  // Re-mostrar tabla y reproductor
+  var table = document.querySelector('table');
+  if (table) table.style.display = 'table';
+  var pcard = document.querySelector('.player-card');
+  if (pcard) pcard.style.display = 'block';
+  var sbox = document.querySelector('.search-container');
+  if (sbox) sbox.style.display = 'block';
+
   document.getElementById('pageHeaderTitle').innerText = '☁️ DaVE Player Cloud';
   document.getElementById('pageHeaderSub').innerText = 'Sesión iniciada con éxito • ' + cloudTracks.length + ' canciones de la nube sincronizadas';
   document.getElementById('connectionBadge').className = 'badge badge-cloud';

@@ -1424,26 +1424,48 @@ function disconnectPhoneServer(isRemoteDisconnect = false) {
   updatePhoneConnectionUI(false);
   localStorage.removeItem('dave_connected_phone_ip');
 
-  // Si se estaba reproduciendo audio transmitido desde el teléfono, pausar
-  if (isPlaying && currentTrack && currentTrack.streamUrl && (currentTrack.streamUrl.includes(':8080') || currentTrack.streamUrl.includes('/stream/'))) {
-    pauseTrack();
+  // 1. Detener audio inmediatamente
+  if (isPlaying) {
+    audioPlayer.pause();
+    isPlaying = false;
+    updatePlayButton();
   }
+  audioPlayer.src = '';
+  currentTrackIndex = -1;
+  currentTrack = null;
 
-  // Cerrar sesión activa para forzar la ventana de inicio de sesión
+  // 2. VACIAR COMPLETAMENTE LAS LISTAS DE MÚSICA PARA QUE NO APAREZCA NADA
+  playlist = [];
+  phoneTracks = [];
+  localStorage.removeItem('dave_phone_tracks');
+  renderTrackList();
+  renderPhoneTracksList();
+
+  if (nowPlayingTitle) nowPlayingTitle.innerText = 'Sin música';
+  if (nowPlayingArtist) nowPlayingArtist.innerText = 'Inicia sesión para cargar tu música';
+  if (playerArt) playerArt.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80';
+
+  // 3. Cerrar sesión activa
   currentUser = null;
   localStorage.removeItem('dave_user');
   updateUserUI();
 
-  // Abrir la ventana principal de Iniciar Sesión con aviso destacado
+  // 4. OCULTAR TODO EL REPRODUCTOR Y REGRESAR AL PRINCIPIO (PANTALLA DE INICIAR SESIÓN)
+  document.querySelector('.app-viewport')?.classList.add('hidden');
   modalSync?.classList.add('hidden');
-  authDisconnectBanner?.classList.remove('hidden');
-  modalAuth?.classList.remove('hidden');
-  setTimeout(() => document.getElementById('auth-email')?.focus(), 250);
+  modalAuth?.classList.add('hidden');
 
-  const msg = isRemoteDisconnect 
-    ? 'El servidor de tu teléfono se ha desconectado. Inicia sesión para acceder a tu música en la nube.'
-    : 'Servidor del teléfono desconectado manualmente.';
-  showToast(msg, 'warning', 'fa-power-off');
+  const fullLogin = document.getElementById('full-login-screen');
+  if (fullLogin) {
+    fullLogin.classList.remove('hidden');
+    const title = document.getElementById('full-login-status-title');
+    const desc = document.getElementById('full-login-status-desc');
+    if (title) title.innerText = isRemoteDisconnect ? 'Servidor del teléfono desconectado' : 'Servidor desconectado';
+    if (desc) desc.innerText = 'Se ha cerrado la conexión con tu celular. Inicia sesión con tu cuenta para acceder a todas las canciones que tenías en la nube.';
+    setTimeout(() => document.getElementById('full-login-email')?.focus(), 250);
+  }
+
+  showToast('⚠️ Servidor desconectado. Regresando al inicio de sesión...', 'warning', 'fa-power-off');
 }
 
 btnPhoneDisconnect?.addEventListener('click', () => disconnectPhoneServer(false));
@@ -1487,78 +1509,99 @@ function updateUserUI() {
   }
 }
 
-function handleSuccessfulLoginCloudSync() {
+function handleSuccessfulLoginCloudSync(userObj = null) {
+  if (userObj) {
+    currentUser = userObj;
+    localStorage.setItem('dave_user', JSON.stringify(currentUser));
+  }
+
+  // 1. Ocultar pantallas de login
+  document.getElementById('full-login-screen')?.classList.add('hidden');
   authDisconnectBanner?.classList.add('hidden');
   modalAuth?.classList.add('hidden');
 
-  // Cargar todas las canciones que tenía en la nube
+  // 2. Mostrar la interfaz completa de la app
+  document.querySelector('.app-viewport')?.classList.remove('hidden');
+
+  // 3. RESTAURAR Y CARGAR TODAS LAS CANCIONES QUE TENÍA EN LA NUBE
   phoneTracks = [...realPhoneTracks];
+  playlist = [...realPhoneTracks];
   localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+  localStorage.setItem('dave_cloud_tracks', JSON.stringify(realPhoneTracks));
 
-  // Sincronizar en la playlist principal
-  realPhoneTracks.forEach(t => {
-    if (!playlist.some(p => p.title === t.title && p.artist === t.artist)) {
-      playlist.push(t);
-    }
-  });
-
+  // 4. Renderizar listas con toda la música
   renderTrackList();
   renderPhoneTracksList();
   updateUserUI();
 
-  // Cambiar a la vista principal de Canciones para ver toda la nube inmediatamente
+  // 5. Ir a la pestaña de Canciones y precargar la primera pista
   switchTab('songs');
-
-  // Precargar la primera canción en el dock
-  if (playlist.length > 0 && currentTrackIndex === -1) {
+  if (playlist.length > 0) {
     loadTrackMeta(0);
   }
 
-  showToast(`☁️ ¡Bienvenido, ${currentUser.name || 'Usuario'}! Se cargaron ${realPhoneTracks.length} canciones de tu nube`, 'success', 'fa-cloud');
+  showToast(`☁️ ¡Bienvenido, ${currentUser?.name || 'Usuario'}! Se cargaron ${realPhoneTracks.length} canciones de tu nube`, 'success', 'fa-cloud');
 }
 
+// Listeners de Formulario Modal Auth
 authForm?.addEventListener('submit', (e) => {
   e.preventDefault();
   const email = document.getElementById('auth-email').value;
   const name = email.split('@')[0];
-  currentUser = {
+  handleSuccessfulLoginCloudSync({
     email: email,
     name: name.charAt(0).toUpperCase() + name.slice(1),
     loggedInAt: new Date().toISOString()
-  };
-  localStorage.setItem('dave_user', JSON.stringify(currentUser));
-  updateUserUI();
-  handleSuccessfulLoginCloudSync();
+  });
 });
 
 document.getElementById('auth-link-demo')?.addEventListener('click', (e) => {
   e.preventDefault();
-  currentUser = {
+  handleSuccessfulLoginCloudSync({
     email: 'david.chaparro@daveplayer.app',
     name: 'David Chaparro',
     loggedInAt: new Date().toISOString()
-  };
-  localStorage.setItem('dave_user', JSON.stringify(currentUser));
-  updateUserUI();
-  handleSuccessfulLoginCloudSync();
+  });
 });
 
 document.getElementById('btn-google-login')?.addEventListener('click', () => {
-  currentUser = {
+  handleSuccessfulLoginCloudSync({
     email: 'usuario.google@gmail.com',
     name: 'Usuario DaVE',
     loggedInAt: new Date().toISOString()
-  };
-  localStorage.setItem('dave_user', JSON.stringify(currentUser));
-  updateUserUI();
-  handleSuccessfulLoginCloudSync();
+  });
+});
+
+// Listeners de Pantalla Completa Inicial (full-login-screen)
+document.getElementById('full-login-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const email = document.getElementById('full-login-email').value;
+  const name = email.split('@')[0];
+  handleSuccessfulLoginCloudSync({
+    email: email,
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    loggedInAt: new Date().toISOString()
+  });
+});
+
+document.getElementById('btn-full-login-demo')?.addEventListener('click', () => {
+  handleSuccessfulLoginCloudSync({
+    email: 'david.chaparro@daveplayer.app',
+    name: 'David Chaparro',
+    loggedInAt: new Date().toISOString()
+  });
+});
+
+document.getElementById('btn-full-login-google')?.addEventListener('click', () => {
+  handleSuccessfulLoginCloudSync({
+    email: 'usuario.google@gmail.com',
+    name: 'Usuario DaVE',
+    loggedInAt: new Date().toISOString()
+  });
 });
 
 document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
-  currentUser = null;
-  localStorage.removeItem('dave_user');
-  updateUserUI();
-  modalAuth?.classList.add('hidden');
+  disconnectPhoneServer(false);
 });
 
 document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
@@ -2089,7 +2132,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
-  const CATALOG_VERSION = '3.4.3';
+  const CATALOG_VERSION = '3.4.4';
   const savedVersion = localStorage.getItem('dave_catalog_ver');
   const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
   let loadedTracks = null;
@@ -2123,17 +2166,40 @@ function initApp() {
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
   localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
 
-  // Initialize main playlist with all songs
-  playlist = [...phoneTracks];
-  setupFilterChips();
-  renderTrackList();
-  renderPhoneTracksList();
-
   const savedUser = localStorage.getItem('dave_user');
   if (savedUser) {
     try {
       currentUser = JSON.parse(savedUser);
     } catch (e) {}
+  }
+
+  // Si no hay usuario autenticado (o tras desconectar el servidor):
+  // NO MOSTRAR NINGUNA MÚSICA Y REGRESAR A LA PANTALLA INICIAL DE INICIAR SESIÓN
+  if (!currentUser) {
+    playlist = [];
+    phoneTracks = [];
+    renderTrackList();
+    renderPhoneTracksList();
+    document.querySelector('.app-viewport')?.classList.add('hidden');
+    const fullLogin = document.getElementById('full-login-screen');
+    if (fullLogin) {
+      fullLogin.classList.remove('hidden');
+      const title = document.getElementById('full-login-status-title');
+      const desc = document.getElementById('full-login-status-desc');
+      if (title) title.innerText = 'Iniciar Sesión en DaVE Player';
+      if (desc) desc.innerText = 'Inicia sesión con tu cuenta para acceder a todas las canciones que tienes en la nube.';
+    }
+  } else {
+    // Usuario autenticado: mostrar app completa y canciones de la nube
+    document.querySelector('.app-viewport')?.classList.remove('hidden');
+    document.getElementById('full-login-screen')?.classList.add('hidden');
+    playlist = [...phoneTracks];
+    setupFilterChips();
+    renderTrackList();
+    renderPhoneTracksList();
+    if (playlist.length > 0) {
+      loadTrackMeta(0);
+    }
   }
   updateUserUI();
 
@@ -2143,13 +2209,7 @@ function initApp() {
     startPhoneHeartbeat(savedConnectedIp);
   }
 
-  // Si la URL solicita pantalla de login (?login=true o ?action=login)
-  if (window.location.search.includes('login=true') || window.location.search.includes('action=login')) {
-    authDisconnectBanner?.classList.remove('hidden');
-    modalAuth?.classList.remove('hidden');
-  }
-
-  // 5. Preload first track (Happy Nation) metadata so dock is ready immediately
+  // 5. Preload first track metadata si hay playlist lista
   if (playlist.length > 0) {
     loadTrackMeta(0);
   }
