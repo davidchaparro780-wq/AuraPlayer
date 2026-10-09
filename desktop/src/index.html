@@ -1211,21 +1211,72 @@
         <!-- TAB 2: MI CELULAR -->
         <section id="tab-phone" class="tab-pane">
           <div class="table-container">
-            <div style="padding: 1.2rem; background: rgba(6,182,212,0.06); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center;">
+            <div style="padding: 1.2rem; background: rgba(6,182,212,0.06); border-bottom: 1px solid var(--border-subtle); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem;">
               <div>
                 <h3 style="color:var(--accent-cyan); display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-mobile-screen-button"></i> Música de mi Celular</h3>
-                <p id="phone-sync-status" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Conecta tu celular por WiFi o inicia sesión para reproducir tu biblioteca móvil.</p>
+                <p id="phone-sync-status" style="font-size:0.8rem; color:var(--text-muted); margin-top:0.2rem;">Conecta tu teléfono por WiFi o carga tus canciones para reproducirlas en la PC.</p>
               </div>
-              <button id="btn-phone-sync-trigger" class="btn-glow-primary" style="padding:0.45rem 0.9rem;">
-                <i class="fa-solid fa-arrows-rotate"></i> Conectar Celular
-              </button>
+              <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button id="btn-phone-sync-trigger" class="btn-glow-primary" style="padding:0.45rem 0.9rem;">
+                  <i class="fa-solid fa-wifi"></i> Conectar WiFi
+                </button>
+                <button id="btn-phone-upload-files" class="btn-outline-secondary" style="padding:0.45rem 0.9rem;">
+                  <i class="fa-solid fa-file-audio"></i> Cargar Canciones
+                </button>
+                <button id="btn-phone-upload-folder" class="btn-outline-secondary" style="padding:0.45rem 0.9rem;">
+                  <i class="fa-solid fa-folder-open"></i> Carpeta Celular (USB)
+                </button>
+              </div>
             </div>
 
-            <div id="phone-empty-state" class="empty-shelf">
-              <i class="fa-solid fa-mobile-screen-button"></i>
-              <h3>No hay canciones sincronizadas</h3>
-              <p>Inicia sesión con tu correo o conecta tu teléfono mediante WiFi local (Servidor PC) para cargar tus pistas.</p>
-              <button id="btn-empty-phone-connect" class="btn-glow-primary"><i class="fa-solid fa-wifi"></i> Conectar Mi Celular</button>
+            <div id="phone-empty-state" class="empty-shelf" style="max-width: 660px; padding: 2rem 1.5rem;">
+              <i class="fa-solid fa-mobile-screen-button" style="font-size: 2.8rem; color: var(--accent-cyan); margin-bottom: 0.8rem;"></i>
+              <h3 style="font-size: 1.3rem;">¿Cómo escuchar las canciones de tu celular aquí?</h3>
+              <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                Elige la forma más cómoda para ti:
+              </p>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; text-align: left; margin-bottom: 1.5rem;">
+                <!-- Opción 1: WiFi en Vivo -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-glow); border-radius: var(--radius-md); padding: 1.2rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="fa-solid fa-wifi" style="color: var(--accent-cyan); font-size: 1.1rem;"></i>
+                    <strong style="color: #fff; font-size: 0.95rem;">Opción 1: Por WiFi (En Vivo)</strong>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.8rem; line-height: 1.4;">
+                    1. Abre <strong>DaVE Player</strong> en tu teléfono.<br>
+                    2. Toca <strong>🌐 Control Remoto PC</strong> arriba a la derecha.<br>
+                    3. Pulsa el botón de abajo e ingresa la dirección IP que te muestra tu pantalla.
+                  </p>
+                  <button id="btn-empty-phone-connect" class="btn-glow-primary" style="width: 100%; justify-content: center; font-size: 0.82rem;">
+                    <i class="fa-solid fa-tower-broadcast"></i> Conectar por IP WiFi
+                  </button>
+                </div>
+
+                <!-- Opción 2: Cable USB o Carpeta -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 1.2rem;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="fa-brands fa-usb" style="color: #10b981; font-size: 1.1rem;"></i>
+                    <strong style="color: #fff; font-size: 0.95rem;">Opción 2: Cable USB o Carpeta</strong>
+                  </div>
+                  <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.8rem; line-height: 1.4;">
+                    Conecta tu teléfono a la computadora por cable USB (modo Transferir archivos) y pulsa abajo para cargar tu carpeta de música directamente al reproductor.
+                  </p>
+                  <button id="btn-empty-phone-folder" class="btn-outline-secondary" style="width: 100%; justify-content: center; font-size: 0.82rem; border-color: rgba(16,185,129,0.4);">
+                    <i class="fa-solid fa-folder-plus" style="color: #10b981;"></i> Cargar Carpeta Celular
+                  </button>
+                </div>
+              </div>
+
+              <!-- Otras Opciones Rápidas -->
+              <div style="display:flex; gap:0.6rem; justify-content:center; align-items:center; flex-wrap:wrap;">
+                <button id="btn-empty-phone-files" class="btn-outline-secondary" style="font-size:0.8rem;">
+                  <i class="fa-solid fa-file-arrow-up"></i> Seleccionar Archivos Sueltos
+                </button>
+                <button id="btn-empty-phone-cloud" class="btn-outline-secondary" style="font-size:0.8rem;">
+                  <i class="fa-solid fa-cloud"></i> Cargar Canciones Cloud
+                </button>
+              </div>
             </div>
 
             <table id="phone-track-table" class="song-table hidden">
@@ -1477,20 +1528,41 @@
   <div id="modal-sync" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-top">
-        <h3><i class="fa-solid fa-mobile-screen-button" style="color:var(--accent-cyan);"></i> Conectar con Celular</h3>
+        <h3><i class="fa-solid fa-mobile-screen-button" style="color:var(--accent-cyan);"></i> Conectar con Celular por WiFi</h3>
         <button class="btn-close-x" id="btn-close-sync"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="modal-content">
-        <p style="font-size:0.85rem; color:var(--text-muted);">Abre <strong>DaVE Player en tu teléfono</strong> y ve a <strong>🌐 Control Remoto PC</strong> para ver tu dirección IP.</p>
-        <div class="form-field">
-          <label>IP del Celular (Ej. 192.168.1.15:8080)</label>
+        <div style="background: rgba(99,102,241,0.08); border: 1px solid var(--border-glow); border-radius: var(--radius-md); padding: 0.85rem; font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+          <strong style="color: #fff;">📌 ¿Cómo ver la IP de tu celular?</strong><br>
+          1. Abre la app <strong>DaVE Player</strong> en tu teléfono Android.<br>
+          2. Pulsa en el icono <strong>🌐 Control Remoto PC</strong>.<br>
+          3. Aparecerá una pantalla verde con tu IP (ej. <span style="color:var(--accent-cyan); font-family:monospace;">192.168.1.15:8080</span>).
+        </div>
+
+        <div class="form-field" style="margin-top: 0.6rem;">
+          <label>Dirección IP de tu Teléfono</label>
           <div style="display:flex; gap:0.5rem;">
-            <input type="text" id="sync-ip-input" placeholder="192.168.1.X:8080" style="flex:1;">
+            <input type="text" id="sync-ip-input" placeholder="192.168.1.15:8080" style="flex:1;">
             <button id="btn-test-connect" class="btn-glow-primary" style="padding:0.5rem 1rem;"><i class="fa-solid fa-bolt"></i> Conectar</button>
           </div>
         </div>
-        <div style="text-align:center; font-size:0.75rem; color:var(--text-dim); margin:0.4rem 0;">O VINCULAR CON CUENTA CLOUD</div>
-        <button id="btn-cloud-fetch" class="btn-outline-secondary btn-block"><i class="fa-solid fa-cloud-arrow-down"></i> Cargar Canciones de mi Cuenta</button>
+
+        <div style="display:flex; gap:0.5rem;">
+          <button id="btn-direct-browser-open" class="btn-outline-secondary btn-block" style="font-size:0.8rem;">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> Abrir Consola en Nueva Pestaña
+          </button>
+        </div>
+
+        <div style="text-align:center; font-size:0.75rem; color:var(--text-dim); margin:0.4rem 0;">O VINCULAR POR ARCHIVOS O CLOUD</div>
+        <div style="display:flex; gap:0.5rem;">
+          <button id="btn-modal-upload-phone" class="btn-outline-secondary btn-block" style="font-size:0.8rem;">
+            <i class="fa-solid fa-folder-open" style="color:#10b981;"></i> Carpeta USB
+          </button>
+          <button id="btn-cloud-fetch" class="btn-outline-secondary btn-block" style="font-size:0.8rem;">
+            <i class="fa-solid fa-cloud-arrow-down"></i> DaVE Cloud
+          </button>
+        </div>
+
         <div id="sync-feedback" class="sync-feedback-badge hidden"></div>
       </div>
     </div>
@@ -1499,11 +1571,13 @@
   <!-- Hidden File Pickers -->
   <input type="file" id="file-input-browser" accept="audio/*" multiple style="display: none;">
   <input type="file" id="folder-input-browser" webkitdirectory directory multiple style="display: none;">
+  <input type="file" id="phone-file-input" accept="audio/*" multiple style="display: none;">
+  <input type="file" id="phone-folder-input" webkitdirectory directory multiple style="display: none;">
 
   <!-- Audio Element -->
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.3.1"></script>
+  <script src="app.js?v=3.3.2"></script>
 </body>
 </html>

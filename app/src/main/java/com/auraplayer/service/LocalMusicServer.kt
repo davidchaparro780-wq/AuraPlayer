@@ -214,6 +214,7 @@ class LocalMusicServer {
                 path == "/" || path == "/index.html" -> serveIndex(socket)
                 path == "/party" -> serveParty(socket)
                 path == "/favicon.ico" -> sendNoContent(socket)
+                path.startsWith("/api/songs") -> serveSongsApi(socket)
                 path.startsWith("/api/status") -> serveStatusApi(socket)
                 path.startsWith("/api/playpause") -> {
                     controller?.onPlayPause()
@@ -237,8 +238,9 @@ class LocalMusicServer {
                     if (song != null) streamSong(socket, song)
                     else serve404(socket)
                 }
-                path.startsWith("/stream/") -> {
-                    val id = path.removePrefix("/stream/").toLongOrNull()
+                path.startsWith("/stream") -> {
+                    val id = if (rawPath.contains("id=")) rawPath.substringAfter("id=").substringBefore("&").toLongOrNull()
+                             else path.removePrefix("/stream/").removePrefix("/stream").toLongOrNull()
                     val song = songList.firstOrNull { it.id == id }
                     if (song != null) streamSong(socket, song)
                     else serve404(socket)
@@ -289,6 +291,21 @@ class LocalMusicServer {
         out.write(headers.toByteArray(Charsets.ISO_8859_1))
         out.flush()
         try { socket.shutdownOutput() } catch (_: Exception) {}
+    }
+
+    private fun serveSongsApi(socket: Socket) {
+        val array = org.json.JSONArray()
+        songList.forEach { song ->
+            val obj = JSONObject().apply {
+                put("id", song.id)
+                put("title", song.title)
+                put("artist", song.artist)
+                put("album", song.album)
+                put("duration", song.duration)
+            }
+            array.put(obj)
+        }
+        sendResponse(socket, "200 OK", "application/json; charset=UTF-8", array.toString().toByteArray(Charsets.UTF_8))
     }
 
     private fun serveStatusApi(socket: Socket) {
