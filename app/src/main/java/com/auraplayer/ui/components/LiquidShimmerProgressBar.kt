@@ -9,7 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -25,9 +25,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 
 /**
  * Barra de progreso de audio con fluido Shimmer Wave.
@@ -64,7 +62,7 @@ fun LiquidShimmerProgressBar(
         label = "thumbPulse"
     )
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(28.dp)
@@ -76,6 +74,8 @@ fun LiquidShimmerProgressBar(
             },
         contentAlignment = Alignment.CenterStart
     ) {
+        val totalWidth = maxWidth
+
         // Pista inactiva de fondo
         Box(
             modifier = Modifier
@@ -114,24 +114,14 @@ fun LiquidShimmerProgressBar(
 
         // Thumb de arrastre interactivo pulsante
         val thumbScale = if (isPlaying) thumbPulse else 1f
+        val thumbOffset = ((totalWidth - 16.dp) * safeProgress).coerceAtLeast(0.dp)
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(28.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Box(
-                modifier = Modifier
-                    .offset {
-                        // Posicionar el centro del thumb según el progreso
-                        val x = (safeProgress * (size.width - 16.dp.toPx())).coerceAtLeast(0f)
-                        IntOffset(x.roundToInt(), 0)
-                    }
-                    .size(16.dp * thumbScale)
-                    .shadow(8.dp, CircleShape, spotColor = activeColor)
-                    .clip(CircleShape)
-                    .background(Color.White)
-            )
-        }
+                .offset(x = thumbOffset)
+                .size(16.dp * thumbScale)
+                .shadow(8.dp, CircleShape, spotColor = activeColor)
+                .clip(CircleShape)
+                .background(Color.White)
+        )
     }
 }
