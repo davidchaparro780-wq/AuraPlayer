@@ -87,6 +87,30 @@ const canvas = document.getElementById('party-canvas');
 const ctx = canvas ? canvas.getContext('2d') : null;
 
 // ==========================================
+// 2.5 TOAST NOTIFICATIONS SYSTEM
+// ==========================================
+function showToast(message, type = 'info', icon = null) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+
+  let defaultIcon = 'fa-circle-info';
+  if (type === 'success') defaultIcon = 'fa-circle-check';
+  else if (type === 'heart') defaultIcon = 'fa-heart';
+  else if (type === 'warning') defaultIcon = 'fa-triangle-exclamation';
+
+  const iconClass = icon ? (icon.startsWith('fa-') ? icon : `fa-${icon}`) : defaultIcon;
+  toast.innerHTML = `<i class="fa-solid ${iconClass}"></i> <span>${message}</span>`;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('removing');
+    setTimeout(() => toast.remove(), 260);
+  }, 3200);
+}
+
+// ==========================================
 // 3. AUDIO ENGINE INITIALIZATION
 // ==========================================
 function initAudioEngine() {
@@ -470,6 +494,25 @@ function playTrack(index) {
     audioCtx.resume();
   }
 
+  // If already playing this track, toggle play/pause smoothly
+  if (currentIndex === index && audio.src) {
+    if (isPlaying) {
+      audio.pause();
+      isPlaying = false;
+      updatePlayPauseUI();
+      renderTrackList();
+      renderPhoneTracksList();
+    } else {
+      audio.play().then(() => {
+        isPlaying = true;
+        updatePlayPauseUI();
+        renderTrackList();
+        renderPhoneTracksList();
+      });
+    }
+    return;
+  }
+
   currentIndex = index;
   const track = playlist[index];
 
@@ -487,6 +530,7 @@ function playTrack(index) {
   audio.play().then(() => {
     isPlaying = true;
     updatePlayPauseUI();
+    showToast(`Reproduciendo: ${track.title}`, 'info', 'fa-play');
   }).catch(err => {
     console.warn('Playback error / autoplay blocked:', err);
     isPlaying = false;
@@ -520,6 +564,7 @@ function playTrack(index) {
   }
 
   renderTrackList();
+  renderPhoneTracksList();
 }
 
 function updatePlayPauseUI() {
@@ -628,13 +673,38 @@ audio.addEventListener('ended', () => {
   }
 });
 
-// Scrubber Seeking
-progressContainer.addEventListener('click', (e) => {
+// Scrubber Seeking & Interactive Hover Tooltip
+let isScrubbing = false;
+
+progressContainer?.addEventListener('mousemove', (e) => {
   if (!audio.duration || !isFinite(audio.duration)) return;
   const rect = progressContainer.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const ratio = Math.max(0, Math.min(1, clickX / rect.width));
-  audio.currentTime = ratio * audio.duration;
+  const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const hoverTime = pos * audio.duration;
+  const tooltip = document.getElementById('scrubber-tooltip');
+  if (tooltip) {
+    tooltip.innerText = formatTime(hoverTime);
+    tooltip.style.left = `${(pos * 100).toFixed(1)}%`;
+  }
+  if (isScrubbing) {
+    audio.currentTime = hoverTime;
+    progressFill.style.width = `${pos * 100}%`;
+    currentTimeEl.innerText = formatTime(hoverTime);
+  }
+});
+
+progressContainer?.addEventListener('mousedown', (e) => {
+  if (!audio.duration || !isFinite(audio.duration)) return;
+  isScrubbing = true;
+  const rect = progressContainer.getBoundingClientRect();
+  const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  audio.currentTime = pos * audio.duration;
+  progressFill.style.width = `${pos * 100}%`;
+  currentTimeEl.innerText = formatTime(audio.currentTime);
+});
+
+window.addEventListener('mouseup', () => {
+  isScrubbing = false;
 });
 
 // Volume Slider
@@ -658,54 +728,175 @@ muteBtn.addEventListener('click', () => {
     volumeSlider.value = currentVolume * 100;
     if (masterGain) masterGain.gain.value = currentVolume;
     isMuted = false;
+    showToast(`Volumen: ${Math.round(currentVolume * 100)}%`, 'info', 'fa-volume-high');
   } else {
     previousVolume = currentVolume;
     currentVolume = 0;
     volumeSlider.value = 0;
     if (masterGain) masterGain.gain.value = 0;
     isMuted = true;
+    showToast('Sonido silenciado', 'info', 'fa-volume-xmark');
   }
   updateVolumeIcon(currentVolume);
 });
 
-// Favorite Toggle
-btnLike?.addEventListener('click', () => {
-  if (currentIndex === -1 || playlist.length === 0) return;
-  const currentTrack = playlist[currentIndex];
-  const trackId = currentTrack.title + currentTrack.artist;
+// Favorite Toggle Helper
+function toggleFavorite(track) {
+  if (!track) return;
+  const trackId = track.title + track.artist;
+  let isFav = false;
 
   if (favorites.has(trackId)) {
     favorites.delete(trackId);
-    btnLike.classList.remove('active');
-    btnLike.innerHTML = '<i class="fa-regular fa-heart"></i>';
+    isFav = false;
+    showToast(`Eliminada de Favoritas: ${track.title}`, 'info', 'fa-heart');
   } else {
     favorites.add(trackId);
-    btnLike.classList.add('active');
-    btnLike.innerHTML = '<i class="fa-solid fa-heart"></i>';
+    isFav = true;
+    showToast(`Añadida a Favoritas: ${track.title}`, 'heart', 'fa-heart');
   }
 
-  if (favoritesCount) favoritesCount.innerText = `${favorites.size} canciones`;
+  // Update badges
+  if (favoritesCount) favoritesCount.innerText = favorites.size;
+  const filterFavCount = document.getElementById('filter-favs-count');
+  if (filterFavCount) filterFavCount.innerText = favorites.size;
   if (pstatFavs) pstatFavs.innerText = favorites.size;
+
+  // Update bottom player like button if playing this song
+  if (currentIndex !== -1 && playlist[currentIndex] && (playlist[currentIndex].title + playlist[currentIndex].artist) === trackId) {
+    if (isFav) {
+      btnLike?.classList.add('active');
+      if (btnLike) btnLike.innerHTML = '<i class="fa-solid fa-heart"></i>';
+    } else {
+      btnLike?.classList.remove('active');
+      if (btnLike) btnLike.innerHTML = '<i class="fa-regular fa-heart"></i>';
+    }
+  }
+
   localStorage.setItem('dave_favorites', JSON.stringify(Array.from(favorites)));
+  if (currentFilter === 'favs') {
+    applyCurrentFilter();
+  } else {
+    renderTrackList();
+    renderPhoneTracksList();
+  }
+}
+
+btnLike?.addEventListener('click', () => {
+  if (currentIndex === -1 || playlist.length === 0) return;
+  toggleFavorite(playlist[currentIndex]);
 });
 
 // Favorites Playlist Card Click
 document.querySelector('.favorites-card')?.addEventListener('click', () => {
   switchTab('songs');
+  const favChip = document.querySelector('.filter-chip[data-filter="favs"]');
+  if (favChip) {
+    favChip.click();
+  }
   const favSongs = playlist.filter(t => favorites.has(t.title + t.artist));
-  if (favSongs.length > 0) {
-    renderTrackList(favSongs);
-  } else {
-    alert('Aún no has marcado canciones como favoritas. Pulsa el corazón en el reproductor para agregarlas.');
+  if (favSongs.length === 0) {
+    showToast('No tienes favoritas aún. Pulsa el corazón ❤️ en cualquier canción para guardarla.', 'info', 'fa-heart');
   }
 });
 
 // ==========================================
-// 9. TRACKLIST & SEARCH (BUG FIXED: INDEXOF)
+// 9. UNIFIED TRACK ROW BUILDER & CATEGORIES
 // ==========================================
+function createTrackRow(track, displayIndex, isPhoneTab = false) {
+  const tr = document.createElement('tr');
+  const isThisPlaying = (currentIndex !== -1 && playlist[currentIndex] === track);
+  tr.className = `track-row ${isThisPlaying ? 'playing' : ''}`;
+  const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
+  const trackId = track.title + track.artist;
+  const isFav = favorites.has(trackId);
+
+  tr.innerHTML = `
+    <td class="row-num-cell">
+      ${isThisPlaying ? `
+        <div class="sound-wave-bars ${isPlaying ? '' : 'paused'}">
+          <span></span><span></span><span></span><span></span>
+        </div>
+      ` : `
+        <span class="row-index-num">${displayIndex + 1}</span>
+        <i class="fa-solid fa-play row-hover-play"></i>
+      `}
+    </td>
+    <td class="track-title-cell">
+      <img src="${cover}" class="track-cover-mini" alt="Cover" loading="lazy">
+      <div style="display:flex; flex-direction:column; overflow:hidden;">
+        <span style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.title}</span>
+        <span style="font-size:0.75rem; color:var(--text-dim);" class="mobile-sub-artist">${track.artist}</span>
+      </div>
+    </td>
+    <td>${track.artist}</td>
+    <td>${track.album || 'Infinix HOT 40i'}</td>
+    <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
+    <td>
+      <div class="row-actions-cell">
+        <button class="btn-row-action heart ${isFav ? 'active' : ''}" title="${isFav ? 'Quitar de Favoritas' : 'Añadir a Favoritas'}" data-action="fav">
+          <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-heart"></i>
+        </button>
+        ${track.streamUrl ? `
+          <a class="btn-row-action download" href="${track.streamUrl}" download="${track.title} - ${track.artist}.mp3" title="Descargar MP3 a tu PC" data-action="download">
+            <i class="fa-solid fa-arrow-down-to-bracket"></i>
+          </a>
+        ` : ''}
+      </div>
+    </td>
+  `;
+
+  tr.addEventListener('click', (e) => {
+    const actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+      const action = actionBtn.dataset.action;
+      if (action === 'fav') {
+        e.stopPropagation();
+        toggleFavorite(track);
+        return;
+      } else if (action === 'download') {
+        e.stopPropagation();
+        showToast(`Descargando: ${track.title}`, 'success', 'fa-arrow-down-to-bracket');
+        return;
+      }
+    }
+
+    if (!playlist.includes(track)) {
+      playlist.push(track);
+    }
+    const targetIdx = playlist.indexOf(track);
+    if (currentIndex === targetIdx && audio.src) {
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        updatePlayPauseUI();
+        renderTrackList();
+        renderPhoneTracksList();
+      } else {
+        audio.play().then(() => {
+          isPlaying = true;
+          updatePlayPauseUI();
+          renderTrackList();
+          renderPhoneTracksList();
+        });
+      }
+    } else {
+      playTrack(targetIdx);
+    }
+  });
+
+  return tr;
+}
+
+let currentFilter = 'all';
+
 function renderTrackList(filtered = null) {
   const list = filtered || playlist;
   if (songsCount) songsCount.innerText = list.length;
+  const filterAllCount = document.getElementById('filter-all-count');
+  if (filterAllCount) filterAllCount.innerText = playlist.length;
+  const filterFavCount = document.getElementById('filter-favs-count');
+  if (filterFavCount) filterFavCount.innerText = favorites.size;
 
   if (list.length === 0) {
     emptyState?.classList.remove('hidden');
@@ -718,42 +909,67 @@ function renderTrackList(filtered = null) {
   if (!trackList) return;
   trackList.innerHTML = '';
 
-  list.forEach((track) => {
-    const tr = document.createElement('tr');
-    const isThisPlaying = (currentIndex !== -1 && playlist[currentIndex] === track);
-    tr.className = `track-row ${isThisPlaying ? 'playing' : ''}`;
-    const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
-    const displayIndex = playlist.indexOf(track) + 1;
-
-    tr.innerHTML = `
-      <td>${isThisPlaying && isPlaying ? '<i class="fa-solid fa-volume-high"></i>' : displayIndex}</td>
-      <td class="track-title-cell">
-        <img src="${cover}" class="track-cover-mini" alt="Cover">
-        <span>${track.title}</span>
-      </td>
-      <td>${track.artist}</td>
-      <td>${track.album}</td>
-      <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
-    `;
-    // FIX: Click plays the exact index in playlist, not filtered index!
-    tr.addEventListener('click', () => playTrack(playlist.indexOf(track)));
+  list.forEach((track, i) => {
+    const tr = createTrackRow(track, playlist.indexOf(track));
     trackList.appendChild(tr);
   });
 }
 
-// Search Filter
-searchInput?.addEventListener('input', (e) => {
-  const q = e.target.value.toLowerCase().trim();
-  if (!q) {
-    renderTrackList();
-    return;
+function applyCurrentFilter() {
+  const q = searchInput?.value.toLowerCase().trim() || '';
+  let list = playlist;
+
+  if (currentFilter === 'urban') {
+    list = playlist.filter(t => /bad bunny|blessd|cris mj|westcol|beéle|daddy yankee|urbano|trap/i.test(`${t.title} ${t.artist} ${t.album}`));
+  } else if (currentFilter === 'pop') {
+    list = playlist.filter(t => /lady gaga|rihanna|ace of base|bôa|pop|dance/i.test(`${t.title} ${t.artist} ${t.album}`));
+  } else if (currentFilter === 'cyber') {
+    list = playlist.filter(t => /cyberpunk|dawid|edgerunners|topic|phantom|ziraki|sound/i.test(`${t.title} ${t.artist} ${t.album}`));
+  } else if (currentFilter === 'favs') {
+    list = playlist.filter(t => favorites.has(t.title + t.artist));
   }
-  const filtered = playlist.filter(t => 
-    t.title.toLowerCase().includes(q) ||
-    t.artist.toLowerCase().includes(q) ||
-    t.album.toLowerCase().includes(q)
-  );
-  renderTrackList(filtered);
+
+  if (q) {
+    list = list.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      t.artist.toLowerCase().includes(q) ||
+      t.album.toLowerCase().includes(q)
+    );
+  }
+
+  renderTrackList(list);
+}
+
+function setupFilterChips() {
+  const container = document.getElementById('category-chips');
+  if (!container) return;
+
+  container.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.filter;
+      applyCurrentFilter();
+    });
+  });
+}
+
+// Search Filter & Clear Button
+const searchClearBtn = document.getElementById('search-clear-btn');
+searchInput?.addEventListener('input', (e) => {
+  if (searchClearBtn) {
+    searchClearBtn.style.display = e.target.value ? 'block' : 'none';
+  }
+  applyCurrentFilter();
+});
+
+searchClearBtn?.addEventListener('click', () => {
+  if (searchInput) {
+    searchInput.value = '';
+    searchClearBtn.style.display = 'none';
+    searchInput.focus();
+    applyCurrentFilter();
+  }
 });
 
 // ==========================================
@@ -823,21 +1039,45 @@ function handleBrowserFiles(files) {
   renderTrackList();
 }
 
-// Drag & Drop
+// Full Window Drag & Drop Overlay Handlers
+const dragOverlay = document.getElementById('drag-drop-overlay');
+let dragCounter = 0;
+
+window.addEventListener('dragenter', (e) => {
+  e.preventDefault();
+  dragCounter++;
+  if (dragOverlay) dragOverlay.classList.add('active');
+});
+
+window.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    if (dragOverlay) dragOverlay.classList.remove('active');
+  }
+});
+
 window.addEventListener('dragover', (e) => {
   e.preventDefault();
   e.stopPropagation();
 });
+
 window.addEventListener('drop', (e) => {
   e.preventDefault();
   e.stopPropagation();
+  dragCounter = 0;
+  if (dragOverlay) dragOverlay.classList.remove('active');
+
   if (e.dataTransfer && e.dataTransfer.files.length > 0) {
     const files = Array.from(e.dataTransfer.files);
     const activeTab = document.querySelector('.tab-pane.active');
     if (activeTab && activeTab.id === 'tab-phone') {
       handlePhoneBrowserFiles(files);
+      showToast(`${files.length} archivo(s) añadidos al Celular`, 'success', 'fa-mobile-screen');
     } else {
       handleBrowserFiles(files);
+      showToast(`${files.length} archivo(s) añadidos a tu Biblioteca`, 'success', 'fa-music');
     }
   }
 });
@@ -1342,7 +1582,7 @@ const phoneFolderInput = document.getElementById('phone-folder-input');
 function handlePhoneBrowserFiles(files) {
   const audioFiles = files.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|flac|m4a|aac|ogg|opus)$/i.test(f.name));
   if (audioFiles.length === 0) {
-    alert('No se encontraron archivos de audio compatibles (MP3, WAV, FLAC, M4A) en la selección.');
+    showToast('No se encontraron archivos de audio compatibles (MP3, WAV, FLAC, M4A)', 'warning', 'fa-triangle-exclamation');
     return;
   }
   
@@ -1404,7 +1644,7 @@ document.getElementById('btn-empty-phone-cloud')?.addEventListener('click', () =
 document.getElementById('btn-direct-browser-open')?.addEventListener('click', () => {
   let ip = document.getElementById('sync-ip-input').value.trim();
   if (!ip) {
-    alert('Por favor introduce primero la dirección IP que muestra tu celular (ej. 192.168.1.15:8080)');
+    showToast('Introduce la IP que muestra tu celular (ej. 192.168.0.161:8080)', 'warning', 'fa-triangle-exclamation');
     return;
   }
   if (!ip.startsWith('http://') && !ip.startsWith('https://')) {
@@ -1497,45 +1737,50 @@ function renderPhoneTracksList() {
   if (!phoneTrackList) return;
   phoneTrackList.innerHTML = '';
 
-  phoneTracks.forEach((track) => {
-    const tr = document.createElement('tr');
-    tr.className = 'track-row';
-    const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
-    tr.innerHTML = `
-      <td><i class="fa-solid fa-mobile-screen" style="color: var(--accent-cyan); font-size: 0.8rem;"></i></td>
-      <td class="track-title-cell">
-        <img src="${cover}" class="track-cover-mini" alt="Cover">
-        <span>${track.title}</span>
-      </td>
-      <td>${track.artist}</td>
-      <td>${track.album}</td>
-      <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
-    `;
-    tr.addEventListener('click', () => {
-      if (!playlist.includes(track)) {
-        playlist = [track, ...playlist];
-        renderTrackList();
-      }
-      playTrack(playlist.indexOf(track));
-    });
+  phoneTracks.forEach((track, i) => {
+    const tr = createTrackRow(track, i, true);
     phoneTrackList.appendChild(tr);
   });
 }
 
 // ==========================================
-// 14. KEYBOARD SHORTCUTS
+// 14. KEYBOARD SHORTCUTS & HELP MODAL
 // ==========================================
+const modalShortcuts = document.getElementById('modal-shortcuts');
+const btnShortcutsModal = document.getElementById('btn-shortcuts-modal');
+const btnCloseShortcuts = document.getElementById('btn-close-shortcuts');
+
+btnShortcutsModal?.addEventListener('click', () => {
+  modalShortcuts?.classList.remove('hidden');
+});
+btnCloseShortcuts?.addEventListener('click', () => {
+  modalShortcuts?.classList.add('hidden');
+});
+modalShortcuts?.addEventListener('click', (e) => {
+  if (e.target === modalShortcuts) modalShortcuts.classList.add('hidden');
+});
+
 window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
-  if (e.code === 'Space') {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.key === '?' || (e.shiftKey && e.code === 'Slash')) {
+    e.preventDefault();
+    modalShortcuts?.classList.toggle('hidden');
+  } else if (e.code === 'Space') {
     e.preventDefault();
     playBtn.click();
   } else if (e.code === 'ArrowRight') {
     if (e.shiftKey) nextBtn.click();
-    else if (audio.duration) audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+    else if (audio.duration) {
+      audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
+      showToast(`+5s (${formatTime(audio.currentTime)})`, 'info', 'fa-forward');
+    }
   } else if (e.code === 'ArrowLeft') {
     if (e.shiftKey) prevBtn.click();
-    else audio.currentTime = Math.max(0, audio.currentTime - 5);
+    else {
+      audio.currentTime = Math.max(0, audio.currentTime - 5);
+      showToast(`-5s (${formatTime(audio.currentTime)})`, 'info', 'fa-backward');
+    }
   } else if (e.code === 'ArrowUp') {
     e.preventDefault();
     volumeSlider.value = Math.min(100, parseInt(volumeSlider.value) + 5);
@@ -1546,6 +1791,16 @@ window.addEventListener('keydown', (e) => {
     volumeSlider.dispatchEvent(new Event('input'));
   } else if (e.code === 'KeyM') {
     muteBtn.click();
+  } else if (e.code === 'KeyL') {
+    switchTab('lyrics');
+    showToast('Modo Karaoke & Letras', 'info', 'fa-microphone-lines');
+  } else if (e.code === 'KeyS') {
+    shuffleBtn?.click();
+    showToast(isShuffle ? 'Modo Aleatorio activado' : 'Modo Aleatorio desactivado', 'info', 'fa-shuffle');
+  } else if (e.code === 'KeyR') {
+    repeatBtn?.click();
+    const modes = ['Repetir desactivado', 'Repetir lista completa', 'Repetir canción actual'];
+    showToast(modes[repeatMode] || 'Repetir', 'info', 'fa-repeat');
   } else if (e.code === 'KeyF') {
     document.getElementById('btn-party-fullscreen')?.click();
   }
@@ -1590,12 +1845,15 @@ function initApp() {
   if (savedFavs) {
     try {
       favorites = new Set(JSON.parse(savedFavs));
-      if (favoritesCount) favoritesCount.innerText = `${favorites.size} canciones`;
     } catch (e) {}
   }
+  if (favoritesCount) favoritesCount.innerText = favorites.size;
+  const filterFavCount = document.getElementById('filter-favs-count');
+  if (filterFavCount) filterFavCount.innerText = favorites.size;
+  if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
-  const CATALOG_VERSION = '3.3.5';
+  const CATALOG_VERSION = '3.4.0';
   const savedVersion = localStorage.getItem('dave_catalog_ver');
   const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
   let loadedTracks = null;
@@ -1627,6 +1885,7 @@ function initApp() {
 
   // Initialize main playlist with all songs
   playlist = [...phoneTracks];
+  setupFilterChips();
   renderTrackList();
   renderPhoneTracksList();
 

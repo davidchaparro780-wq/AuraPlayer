@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=3.3.1">
+  <link rel="stylesheet" href="style.css?v=3.4.0">
 
   <style>
     /* CRITICAL INLINE STYLES (Guarantees zero-cache rendering) */
@@ -1085,6 +1085,16 @@
 </head>
 <body>
 
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Full Window Drag & Drop Overlay -->
+  <div id="drag-drop-overlay" class="drag-drop-overlay">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+    <h2>Suelta tus canciones aquí</h2>
+    <p>Se añadirán y reproducirán automáticamente en tu biblioteca</p>
+  </div>
+
   <!-- Ambient Glow -->
   <div id="ambient-glow" class="ambient-glow"></div>
 
@@ -1096,15 +1106,20 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.3.0</span>
+        <span class="brand-badge">PRO v3.4.0</span>
       </div>
 
       <div class="search-wrapper">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
         <input type="text" id="search-input" class="search-input" placeholder="Buscar canciones, artistas, géneros...">
+        <button id="search-clear-btn" class="search-clear-btn" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
       <div class="top-actions">
+        <button id="btn-shortcuts-modal" class="btn-action-pill" title="Atajos de Teclado">
+          <i class="fa-regular fa-keyboard"></i> <span>Atajos</span>
+        </button>
+
         <button id="btn-open-sync-modal" class="btn-action-pill accent-sync" title="Conectar celular por WiFi">
           <i class="fa-solid fa-mobile-screen-button"></i> <span>Mi Celular</span>
         </button>
@@ -1183,6 +1198,15 @@
         <!-- TAB 1: CANCIONES -->
         <section id="tab-songs" class="tab-pane active">
           <div class="table-container" id="drop-zone">
+            <!-- Filter Chips Bar -->
+            <div class="filter-chips-bar" id="category-chips">
+              <button class="filter-chip active" data-filter="all"><i class="fa-solid fa-layer-group"></i> Todas (<span id="filter-all-count">25</span>)</button>
+              <button class="filter-chip" data-filter="urban"><i class="fa-solid fa-fire" style="color: #f97316;"></i> Urbano & Trap</button>
+              <button class="filter-chip" data-filter="pop"><i class="fa-solid fa-star" style="color: #eab308;"></i> Pop & Dance</button>
+              <button class="filter-chip" data-filter="cyber"><i class="fa-solid fa-bolt" style="color: var(--accent-cyan);"></i> Cyberpunk & Electro</button>
+              <button class="filter-chip" data-filter="favs"><i class="fa-solid fa-heart" style="color: #f43f5e;"></i> Favoritas (<span id="filter-favs-count">0</span>)</button>
+            </div>
+
             <div id="empty-state" class="empty-shelf">
               <i class="fa-solid fa-cloud-arrow-up"></i>
               <h3>Tu biblioteca está lista</h3>
@@ -1196,11 +1220,12 @@
             <table id="track-table" class="song-table hidden">
               <thead>
                 <tr>
-                  <th style="width: 45px;">#</th>
+                  <th style="width: 45px; text-align: center;">#</th>
                   <th>Título</th>
                   <th>Artista</th>
                   <th>Álbum</th>
-                  <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 70px;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 85px; text-align: right;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="track-list"></tbody>
@@ -1282,11 +1307,12 @@
             <table id="phone-track-table" class="song-table hidden">
               <thead>
                 <tr>
-                  <th style="width: 45px;">#</th>
+                  <th style="width: 45px; text-align: center;">#</th>
                   <th>Título</th>
                   <th>Artista</th>
                   <th>Álbum</th>
-                  <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 70px;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 85px; text-align: right;">Acciones</th>
                 </tr>
               </thead>
               <tbody id="phone-track-list"></tbody>
@@ -1451,6 +1477,7 @@
         <div class="scrubber-dock">
           <span class="time-tag" id="current-time">0:00</span>
           <div class="scrubber-bar-wrap" id="progress-container">
+            <div class="scrubber-tooltip" id="scrubber-tooltip">0:00</div>
             <div class="scrubber-bar-bg">
               <div class="scrubber-bar-fill" id="progress-fill"></div>
             </div>
@@ -1568,6 +1595,33 @@
     </div>
   </div>
 
+  <!-- Modal: Atajos de Teclado -->
+  <div id="modal-shortcuts" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-top">
+        <h3><i class="fa-regular fa-keyboard" style="color:var(--accent-cyan);"></i> Atajos de Teclado</h3>
+        <button class="btn-close-x" id="btn-close-shortcuts"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin-bottom: 0.2rem;">Controla tu música al instante como un profesional:</p>
+        <div class="shortcut-grid">
+          <div class="shortcut-item"><span>Reproducir / Pausar</span><span class="kbd-badge">Espacio</span></div>
+          <div class="shortcut-item"><span>Siguiente Pista</span><span class="kbd-badge">Shift + →</span></div>
+          <div class="shortcut-item"><span>Pista Anterior</span><span class="kbd-badge">Shift + ←</span></div>
+          <div class="shortcut-item"><span>Avanzar 5 segundos</span><span class="kbd-badge">→</span></div>
+          <div class="shortcut-item"><span>Retroceder 5 segundos</span><span class="kbd-badge">←</span></div>
+          <div class="shortcut-item"><span>Subir / Bajar Volumen</span><span class="kbd-badge">↑ / ↓</span></div>
+          <div class="shortcut-item"><span>Silenciar (Mute)</span><span class="kbd-badge">M</span></div>
+          <div class="shortcut-item"><span>Karaoke & Letras</span><span class="kbd-badge">L</span></div>
+          <div class="shortcut-item"><span>Modo Aleatorio</span><span class="kbd-badge">S</span></div>
+          <div class="shortcut-item"><span>Repetir Pista</span><span class="kbd-badge">R</span></div>
+          <div class="shortcut-item"><span>Visualizador Completo</span><span class="kbd-badge">F</span></div>
+          <div class="shortcut-item"><span>Abrir esta Ayuda</span><span class="kbd-badge">?</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Hidden File Pickers -->
   <input type="file" id="file-input-browser" accept="audio/*" multiple style="display: none;">
   <input type="file" id="folder-input-browser" webkitdirectory directory multiple style="display: none;">
@@ -1578,6 +1632,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.3.5"></script>
+  <script src="app.js?v=3.4.0"></script>
 </body>
 </html>
