@@ -797,7 +797,13 @@ window.addEventListener('drop', (e) => {
   e.preventDefault();
   e.stopPropagation();
   if (e.dataTransfer && e.dataTransfer.files.length > 0) {
-    handleBrowserFiles(Array.from(e.dataTransfer.files));
+    const files = Array.from(e.dataTransfer.files);
+    const activeTab = document.querySelector('.tab-pane.active');
+    if (activeTab && activeTab.id === 'tab-phone') {
+      handlePhoneBrowserFiles(files);
+    } else {
+      handleBrowserFiles(files);
+    }
   }
 });
 
@@ -1107,15 +1113,96 @@ function syncCloudPhoneLibrary() {
   updateUserUI();
 }
 
-document.getElementById('btn-test-connect')?.addEventListener('click', async () => {
+// ==========================================
+// PHONE FILE IMPORT (USB & LOCAL)
+// ==========================================
+const phoneFileInput = document.getElementById('phone-file-input');
+const phoneFolderInput = document.getElementById('phone-folder-input');
+
+function handlePhoneBrowserFiles(files) {
+  const audioFiles = files.filter(f => f.type.startsWith('audio/') || /\.(mp3|wav|flac|m4a|aac|ogg|opus)$/i.test(f.name));
+  if (audioFiles.length === 0) {
+    alert('No se encontraron archivos de audio compatibles (MP3, WAV, FLAC, M4A) en la selección.');
+    return;
+  }
+  
+  const newTracks = audioFiles.map(file => {
+    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    return {
+      title: nameWithoutExt,
+      artist: 'Mi Celular',
+      album: 'Almacenamiento Móvil',
+      duration: 0,
+      fileObj: file,
+      coverUrl: null
+    };
+  });
+
+  phoneTracks = [...newTracks, ...phoneTracks];
+  localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks.map(t => ({
+    title: t.title,
+    artist: t.artist,
+    album: t.album,
+    duration: t.duration,
+    coverUrl: t.coverUrl
+  }))));
+
+  renderPhoneTracksList();
+  updateUserUI();
+
+  // Also integrate with main playlist so player can seamlessly play them
+  newTracks.forEach(t => {
+    if (!playlist.some(p => p.title === t.title && p.artist === t.artist)) {
+      playlist.push(t);
+    }
+  });
+  renderTrackList();
+
+  // Play the first song right away
+  if (newTracks.length > 0) {
+    const idx = playlist.indexOf(newTracks[0]);
+    if (idx !== -1) playTrack(idx);
+  }
+}
+
+phoneFileInput?.addEventListener('change', (e) => handlePhoneBrowserFiles(Array.from(e.target.files)));
+phoneFolderInput?.addEventListener('change', (e) => handlePhoneBrowserFiles(Array.from(e.target.files)));
+
+document.getElementById('btn-phone-upload-files')?.addEventListener('click', () => phoneFileInput?.click());
+document.getElementById('btn-phone-upload-folder')?.addEventListener('click', () => phoneFolderInput?.click());
+document.getElementById('btn-empty-phone-files')?.addEventListener('click', () => phoneFileInput?.click());
+document.getElementById('btn-empty-phone-folder')?.addEventListener('click', () => phoneFolderInput?.click());
+document.getElementById('btn-modal-upload-phone')?.addEventListener('click', () => {
+  modalSync?.classList.add('hidden');
+  phoneFolderInput?.click();
+});
+document.getElementById('btn-empty-phone-cloud')?.addEventListener('click', () => {
+  syncCloudPhoneLibrary();
+  showSyncFeedback('¡Canciones Cloud cargadas!', 'success');
+});
+
+document.getElementById('btn-direct-browser-open')?.addEventListener('click', () => {
   let ip = document.getElementById('sync-ip-input').value.trim();
   if (!ip) {
-    showSyncFeedback('Por favor introduce la IP que muestra tu celular (ej. 192.168.1.5:8080)', 'error');
+    alert('Por favor introduce primero la dirección IP que muestra tu celular (ej. 192.168.1.15:8080)');
     return;
   }
   if (!ip.startsWith('http://') && !ip.startsWith('https://')) {
     ip = `http://${ip}`;
   }
+  window.open(ip, '_blank');
+});
+
+document.getElementById('btn-test-connect')?.addEventListener('click', async () => {
+  let ip = document.getElementById('sync-ip-input').value.trim();
+  if (!ip) {
+    showSyncFeedback('Por favor introduce la IP que muestra tu celular (ej. 192.168.1.15:8080)', 'error');
+    return;
+  }
+  if (!ip.startsWith('http://') && !ip.startsWith('https://')) {
+    ip = `http://${ip}`;
+  }
+  ip = ip.replace(/\/+$/, '');
 
   showSyncFeedback('Conectando con DaVE Player en tu teléfono...', 'success');
 
@@ -1133,8 +1220,8 @@ document.getElementById('btn-test-connect')?.addEventListener('click', async () 
           artist: s.artist || 'Móvil DaVE',
           album: s.album || 'Celular',
           duration: s.duration ? Math.floor(s.duration / 1000) : 0,
-          streamUrl: `${ip}/stream?id=${s.id}`,
-          coverUrl: `${ip}/albumart?id=${s.id}`
+          streamUrl: `${ip}/stream/${s.id}`,
+          coverUrl: null
         }));
         localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
         renderPhoneTracksList();
@@ -1145,12 +1232,17 @@ document.getElementById('btn-test-connect')?.addEventListener('click', async () 
       }
     }
   } catch (err) {
-    console.log('Direct WiFi error, using Cloud fallback:', err);
+    console.log('Direct WiFi error (posible bloqueo HTTPS o IP inaccesible):', err);
   }
 
-  syncCloudPhoneLibrary();
-  showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones de tu cuenta.`, 'success');
-  setTimeout(() => modalSync?.classList.add('hidden'), 1200);
+  // If on HTTPS (GitHub Pages), warn the user to use the direct browser open button
+  if (window.location.protocol === 'https:') {
+    showSyncFeedback('Tu navegador bloquea conexiones HTTP locales desde páginas HTTPS. Pulsa el botón "Abrir Consola en Nueva Pestaña" para abrir directamente la consola de tu teléfono.', 'error');
+  } else {
+    syncCloudPhoneLibrary();
+    showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones de tu cuenta.`, 'success');
+    setTimeout(() => modalSync?.classList.add('hidden'), 1200);
+  }
 });
 
 document.getElementById('btn-cloud-fetch')?.addEventListener('click', () => {
