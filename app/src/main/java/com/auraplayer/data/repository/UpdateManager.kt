@@ -29,12 +29,25 @@ class UpdateManager(private val context: Context) {
     private val repoReleasesApi = "https://api.github.com/repos/davidchaparro780-wq/AuraPlayer/releases/latest"
     private val tag = "UpdateManager"
 
+    val currentVersionCode: Long
+        get() = try {
+            val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                pInfo.versionCode.toLong()
+            }
+        } catch (_: Exception) {
+            56L
+        }
+
     val currentVersionName: String
         get() = try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "1.9.4"
+            pInfo.versionName ?: "2.7.4"
         } catch (_: Exception) {
-            "1.9.4"
+            "2.7.4"
         }
 
     /**
@@ -58,13 +71,15 @@ class UpdateManager(private val context: Context) {
                 val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
                 val root = JSONObject(jsonStr)
                 val remoteVersion = root.optString("versionName", "").removePrefix("v").trim()
+                val remoteVersionCode = root.optLong("versionCode", 0L)
                 val changelog = root.optString("changelog", "Nueva versión de DaVE disponible.")
                 val downloadUrl = root.optString("downloadUrl", "")
                 val fileSizeMb = root.optDouble("fileSizeMb", 23.0)
 
-                Log.d(tag, "version.json check: Remote $remoteVersion vs Current $currentVersion")
+                Log.d(tag, "version.json check: Remote $remoteVersion (code $remoteVersionCode) vs Current $currentVersion (code $currentVersionCode)")
 
-                if (isVersionNewer(remoteVersion, currentVersion) && downloadUrl.isNotBlank()) {
+                val isNewer = (remoteVersionCode > 0 && remoteVersionCode > currentVersionCode) || isVersionNewer(remoteVersion, currentVersion)
+                if (isNewer && downloadUrl.isNotBlank()) {
                     val info = UpdateInfo(
                         versionName = "v$remoteVersion",
                         changelog = changelog,

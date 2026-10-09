@@ -54,6 +54,7 @@
     </queries>
 
     <application
+        android:name=".DaVEApplication"
         android:allowBackup="true"
         android:hardwareAccelerated="true"
         android:largeHeap="true"

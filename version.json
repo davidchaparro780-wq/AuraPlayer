@@ -1,7 +1,7 @@
 {
-  "versionCode": 55,
-  "versionName": "2.7.3",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.3/app-debug.apk",
-  "changelog": "✨ DaVE v2.7.3 — Cola Interactiva en Reproductor, Resplandor Dinámico & Gestos Avanzados:\n• 📑 Hoja de Cola Interactiva en Reproductor: Toca el icono de cola en la esquina superior derecha del reproductor para abrir la lista de reproducción activa. Toca cualquier canción para reproducirla inmediatamente con indicador de estado 'Sonando' y ecualizador animado.\n• 🌈 Resplandor Dinámico de Carátula en Vinilo: El halo de luz, borde y sombras del vinilo ahora se adaptan automáticamente a la paleta de colores de la portada del álbum en tiempo real.\n• 📳 Agitar para Saltar Canción (Shake-to-Skip): Salta a la siguiente pista sacudiendo suavemente el dispositivo con respuesta háptica inteligente.\n• 🚀 Optimizaciones de fluidez y respuesta táctil en controles principales.",
+  "versionCode": 56,
+  "versionName": "2.7.4",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v2.7.4/app-debug.apk",
+  "changelog": "🔔 DaVE v2.7.4 — Sistema de Notificaciones de Actualización Automática:\n• ⚡ Notificaciones de Actualización en Segundo Plano: Integración con Android WorkManager para comprobar y notificar automáticamente nuevas versiones y mejoras incluso con la app cerrada.\n• 🎯 Botón de Acción Rápida 'ACTUALIZAR AHORA': Instala las nuevas versiones directamente desde la barra de notificaciones del sistema con un solo toque.\n• 🛡️ Gestión Proactiva de Permisos: Solicitud automática del permiso de notificaciones en Android 13+ (POST_NOTIFICATIONS) para garantizar que nunca te pierdas una versión.\n• 🚀 Canal de Notificación Prioritario: Sonido, vibración y estilo expandido enriquecido para avisos críticos y de nuevas funciones.",
   "fileSizeMb": 24.5
 }

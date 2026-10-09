@@ -173,6 +173,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
 }
 
 @OptIn(UnstableApi::class)
@@ -315,7 +320,25 @@ fun AuraApp(
     var isDownloadingUpdate by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableIntStateOf(0) }
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            com.auraplayer.worker.UpdateWorker.enqueuePeriodicWork(context)
+            scope.launch {
+                updateManager.checkForUpdate()
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        com.auraplayer.worker.UpdateWorker.enqueuePeriodicWork(context)
+
         val currentIntent = (context as? Activity)?.intent
         if (currentIntent?.action == "ACTION_SHOW_UPDATE") {
             val vName = currentIntent.getStringExtra("UPDATE_VERSION_NAME") ?: ""

@@ -14,8 +14,8 @@ android {
         applicationId = "com.auraplayer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 55
-        versionName = "2.7.3"
+        versionCode = 56
+        versionName = "2.7.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -104,4 +104,7 @@ dependencies {
 
     // Palette API for dynamic album art color extraction
     implementation("androidx.palette:palette-ktx:1.0.0")
+
+    // WorkManager for Automatic Background Update Checks
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 }
