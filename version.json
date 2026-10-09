@@ -1,7 +1,7 @@
 {
-  "versionCode": 63,
-  "versionName": "3.1.2",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.1.2/app-debug.apk",
-  "changelog": "✨ DaVE Player v3.1.2 — Estabilidad, Optimización & Fixes:\n• ⚡ Barra de Progreso Líquida Interactiva: Soporte para deslizamiento táctil continuo (scrubbing en tiempo real) y aceleración por GPU.\n• 🎤 Parser de Letras Sincronizadas LRC Multi-Marca: Soporte para múltiples marcas de tiempo por línea sin pérdida de texto.\n• 🔊 Limpieza Segura del Motor de Visualizador FFT: Desconexión nativa de callbacks de captura para evitar fugas de memoria en cambios de pista.\n• 🎬 Muxer de Extracción de Audio a 320k: Normalización de offsets de buffer para compatibilidad total con procesadores MediaTek, Snapdragon y Exynos.",
+  "versionCode": 64,
+  "versionName": "3.2.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.2.0/app-debug.apk",
+  "changelog": "✨ DaVE Player v3.2.0 — Mega Suite de Animaciones Futuristas:\n• ✨ Chispas y Luciérnagas Neón Táctiles: Lienzo táctil interactivo que dispara partículas y polvo estelar con físicas de inercia y gravedad al tocar la pantalla.\n• 💥 Supernova Beat Drop Shockwave: Anillos concéntricos expansivos de onda de choque supersónica en cambios de pista y clímax musical.\n• 🔥 Corona de Plasma Líquido 360°: Anillo de plasma que ondula y genera llamaradas de neón sincronizadas con las 32 bandas del analizador FFT.\n• 🌌 Túnel Cósmico Hiperespacial (Hyperdrive Warp Stars): Fondo 3D con estelas de luz estelar que aceleran con el ritmo de la música.\n• 🌈 Aurora Boreal Perimetral (Edge Aurora Breathing): Resplandor fluido en los 4 bordes de la pantalla que respira con la paleta de colores del álbum.\n• ⚡ Giro con Inercia de 720° al Cambiar de Pista: Aceleración y desaceleración ultra-fluida del vinilo al saltar canciones.",
   "fileSizeMb": 25.0
 }

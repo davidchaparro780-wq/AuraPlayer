@@ -29,10 +29,16 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.FastOutSlowInEasing
 import com.auraplayer.ui.components.AuraRippleRings
 import com.auraplayer.ui.components.FloatingMusicParticles
 import com.auraplayer.ui.components.PlayPauseMorphButton
 import com.auraplayer.ui.components.LiquidShimmerProgressBar
+import com.auraplayer.ui.components.AuraTouchSparks
+import com.auraplayer.ui.components.NeonPlasmaCrown
+import com.auraplayer.ui.components.SupernovaShockwave
+import com.auraplayer.ui.components.EdgeAuroraGlow
+import com.auraplayer.ui.components.HyperdriveWarpTunnel
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.auraplayer.ui.components.bounceClick
@@ -411,8 +417,21 @@ fun PlayerScreen(
     val shuffleRotation = remember { Animatable(0f) }
     val repeatBounce = remember { Animatable(1f) }
 
+    var supernovaTrigger by remember { mutableLongStateOf(0L) }
+
     // Hardware-accelerated continuous vinyl rotation (RenderThread / GPU execution with zero Compose recomposition)
     val vinylRotation = remember { Animatable(0f) }
+
+    LaunchedEffect(currentMedia.id) {
+        supernovaTrigger = System.currentTimeMillis()
+        launch {
+            vinylRotation.animateTo(
+                targetValue = vinylRotation.value + 720f,
+                animationSpec = tween(700, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             while (isActive) {
@@ -507,25 +526,41 @@ fun PlayerScreen(
             },
         color = Color(0xFF070A12)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(dynamicBg))
+        AuraTouchSparks(
+            accentColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary,
+            secondaryColor = Color(0xFFEC4899)
         ) {
-            FluidAmbilightGlow(
-                primaryColor = dynamicBg.firstOrNull() ?: MaterialTheme.colorScheme.primary,
-                secondaryColor = dynamicBg.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(dynamicBg))
+            ) {
+                FluidAmbilightGlow(
+                    primaryColor = dynamicBg.firstOrNull() ?: MaterialTheme.colorScheme.primary,
+                    secondaryColor = dynamicBg.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
+                )
 
-            CanvasLoopsOverlay(theme = currentCanvasLoop)
-            FloatingMusicParticles(
-                isPlaying = isPlaying,
-                accentColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
-            )
+                EdgeAuroraGlow(
+                    isPlaying = isPlaying,
+                    primaryColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary,
+                    secondaryColor = Color(0xFF8B5CF6),
+                    tertiaryColor = Color(0xFFEC4899)
+                )
 
-            if (isEdgeLightingEnabled) {
-                EdgeLighting(isPlaying = isPlaying)
-            }
+                HyperdriveWarpTunnel(
+                    isPlaying = isPlaying,
+                    accentColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
+                )
+
+                CanvasLoopsOverlay(theme = currentCanvasLoop)
+                FloatingMusicParticles(
+                    isPlaying = isPlaying,
+                    accentColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
+                )
+
+                if (isEdgeLightingEnabled) {
+                    EdgeLighting(isPlaying = isPlaying)
+                }
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -745,6 +780,18 @@ fun PlayerScreen(
                                     .padding(vertical = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                SupernovaShockwave(
+                                    trigger = supernovaTrigger,
+                                    accentColor = activeAccent,
+                                    secondaryColor = Color(0xFFEC4899)
+                                )
+
+                                NeonPlasmaCrown(
+                                    isPlaying = isPlaying,
+                                    primaryColor = activeAccent,
+                                    secondaryColor = Color(0xFFEC4899)
+                                )
+
                                 AuraRippleRings(
                                     isPlaying = isPlaying,
                                     accentColor = activeAccent
@@ -2106,6 +2153,7 @@ fun PlayerScreen(
                     }
                 }
             }
+        }
         }
     }
 
