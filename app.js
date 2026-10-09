@@ -1420,40 +1420,52 @@ function stopPhoneHeartbeat() {
 }
 
 function disconnectPhoneServer(isRemoteDisconnect = false) {
-  stopPhoneHeartbeat();
-  updatePhoneConnectionUI(false);
+  try {
+    stopPhoneHeartbeat();
+    updatePhoneConnectionUI(false);
+  } catch (e) {}
   localStorage.removeItem('dave_connected_phone_ip');
   sessionStorage.removeItem('dave_active_session');
 
   // 1. Detener audio inmediatamente
-  if (isPlaying) {
-    audioPlayer.pause();
-    isPlaying = false;
-    updatePlayButton();
-  }
-  audioPlayer.src = '';
-  currentTrackIndex = -1;
-  currentTrack = null;
+  try {
+    if (audio) {
+      audio.pause();
+      audio.src = '';
+    }
+  } catch (e) {}
+  isPlaying = false;
+  currentIndex = -1;
+  try {
+    updatePlayPauseUI();
+  } catch (e) {}
 
   // 2. VACIAR COMPLETAMENTE LAS LISTAS DE MÚSICA PARA QUE NO APAREZCA NADA
   playlist = [];
   phoneTracks = [];
   localStorage.removeItem('dave_phone_tracks');
   localStorage.removeItem('dave_cloud_tracks');
-  renderTrackList();
-  renderPhoneTracksList();
+  try {
+    renderTrackList();
+    renderPhoneTracksList();
+  } catch (e) {}
 
-  if (nowPlayingTitle) nowPlayingTitle.innerText = 'Sin música';
-  if (nowPlayingArtist) nowPlayingArtist.innerText = 'Inicia sesión para cargar tu música';
+  if (playerTitle) playerTitle.innerText = 'Sin música';
+  if (playerArtist) playerArtist.innerText = 'Inicia sesión para cargar tu música';
   if (playerArt) playerArt.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80';
 
   // 3. Cerrar sesión activa
   currentUser = null;
   localStorage.removeItem('dave_user');
-  updateUserUI();
+  try {
+    updateUserUI();
+  } catch (e) {}
 
   // 4. OCULTAR TODO EL REPRODUCTOR Y REGRESAR AL PRINCIPIO (PANTALLA DE INICIAR SESIÓN)
-  document.querySelector('.app-viewport')?.classList.add('hidden');
+  const appViewport = document.querySelector('.app-viewport') || document.getElementById('app-viewport');
+  if (appViewport) {
+    appViewport.classList.add('hidden');
+  }
   modalSync?.classList.add('hidden');
   modalAuth?.classList.add('hidden');
 
@@ -1619,14 +1631,19 @@ document.getElementById('btn-full-login-google')?.addEventListener('click', () =
 
 function logoutUser() {
   // 1. Detener audio inmediatamente
-  if (isPlaying) {
-    audioPlayer.pause();
-    isPlaying = false;
-    updatePlayButton();
+  try {
+    if (audio) {
+      audio.pause();
+      audio.src = '';
+    }
+  } catch (e) {
+    console.error('Error al pausar audio:', e);
   }
-  audioPlayer.src = '';
-  currentTrackIndex = -1;
-  currentTrack = null;
+  isPlaying = false;
+  currentIndex = -1;
+  try {
+    updatePlayPauseUI();
+  } catch (e) {}
 
   // 2. Limpiar sesión y almacenamiento local
   currentUser = null;
@@ -1635,21 +1652,27 @@ function logoutUser() {
   localStorage.removeItem('dave_phone_tracks');
   localStorage.removeItem('dave_cloud_tracks');
   localStorage.removeItem('dave_connected_phone_ip');
-  stopPhoneHeartbeat();
-  updatePhoneConnectionUI(false);
+  try {
+    stopPhoneHeartbeat();
+    updatePhoneConnectionUI(false);
+  } catch (e) {}
 
   // 3. VACIAR COMPLETAMENTE LAS LISTAS DE MÚSICA PARA QUE NO APAREZCA NADA
   playlist = [];
   phoneTracks = [];
-  renderTrackList();
-  renderPhoneTracksList();
+  try {
+    renderTrackList();
+    renderPhoneTracksList();
+  } catch (e) {}
 
-  if (nowPlayingTitle) nowPlayingTitle.innerText = 'Sin música';
-  if (nowPlayingArtist) nowPlayingArtist.innerText = 'Inicia sesión para cargar tu música';
+  if (playerTitle) playerTitle.innerText = 'Sin música';
+  if (playerArtist) playerArtist.innerText = 'Inicia sesión para cargar tu música';
   if (playerArt) playerArt.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80';
 
-  // 4. Actualizar interfaz de usuario
-  updateUserUI();
+  // 4. Actualizar interfaz de usuario (oculta botones de logout)
+  try {
+    updateUserUI();
+  } catch (e) {}
 
   // 5. Cerrar cualquier modal abierto
   modalAuth?.classList.add('hidden');
@@ -1657,14 +1680,17 @@ function logoutUser() {
   document.getElementById('modal-shortcuts')?.classList.add('hidden');
 
   // 6. OCULTAR TOTALMENTE EL REPRODUCTOR Y MOSTRAR LA PANTALLA PRINCIPAL DE INICIAR SESIÓN
-  document.querySelector('.app-viewport')?.classList.add('hidden');
+  const appViewport = document.querySelector('.app-viewport') || document.getElementById('app-viewport');
+  if (appViewport) {
+    appViewport.classList.add('hidden');
+  }
   const fullLogin = document.getElementById('full-login-screen');
   if (fullLogin) {
     fullLogin.classList.remove('hidden');
     const title = document.getElementById('full-login-status-title');
     const desc = document.getElementById('full-login-status-desc');
     if (title) title.innerText = 'Iniciar Sesión en DaVE Cloud';
-    if (desc) desc.innerText = 'Has cerrado sesión. Inicia sesión con tu cuenta para acceder y escuchar todas las canciones que tienes guardadas en la nube.';
+    if (desc) desc.innerText = 'Has cerrado tu sesión. Inicia sesión con tu cuenta para acceder y escuchar todas las canciones que tienes guardadas en la nube.';
     
     const passInput = document.getElementById('full-login-password');
     if (passInput) passInput.value = '';
@@ -2218,7 +2244,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '3.5.1';
+  const CATALOG_VERSION = '3.5.2';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
