@@ -79,6 +79,16 @@ import com.auraplayer.ui.components.EdgeLighting
 import com.auraplayer.ui.components.FluidAmbilightGlow
 import com.auraplayer.ui.components.SoundboardDialog
 import com.auraplayer.ui.components.StoryShareHelper
+import com.auraplayer.audio.ViralAudioEffectsManager
+import com.auraplayer.audio.ViralAudioMode
+import com.auraplayer.data.repository.SyncedLyricsManager
+import com.auraplayer.ui.components.SyncedLyricsDialog
+import com.auraplayer.ui.components.CassetteTapeSkin
+import com.auraplayer.ui.components.IpodClassicSkin
+import com.auraplayer.ui.components.CanvasLoopsOverlay
+import com.auraplayer.ui.components.CanvasLoopTheme
+import com.auraplayer.ui.components.AudioQualityDialog
+import com.auraplayer.ui.components.WaveformVisualizer
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -211,8 +221,15 @@ fun PlayerScreen(
 
     var isEdgeLightingEnabled by remember { mutableStateOf(false) }
     var isSpatial8D by remember { mutableStateOf(EqualizerManager.instance.isSpatial8DEnabled) }
-    var centerVisualizerMode by remember { mutableIntStateOf(0) } // 0: Vinyl disc, 1: Live Spectrum Waves
+    var centerVisualizerMode by remember { mutableIntStateOf(0) } // 0: Vinyl disc, 1: Cassette Tape, 2: Live Spectrum Waves
     var showSoundboardDialog by remember { mutableStateOf(false) }
+    var showSyncedLyricsDialog by remember { mutableStateOf(false) }
+    var showIpodClassicDialog by remember { mutableStateOf(false) }
+    var showAudioQualityDialog by remember { mutableStateOf(false) }
+    val syncedLyricsManager = remember { SyncedLyricsManager.getInstance(context) }
+    val viralEffectsManager = remember { ViralAudioEffectsManager.getInstance(context) }
+    var currentViralMode by remember { mutableStateOf(viralEffectsManager.currentMode) }
+    var currentCanvasLoop by remember { mutableStateOf(CanvasLoopTheme.OFF) }
 
     val tubeAmpManager = remember { com.auraplayer.audio.TubeAmpManager.getInstance(context) }
     var isTubeAmpActive by remember { mutableStateOf(tubeAmpManager.isTubeAmpEnabled) }
@@ -481,6 +498,8 @@ fun PlayerScreen(
                 primaryColor = dynamicBg.firstOrNull() ?: MaterialTheme.colorScheme.primary,
                 secondaryColor = dynamicBg.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
             )
+
+            CanvasLoopsOverlay(theme = currentCanvasLoop)
 
             if (isEdgeLightingEnabled) {
                 EdgeLighting(isPlaying = isPlaying)
@@ -799,8 +818,27 @@ fun PlayerScreen(
                                         .clip(CircleShape)
                                         .background(Color(0xFF070A12))
                                         .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                                )
+                                 )
                             }
+                        } else if (centerVisualizerMode == 1) {
+                            // Skin Retro Vintage: Cassette Tape Interactivo
+                            CassetteTapeSkin(
+                                song = currentMedia,
+                                isPlaying = isPlaying,
+                                currentPositionMs = currentPositionMs,
+                                durationMs = durationMs,
+                                onTogglePlay = onTogglePlay,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.92f)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                AuraHaptic.click(view)
+                                                centerVisualizerMode = 2
+                                            }
+                                        )
+                                    }
+                            )
                         } else {
                             // Live Cyber Spectrum Waveform Visualizer (Real-time FFT audio engine)
                             Box(
@@ -1402,6 +1440,91 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = if (isKaraokeActive) Color(0xFFE040FB) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Viral Audio Mode Pill (Slowed+Reverb / Nightcore)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (currentViralMode != ViralAudioMode.NORMAL) Color(0xFF00F5FF).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .border(1.dp, if (currentViralMode != ViralAudioMode.NORMAL) Color(0xFF00F5FF) else Color.Transparent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                currentViralMode = viralEffectsManager.cycleMode(MainActivity.activeController)
+                                Toast.makeText(context, "Efecto: ${currentViralMode.displayName} (${currentViralMode.tag})", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = when (currentViralMode) {
+                                ViralAudioMode.NORMAL -> "⚡ VIRAL"
+                                ViralAudioMode.SLOWED_REVERB -> "🌊 SLOWED"
+                                ViralAudioMode.NIGHTCORE -> "⚡ NIGHTCORE"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (currentViralMode != ViralAudioMode.NORMAL) Color(0xFF00F5FF) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Synced Lyrics LRC Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .clickable { showSyncedLyricsDialog = true }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "🎤 LRC EN VIVO",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Retro iPod Classic Skin Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .clickable { showIpodClassicDialog = true }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "🕹️ iPOD",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFE2E8F0),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Canvas Loop Ambient Background Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (currentCanvasLoop != CanvasLoopTheme.OFF) Color(0xFFE879F9).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .border(1.dp, if (currentCanvasLoop != CanvasLoopTheme.OFF) Color(0xFFE879F9) else Color.Transparent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                currentCanvasLoop = when (currentCanvasLoop) {
+                                    CanvasLoopTheme.OFF -> CanvasLoopTheme.RAIN
+                                    CanvasLoopTheme.RAIN -> CanvasLoopTheme.SYNTHWAVE
+                                    CanvasLoopTheme.SYNTHWAVE -> CanvasLoopTheme.STARFIELD
+                                    CanvasLoopTheme.STARFIELD -> CanvasLoopTheme.OFF
+                                }
+                                Toast.makeText(context, "Fondo: ${currentCanvasLoop.label}", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (currentCanvasLoop != CanvasLoopTheme.OFF) "🌌 ${currentCanvasLoop.name}" else "🌌 CANVAS",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (currentCanvasLoop != CanvasLoopTheme.OFF) Color(0xFFE879F9) else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
                     }
@@ -2382,6 +2505,40 @@ fun PlayerScreen(
     if (showRelaxAmbienceDialog) {
         RelaxAmbienceDialog(
             onDismiss = { showRelaxAmbienceDialog = false }
+        )
+    }
+
+    // Synced Lyrics LRC Dialog
+    if (showSyncedLyricsDialog) {
+        SyncedLyricsDialog(
+            song = currentMedia,
+            currentPositionMs = currentPositionMs,
+            lyricsManager = syncedLyricsManager,
+            onSeekTo = onSeek,
+            onDismiss = { showSyncedLyricsDialog = false }
+        )
+    }
+
+    // Retro iPod Classic Skin Dialog
+    if (showIpodClassicDialog) {
+        IpodClassicSkin(
+            song = currentMedia,
+            isPlaying = isPlaying,
+            currentPositionMs = currentPositionMs,
+            durationMs = durationMs,
+            onTogglePlay = onTogglePlay,
+            onNext = onNext,
+            onPrevious = onPrevious,
+            onSeekRelative = onSeekRelative,
+            onDismiss = { showIpodClassicDialog = false }
+        )
+    }
+
+    // Audio Quality Inspector Dialog
+    if (showAudioQualityDialog) {
+        AudioQualityDialog(
+            song = currentMedia,
+            onDismiss = { showAudioQualityDialog = false }
         )
     }
 }

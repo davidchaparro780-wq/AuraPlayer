@@ -385,6 +385,18 @@ fun AuraApp(
     val statsManager = remember { com.auraplayer.data.repository.PlaybackStatsManager.getInstance(context) }
     val headphoneProfileManager = remember { com.auraplayer.audio.HeadphoneProfileManager.getInstance(context) }
 
+    var showDaveDriveScreen by remember { mutableStateOf(false) }
+    var showZapDialog by remember { mutableStateOf(false) }
+    var showMoodWheelDialog by remember { mutableStateOf(false) }
+    var showVideoExtractorDialog by remember { mutableStateOf(false) }
+    var showPartyLinkDialog by remember { mutableStateOf(false) }
+
+    val loudnessManager = remember { com.auraplayer.audio.LoudnessNormalizerManager.getInstance(context) }
+    val crossfeedManager = remember { com.auraplayer.audio.CrossfeedManager.getInstance(context) }
+    val silenceTrimmerManager = remember { com.auraplayer.audio.SilenceTrimmerManager.getInstance(context) }
+    val zapManager = remember { com.auraplayer.audio.ZapPreviewManager.getInstance(context) }
+    val partyLinkManager = remember { com.auraplayer.audio.PartyLinkManager.getInstance(context) }
+
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
     LaunchedEffect(controller) {
@@ -577,6 +589,21 @@ fun AuraApp(
             }
             showKaraokeDjDialog -> {
                 showKaraokeDjDialog = false
+            }
+            showDaveDriveScreen -> {
+                showDaveDriveScreen = false
+            }
+            showZapDialog -> {
+                showZapDialog = false
+            }
+            showMoodWheelDialog -> {
+                showMoodWheelDialog = false
+            }
+            showVideoExtractorDialog -> {
+                showVideoExtractorDialog = false
+            }
+            showPartyLinkDialog -> {
+                showPartyLinkDialog = false
             }
             showSleepTimerDialog -> {
                 showSleepTimerDialog = false
@@ -1022,11 +1049,19 @@ fun AuraApp(
                 } else if (durationMs <= 0L && (currentMedia?.duration ?: 0L) > 0L) {
                     durationMs = currentMedia!!.duration
                 }
+                if (currentPositionMs < 800L && durationMs > 20_000L && silenceTrimmerManager.isEnabled) {
+                    val trimStart = silenceTrimmerManager.getTrimmedStartPositionMs(durationMs)
+                    if (trimStart > 0L) {
+                        it.seekTo(trimStart)
+                    }
+                }
             }
             val now = System.currentTimeMillis()
             if (now - lastStatsTime >= 1000L) {
                 val elapsedSecs = ((now - lastStatsTime) / 1000L).toInt()
                 statsManager.recordListeningTime(currentMedia?.artist ?: "Desconocido", elapsedSecs)
+                loudnessManager.applyLoudness()
+                crossfeedManager.applyCrossfeed()
                 lastStatsTime = now
             }
             delay(400)
@@ -1370,6 +1405,112 @@ fun AuraApp(
             gaplessManager = gaplessManager,
             headphoneManager = headphoneProfileManager,
             onDismiss = { showKaraokeDjDialog = false }
+        )
+    }
+
+    // Modo Coche / DaVE Drive (Conducción Segura)
+    if (showDaveDriveScreen) {
+        com.auraplayer.ui.components.DaveDriveScreen(
+            song = currentMedia,
+            isPlaying = isPlaying,
+            isFavorite = currentMedia?.let { favoritesManager.isFavorite(it.id) } ?: false,
+            onTogglePlay = {
+                controller?.let { if (it.isPlaying) it.pause() else it.play() }
+            },
+            onNext = { controller?.seekToNextMediaItem() },
+            onPrevious = { controller?.seekToPreviousMediaItem() },
+            onToggleFavorite = {
+                currentMedia?.let { favoritesManager.toggleFavorite(it.id) }
+            },
+            onDismiss = { showDaveDriveScreen = false }
+        )
+    }
+
+    // Modo ZAP (DJ Escucha Rápida de Coros)
+    if (showZapDialog) {
+        com.auraplayer.ui.components.ZapDialog(
+            zapManager = zapManager,
+            isCurrentlyActive = zapManager.isZapActive,
+            onStartZap = { durationSec ->
+                zapManager.startZap(controller, scope)
+                showZapDialog = false
+                Toast.makeText(context, "Modo ZAP activado (${durationSec}s por coro)", Toast.LENGTH_SHORT).show()
+            },
+            onStopZap = {
+                zapManager.stopZap()
+                showZapDialog = false
+                Toast.makeText(context, "Modo ZAP detenido", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showZapDialog = false }
+        )
+    }
+
+    // Rueda de Estados de Ánimo (Mood Wheel)
+    if (showMoodWheelDialog) {
+        com.auraplayer.ui.components.MoodWheelDialog(
+            allSongs = songs,
+            onMoodSelected = { mood, moodSongs ->
+                showMoodWheelDialog = false
+                if (moodSongs.isNotEmpty()) {
+                    controller?.let { c ->
+                        c.stop()
+                        c.clearMediaItems()
+                        val items = moodSongs.map { s ->
+                            androidx.media3.common.MediaItem.Builder()
+                                .setUri(s.uri)
+                                .setMediaId(s.id.toString())
+                                .setMediaMetadata(
+                                    androidx.media3.common.MediaMetadata.Builder()
+                                        .setTitle(s.title)
+                                        .setArtist(s.artist)
+                                        .setAlbumTitle(s.album)
+                                        .setArtworkUri(s.artworkUri)
+                                        .build()
+                                )
+                                .build()
+                        }
+                        c.setMediaItems(items)
+                        c.prepare()
+                        c.play()
+                    }
+                    Toast.makeText(context, "Vibra ${mood.title} cargada (${moodSongs.size} pistas)", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDismiss = { showMoodWheelDialog = false }
+        )
+    }
+
+    // Extractor de Video a Audio (MP3/M4A)
+    if (showVideoExtractorDialog) {
+        com.auraplayer.ui.components.VideoExtractorDialog(
+            videos = videos,
+            onAudioExtracted = {
+                scope.launch {
+                    val raw = mediaRepository.loadAudioFiles()
+                    songs = raw
+                }
+            },
+            onDismiss = { showVideoExtractorDialog = false }
+        )
+    }
+
+    // Silent Disco / Party Link (Sincronización Wi-Fi)
+    if (showPartyLinkDialog) {
+        com.auraplayer.ui.components.PartyLinkDialog(
+            partyManager = partyLinkManager,
+            currentMedia = currentMedia,
+            currentPosMs = currentPositionMs,
+            isPlaying = isPlaying,
+            onSyncPlay = { title, posMs, playing ->
+                val matchIdx = songs.indexOfFirst { it.title.equals(title, ignoreCase = true) }
+                if (matchIdx >= 0) {
+                    controller?.let { c ->
+                        c.seekTo(matchIdx, posMs)
+                        if (playing) c.play() else c.pause()
+                    }
+                }
+            },
+            onDismiss = { showPartyLinkDialog = false }
         )
     }
 
@@ -1908,6 +2049,11 @@ fun AuraApp(
                     onOpenInsights = { showInsightsDialog = true },
                     onOpenBatchCovers = { showBatchCoversDialog = true },
                     onOpenKaraokeDj = { showKaraokeDjDialog = true },
+                    onOpenCarMode = { showDaveDriveScreen = true },
+                    onOpenZap = { showZapDialog = true },
+                    onOpenMoodWheel = { showMoodWheelDialog = true },
+                    onOpenVideoExtractor = { showVideoExtractorDialog = true },
+                    onOpenPartyLink = { showPartyLinkDialog = true },
                     userManager = userManager,
                     onOpenAuth = { showAuthDialog = true },
                     onOpenProfile = { showProfileDialog = true },
@@ -2199,7 +2345,7 @@ fun AuraApp(
                     controller?.playbackParameters = PlaybackParameters(speed, pitch)
                 },
                 onOpenSleepTimer = { showSleepTimerDialog = true },
-                onOpenCarMode = { showCarModeScreen = true },
+                onOpenCarMode = { showDaveDriveScreen = true },
                 onOpenStandBy = { showStandByScreen = true },
                 onDeleteSong = { song ->
                     handleDeleteSong(song)

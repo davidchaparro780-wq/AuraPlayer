@@ -194,6 +194,11 @@ fun MusicScreen(
     onOpenInsights: () -> Unit = {},
     onOpenBatchCovers: () -> Unit = {},
     onOpenKaraokeDj: () -> Unit = {},
+    onOpenCarMode: () -> Unit = {},
+    onOpenZap: () -> Unit = {},
+    onOpenMoodWheel: () -> Unit = {},
+    onOpenVideoExtractor: () -> Unit = {},
+    onOpenPartyLink: () -> Unit = {},
     userManager: com.auraplayer.data.repository.UserManager,
     onOpenAuth: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -453,6 +458,26 @@ fun MusicScreen(
                         DropdownMenuItem(
                             text = { Text("🎤 Estudio Karaoke & Balance", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenKaraokeDj() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🚗 Modo Coche (DaVE Drive)", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenCarMode() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⚡ Modo ZAP (DJ Escucha Rápida)", color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenZap() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎭 Rueda de Emociones (Mood Wheel)", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenMoodWheel() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎬 Extraer Audio de Video (MP3)", color = Color(0xFF06B6D4), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenVideoExtractor() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("📻 Silent Disco (Party Link)", color = Color(0xFF8B5CF6), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenPartyLink() }
                         )
                         DropdownMenuItem(
                             text = { Text("🤖 DaVE AI Playlists", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
