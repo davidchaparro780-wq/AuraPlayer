@@ -2,9 +2,13 @@ package com.auraplayer.ui.components
 
 import android.content.Intent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -255,23 +259,48 @@ fun SyncedLyricsDialog(
                                             animationSpec = tween(durationMillis = 250),
                                             label = "lyricsColor"
                                         )
+                                        val lineScale by animateFloatAsState(
+                                            targetValue = if (isActive) 1.04f else 0.98f,
+                                            animationSpec = spring(dampingRatio = 0.65f),
+                                            label = "lineScale"
+                                        )
 
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .scale(lineScale)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(
+                                                    if (isActive) Color(0xFF38BDF8).copy(alpha = 0.12f)
+                                                    else Color.Transparent
+                                                )
+                                                .border(
+                                                    width = if (isActive) 1.dp else 0.dp,
+                                                    color = if (isActive) Color(0xFF38BDF8).copy(alpha = 0.35f) else Color.Transparent,
+                                                    shape = RoundedCornerShape(14.dp)
+                                                )
                                                 .clickable {
                                                     onSeekTo(line.timeMs)
                                                 }
-                                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                                                .padding(horizontal = 12.dp, vertical = 8.dp)
                                         ) {
-                                            Text(
-                                                text = line.text,
-                                                color = textColor,
-                                                fontSize = if (isActive) 23.sp else 17.sp,
-                                                fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
-                                                lineHeight = if (isActive) 32.sp else 24.sp
-                                            )
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                if (isActive) {
+                                                    LiveEqualizerMini(
+                                                        isPlaying = true,
+                                                        barColor = Color(0xFF38BDF8),
+                                                        modifier = Modifier.padding(end = 10.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = line.text,
+                                                    color = textColor,
+                                                    fontSize = if (isActive) 23.sp else 17.sp,
+                                                    fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
+                                                    lineHeight = if (isActive) 32.sp else 24.sp,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
                                         }
                                     }
                                 }

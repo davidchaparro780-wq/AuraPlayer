@@ -18,10 +18,22 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.runtime.rememberCoroutineScope
+import com.auraplayer.ui.components.VinylTonearm
+import com.auraplayer.ui.components.AuraRippleRings
+import com.auraplayer.ui.components.FloatingMusicParticles
+import com.auraplayer.ui.components.PlayPauseMorphButton
+import com.auraplayer.ui.components.LiquidShimmerProgressBar
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.auraplayer.ui.components.bounceClick
@@ -394,6 +406,10 @@ fun PlayerScreen(
     var isHudVisible by remember { mutableStateOf(false) }
     var isPocketLocked by remember { mutableStateOf(false) }
 
+    val coroutineScope = rememberCoroutineScope()
+    val shuffleRotation = remember { Animatable(0f) }
+    val repeatBounce = remember { Animatable(1f) }
+
     // Hardware-accelerated continuous vinyl rotation (RenderThread / GPU execution with zero Compose recomposition)
     val vinylRotation = remember { Animatable(0f) }
     LaunchedEffect(isPlaying) {
@@ -501,6 +517,10 @@ fun PlayerScreen(
             )
 
             CanvasLoopsOverlay(theme = currentCanvasLoop)
+            FloatingMusicParticles(
+                isPlaying = isPlaying,
+                accentColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
+            )
 
             if (isEdgeLightingEnabled) {
                 EdgeLighting(isPlaying = isPlaying)
@@ -719,8 +739,19 @@ fun PlayerScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.84f)
-                                    .aspectRatio(1f)
+                                    .fillMaxWidth(0.92f)
+                                    .aspectRatio(1f),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AuraRippleRings(
+                                    isPlaying = isPlaying,
+                                    accentColor = activeAccent
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.91f)
+                                        .aspectRatio(1f)
                                     .shadow(
                                         elevation = dynamicElevation,
                                         shape = CircleShape,
@@ -821,6 +852,16 @@ fun PlayerScreen(
                                         .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
                                  )
                             }
+
+                            // Realistic Mechanical Vinyl Tonearm
+                            VinylTonearm(
+                                isPlaying = isPlaying,
+                                accentColor = activeAccent,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 10.dp, y = (-24).dp)
+                            )
+                        }
                         } else if (centerVisualizerMode == 1) {
                             // Skin Retro Vintage: Cassette Tape Interactivo
                             CassetteTapeSkin(
@@ -1145,22 +1186,40 @@ fun PlayerScreen(
                         .padding(horizontal = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = currentMedia.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    AnimatedContent(
+                        targetState = currentMedia.title,
+                        transitionSpec = {
+                            (slideInVertically { it / 2 } + fadeIn(tween(260)))
+                                .togetherWith(slideOutVertically { -it / 2 } + fadeOut(tween(180)))
+                        },
+                        label = "titleAnim"
+                    ) { t ->
+                        Text(
+                            text = t,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${currentMedia.artist} • ${currentMedia.album.ifEmpty { "Aura Audio" }}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    AnimatedContent(
+                        targetState = currentMedia.artist,
+                        transitionSpec = {
+                            (slideInVertically { it / 2 } + fadeIn(tween(260)))
+                                .togetherWith(slideOutVertically { -it / 2 } + fadeOut(tween(180)))
+                        },
+                        label = "artistAnim"
+                    ) { a ->
+                        Text(
+                            text = "$a • ${currentMedia.album.ifEmpty { "Aura Audio" }}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     qualityInfo?.let { q ->
                         Spacer(modifier = Modifier.height(4.dp))
                         Surface(
@@ -1300,17 +1359,15 @@ fun PlayerScreen(
                         }
                     }
 
-                    Slider(
-                        value = sliderValue.coerceIn(0f, 1f),
-                        onValueChange = { percent ->
+                    LiquidShimmerProgressBar(
+                        progress = sliderValue,
+                        isPlaying = isPlaying,
+                        onSeek = { percent ->
                             val targetMs = (percent * effectiveDurationMs).toLong()
                             onSeek(targetMs)
                         },
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF38BDF8),
-                            activeTrackColor = Color(0xFF38BDF8),
-                            inactiveTrackColor = Color(0xFF1E293B)
-                        )
+                        activeColor = Color(0xFF38BDF8),
+                        secondaryColor = Color(0xFF8B5CF6)
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -1850,9 +1907,18 @@ fun PlayerScreen(
                     IconButton(
                         onClick = {
                             AuraHaptic.click(view)
+                            coroutineScope.launch {
+                                shuffleRotation.snapTo(0f)
+                                shuffleRotation.animateTo(
+                                    360f,
+                                    spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMedium)
+                                )
+                            }
                             onShuffleToggle()
                         },
-                        modifier = Modifier.bounceClick()
+                        modifier = Modifier
+                            .graphicsLayer { rotationZ = shuffleRotation.value }
+                            .bounceClick()
                     ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
@@ -1879,33 +1945,18 @@ fun PlayerScreen(
                         )
                     }
 
-                    // Aesthetic Glowing Play / Pause
-                    IconButton(
+                    // Aesthetic Glowing Play / Pause with Elastic Morphing & Glow Burst
+                    PlayPauseMorphButton(
+                        isPlaying = isPlaying,
                         onClick = {
                             AuraHaptic.heavy(view)
                             onPlayPauseClick()
                         },
-                        modifier = Modifier
-                            .size(74.dp)
-                            .bounceClick()
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.secondary
-                                    )
-                                )
-                            )
-                            .shadow(16.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                            tint = Color.White,
-                            modifier = Modifier.size(42.dp)
-                        )
-                    }
+                        size = 76.dp,
+                        iconSize = 42.dp,
+                        primaryColor = MaterialTheme.colorScheme.primary,
+                        secondaryColor = MaterialTheme.colorScheme.secondary
+                    )
 
                     // Next
                     IconButton(
@@ -1925,10 +1976,22 @@ fun PlayerScreen(
                         )
                     }
 
-                    // Repeat
+                    // Repeat with Elastic Pop Animation
                     IconButton(
-                        onClick = onRepeatToggle,
-                        modifier = Modifier.bounceClick()
+                        onClick = {
+                            AuraHaptic.click(view)
+                            coroutineScope.launch {
+                                repeatBounce.animateTo(1.35f, tween(100))
+                                repeatBounce.animateTo(1f, spring(dampingRatio = 0.5f))
+                            }
+                            onRepeatToggle()
+                        },
+                        modifier = Modifier
+                            .graphicsLayer {
+                                scaleX = repeatBounce.value
+                                scaleY = repeatBounce.value
+                            }
+                            .bounceClick()
                     ) {
                         Icon(
                             imageVector = when (repeatMode) {

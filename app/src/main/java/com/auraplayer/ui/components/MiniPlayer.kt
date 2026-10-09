@@ -1,6 +1,12 @@
 package com.auraplayer.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -257,13 +263,22 @@ fun MiniPlayer(
 
                             // Title and Artist
                             Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = currentMedia.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (isPlaying) {
+                                        LiveEqualizerMini(
+                                            isPlaying = true,
+                                            barColor = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(end = 6.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = currentMedia.title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = currentMedia.artist,
@@ -326,12 +341,21 @@ fun MiniPlayer(
                                     .bounceClick(scaleDown = 0.88f) { onPlayPauseClick() },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                    contentDescription = if (isPlaying) "Pausar" else "Reproducir",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                AnimatedContent(
+                                    targetState = isPlaying,
+                                    transitionSpec = {
+                                        (scaleIn(initialScale = 0.5f) + fadeIn(tween(160)))
+                                            .togetherWith(scaleOut(targetScale = 0.5f) + fadeOut(tween(120)))
+                                    },
+                                    label = "miniPlayPauseIcon"
+                                ) { playing ->
+                                    Icon(
+                                        imageVector = if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (playing) "Pausar" else "Reproducir",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
                             }
 
                             Spacer(modifier = Modifier.width(4.dp))
