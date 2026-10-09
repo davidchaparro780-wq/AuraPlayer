@@ -1112,7 +1112,7 @@ document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
 });
 
 // ==========================================
-// REAL MOBILE TRACKS (INFINIX HOT 40i SYNC)
+// REAL MOBILE TRACKS (INFINIX HOT 40i SYNC — 25 CANCIONES)
 // ==========================================
 const realPhoneTracks = [
   {
@@ -1124,44 +1124,196 @@ const realPhoneTracks = [
     coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=120&auto=format&fit=crop&q=80'
   },
   {
+    title: 'NADIE SABE',
+    artist: 'Bad Bunny',
+    album: 'Nadie Sabe Lo Que Va a Pasar Mañana',
+    duration: 374,
+    streamUrl: 'music/BAD%20BUNNY%20-%20%20NADIE%20SABE%20(Visualizer)%20_%20nadie%20sabe%20lo%20que%20va%20a%20pasar%20ma%C3%B1ana.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Dos Mil 16',
+    artist: 'Bad Bunny',
+    album: 'Un Verano Sin Ti',
+    duration: 208,
+    streamUrl: 'music/Bad%20Bunny%20-%20Dos%20Mil%2016%20(360%C2%B0%20Visualizer)%20_%20Un%20Verano%20Sin%20Ti.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Breakin\' Dishes',
+    artist: 'Rihanna',
+    album: 'Good Girl Gone Bad',
+    duration: 200,
+    streamUrl: 'music/Breakin_%20Dishes(M4A_128K).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'QUÉ LÍO',
+    artist: 'Blessd',
+    album: 'Infinix HOT 40i • Descargas',
+    duration: 135,
+    streamUrl: 'music/Blessd%20%20-%20QU%C3%89%20L%C3%8DO%20(Lyric%20Video)%20_%20CantoYo.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Después De La Una',
+    artist: 'Cris MJ, FloyyMenor, LOUKI',
+    album: 'Éxitos Urbanos 2024',
+    duration: 185,
+    streamUrl: 'music/Cris%20MJ_%20FloyyMenor_%20LOUKI%20-%20Despu%C3%A9s%20De%20La%20Una%20(Vi(M4A_128K).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Guardian',
+    artist: 'Curly & QORA',
+    album: 'Infinix HOT 40i • Music',
+    duration: 206,
+    streamUrl: 'music/Curly%20%26%20QORA%20-%20Guardian.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Let You Down (Ending Theme)',
+    artist: 'Dawid Podsiadło',
+    album: 'Cyberpunk: Edgerunners (Netflix)',
+    duration: 238,
+    streamUrl: 'music/Cyberpunk_%20Edgerunners%20-%20Ending%20Theme%20_%20Let%20You%20Down%20by%20Dawid%20Podsiadlo%20_%20Netflix.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Phantom Liberty',
+    artist: 'Dawid Podsiadło, P.T. Adamczyk',
+    album: 'Cyberpunk 2077: Phantom Liberty',
+    duration: 279,
+    streamUrl: 'music/Dawid%20Podsiadlo%2C%20P.T.%20Adamczyk%20-%20Phantom%20Liberty%20(Official%20Cyberpunk%202077%20Music%20Video).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Pose',
+    artist: 'Daddy Yankee',
+    album: 'Talento de Barrio',
+    duration: 220,
+    streamUrl: 'music/Daddy%20Yankee%20_%20Pose%20%5BLetra%5D(M4A_128K).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'L\'Amour Toujours (Tanzen Vision Rmx)',
+    artist: 'Gigi D\'Agostino',
+    album: 'Clásicos Electrónica',
+    duration: 425,
+    streamUrl: 'music/Topic%20-%20L%27Amour%20Toujours%20(Tanzen%20Vision%20Rmx).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Paparazzi (Dubstep Remix)',
+    artist: 'Lady Gaga (Alximo / Kareto)',
+    album: 'Remixes Electrónicos',
+    duration: 185,
+    streamUrl: 'music/Lady%20Gaga%20%3B%20Paparazzi%20Dubstep%20remix%20(Alximo)%20-%20(Sub.%20Espa%C3%B1ol).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Abracadabra',
+    artist: 'Lady Gaga',
+    album: 'Infinix HOT 40i • Music',
+    duration: 245,
+    streamUrl: 'music/Lady%20Gaga%20-%20Abracadabra%20(Official%20Music%20Video).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Bad Romance',
+    artist: 'Lady Gaga',
+    album: 'The Fame Monster',
+    duration: 295,
+    streamUrl: 'music/Lady%20Gaga%20-%20Bad%20Romance%20(Official%20Music%20Video).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Bloody Mary',
+    artist: 'Lady Gaga',
+    album: 'Born This Way',
+    duration: 244,
+    streamUrl: 'music/Lady%20Gaga%20-%20Bloody%20Mary%20(Official%20Audio).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Just Dance',
+    artist: 'Lady Gaga ft. Colby O\'Donis',
+    album: 'The Fame',
+    duration: 241,
+    streamUrl: 'music/Lady%20Gaga%20-%20Just%20Dance%20(Official%20Music%20Video)%20ft.%20Colby%20O%27Donis.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Paparazzi (Original)',
+    artist: 'Lady Gaga',
+    album: 'The Fame',
+    duration: 238,
+    streamUrl: 'music/Lady%20Gaga%20-%20Paparazzi%20(Official%20Music%20Video).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Color Your Night',
+    artist: 'Lotus Juice',
+    album: 'Persona 3 Reload OST',
+    duration: 228,
+    streamUrl: 'music/Topic%20-%20Color%20Your%20Night.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'A Phantom Pain',
+    artist: 'Ludvig Forssell',
+    album: 'Metal Gear Solid V OST',
+    duration: 239,
+    streamUrl: 'music/Topic%20-%20A%20Phantom%20Pain.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Somos de Calle',
+    artist: 'Daddy Yankee',
+    album: 'Talento de Barrio',
+    duration: 214,
+    streamUrl: 'music/Somos%20de%20Calle.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'Duvet (Serial Experiments Lain)',
+    artist: 'Bôa (sweetblue.)',
+    album: 'Anime Classics',
+    duration: 203,
+    streamUrl: 'music/B%C3%B4a%20-%20Duvet%20(Sub.%20Espa%C3%B1ol%20%2B%20Lyrics).mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'LA PLENA (W Sound 05)',
+    artist: 'Beéle, Westcol, Ovy On The Drums',
+    album: 'W Sound Series',
+    duration: 151,
+    streamUrl: 'music/W%20Sound%2005%20_LA%20PLENA_%20-%20Be%C3%A9le%2C%20Westcol%2C%20Ovy%20On%20The%20Drums.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'original sound (el_bonitillo_rb)',
+    artist: 'Wuancho_dr430',
+    album: 'TikTok Trending',
+    duration: 13,
+    streamUrl: 'music/original%20sound%20-%20el_bonitillo_rb.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+  },
+  {
+    title: 'original sound (papo_yt1)',
+    artist: 'Audios Más Virales',
+    album: 'TikTok Trending',
+    duration: 14,
+    streamUrl: 'music/original%20sound%20-%20papo_yt1.mp3',
+    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+  },
+  {
     title: 'SSRHD (Remix)',
     artist: 'Ziraki',
     album: 'Suno AI • WhatsApp Audio',
     duration: 242,
     streamUrl: 'music/Ziraki%20-%20SSRHD%20(Remix).mp3',
     coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
-  },
-  {
-    title: 'HJ-S',
-    artist: 'Ziraki',
-    album: 'Suno AI • WhatsApp Audio',
-    duration: 153,
-    streamUrl: 'music/Ziraki%20-%20HJ-S.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
-  },
-  {
-    title: 'Dame Fuerza (Intro Doña Bárbara)',
-    artist: 'Marta Sánchez',
-    album: 'Infinix HOT 40i • Music',
-    duration: 224,
-    streamUrl: 'music/Martha%20Sanchez%20-%20Dame%20Fuerza%20(Intro%20Dona%20Barbara).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
-  },
-  {
-    title: 'Verdades (TikTok)',
-    artist: 'Westcol',
-    album: 'TikTok Audio • Descargas',
-    duration: 78,
-    streamUrl: 'music/Westcol%20-%20Verdades%20(TikTok).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
-  },
-  {
-    title: 'Gritona (Efecto de Sonido)',
-    artist: 'Jorge Murguía Quiroz',
-    album: 'Efectos • Audio',
-    duration: 6,
-    streamUrl: 'music/Jorge%20Murguia%20Quiroz%20-%20Gritona%20(Efecto).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
   }
 ];
 
@@ -1442,23 +1594,38 @@ function initApp() {
     } catch (e) {}
   }
 
-  // 3. Load or initialize real phone tracks (Infinix HOT 40i)
+  // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
+  const CATALOG_VERSION = '3.3.5';
+  const savedVersion = localStorage.getItem('dave_catalog_ver');
   const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
   let loadedTracks = null;
-  if (savedPhoneTracks) {
+
+  if (savedPhoneTracks && savedVersion === CATALOG_VERSION) {
     try {
       const parsed = JSON.parse(savedPhoneTracks);
-      // If the cache only had old fake synthwave demo songs, replace with real songs
-      if (parsed.length > 0 && !parsed.some(t => t.title === 'Midnight City Drive')) {
+      // Valid if not old mock data and has at least all catalog tracks
+      if (parsed.length >= realPhoneTracks.length && !parsed.some(t => t.title === 'Midnight City Drive')) {
         loadedTracks = parsed;
       }
     } catch (e) {}
   }
 
-  phoneTracks = loadedTracks || [...realPhoneTracks];
+  if (!loadedTracks) {
+    phoneTracks = [...realPhoneTracks];
+  } else {
+    // Merge any missing tracks from realPhoneTracks
+    realPhoneTracks.forEach(rt => {
+      if (!loadedTracks.some(lt => lt.title === rt.title && lt.artist === rt.artist)) {
+        loadedTracks.push(rt);
+      }
+    });
+    phoneTracks = loadedTracks;
+  }
+
+  localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
   localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
 
-  // Initialize main playlist with real songs
+  // Initialize main playlist with all songs
   playlist = [...phoneTracks];
   renderTrackList();
   renderPhoneTracksList();
