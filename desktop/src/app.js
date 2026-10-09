@@ -823,7 +823,7 @@ function createTrackRow(track, displayIndex, isPhoneTab = false) {
       `}
     </td>
     <td class="track-title-cell">
-      <img src="${cover}" class="track-cover-mini" alt="Cover" loading="lazy">
+      <img src="${cover}" class="track-cover-mini" alt="Cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'">
       <div style="display:flex; flex-direction:column; overflow:hidden;">
         <span style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.title}</span>
         <span style="font-size:0.75rem; color:var(--text-dim);" class="mobile-sub-artist">${track.artist}</span>
@@ -890,7 +890,29 @@ function createTrackRow(track, displayIndex, isPhoneTab = false) {
 
 let currentFilter = 'all';
 
-function renderTrackList(filtered = null) {
+function normalizeStr(str) {
+  return (str || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+const searchEmptyState = document.getElementById('search-empty-state');
+const searchEmptyText = document.getElementById('search-empty-text');
+
+function renderTrackList(filtered = null, searchQuery = '') {
   const list = filtered || playlist;
   if (songsCount) songsCount.innerText = list.length;
   const filterAllCount = document.getElementById('filter-all-count');
@@ -899,24 +921,49 @@ function renderTrackList(filtered = null) {
   if (filterFavCount) filterFavCount.innerText = favorites.size;
 
   if (list.length === 0) {
-    emptyState?.classList.remove('hidden');
     trackTable?.classList.add('hidden');
+    if (searchQuery) {
+      emptyState?.classList.add('hidden');
+      if (searchEmptyState) {
+        searchEmptyState.classList.remove('hidden');
+        if (searchEmptyText) {
+          searchEmptyText.innerHTML = `No se encontraron canciones que coincidan con "<strong>${escapeHtml(searchQuery)}</strong>".`;
+        }
+      }
+    } else {
+      searchEmptyState?.classList.add('hidden');
+      emptyState?.classList.remove('hidden');
+    }
     return;
   }
 
+  searchEmptyState?.classList.add('hidden');
   emptyState?.classList.add('hidden');
   trackTable?.classList.remove('hidden');
   if (!trackList) return;
   trackList.innerHTML = '';
 
   list.forEach((track, i) => {
-    const tr = createTrackRow(track, playlist.indexOf(track));
+    const tr = createTrackRow(track, i);
     trackList.appendChild(tr);
   });
 }
 
 function applyCurrentFilter() {
-  const q = searchInput?.value.toLowerCase().trim() || '';
+  const rawQ = searchInput?.value || '';
+  const q = normalizeStr(rawQ);
+
+  if (searchClearBtn) {
+    searchClearBtn.style.display = rawQ ? 'block' : 'none';
+  }
+
+  // Si el usuario escribe y está en otra pestaña que no es canciones ni celular, cambiar a canciones
+  const activePane = document.querySelector('.tab-pane.active');
+  const activeTabId = activePane ? activePane.id : '';
+  if (q && activeTabId !== 'tab-songs' && activeTabId !== 'tab-phone') {
+    switchTab('songs');
+  }
+
   let list = playlist;
 
   if (currentFilter === 'urban') {
@@ -930,14 +977,27 @@ function applyCurrentFilter() {
   }
 
   if (q) {
-    list = list.filter(t =>
-      t.title.toLowerCase().includes(q) ||
-      t.artist.toLowerCase().includes(q) ||
-      t.album.toLowerCase().includes(q)
-    );
+    list = list.filter(t => {
+      const matchTitle = normalizeStr(t.title).includes(q);
+      const matchArtist = normalizeStr(t.artist).includes(q);
+      const matchAlbum = normalizeStr(t.album).includes(q);
+      return matchTitle || matchArtist || matchAlbum;
+    });
   }
 
-  renderTrackList(list);
+  renderTrackList(list, rawQ);
+
+  // Filtrar sincronizadamente las canciones del celular en su pestaña
+  let phoneList = phoneTracks;
+  if (q) {
+    phoneList = phoneTracks.filter(t => {
+      const matchTitle = normalizeStr(t.title).includes(q);
+      const matchArtist = normalizeStr(t.artist).includes(q);
+      const matchAlbum = normalizeStr(t.album).includes(q);
+      return matchTitle || matchArtist || matchAlbum;
+    });
+  }
+  renderPhoneTracksList(phoneList, rawQ);
 }
 
 function setupFilterChips() {
@@ -956,19 +1016,26 @@ function setupFilterChips() {
 
 // Search Filter & Clear Button
 const searchClearBtn = document.getElementById('search-clear-btn');
-searchInput?.addEventListener('input', (e) => {
-  if (searchClearBtn) {
-    searchClearBtn.style.display = e.target.value ? 'block' : 'none';
-  }
+searchInput?.addEventListener('input', () => {
   applyCurrentFilter();
 });
 
-searchClearBtn?.addEventListener('click', () => {
+function clearGlobalSearch() {
   if (searchInput) {
     searchInput.value = '';
-    searchClearBtn.style.display = 'none';
+    if (searchClearBtn) searchClearBtn.style.display = 'none';
     searchInput.focus();
     applyCurrentFilter();
+  }
+}
+
+searchClearBtn?.addEventListener('click', clearGlobalSearch);
+document.getElementById('btn-search-clear-action')?.addEventListener('click', clearGlobalSearch);
+document.getElementById('btn-phone-search-clear-action')?.addEventListener('click', clearGlobalSearch);
+
+searchInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    clearGlobalSearch();
   }
 });
 
@@ -1358,10 +1425,10 @@ const realPhoneTracks = [
   {
     title: 'Happy Nation',
     artist: 'Ace of Base',
-    album: 'Infinix HOT 40i • Music',
+    album: 'Happy Nation (Remastered)',
     duration: 255,
     streamUrl: 'music/Ace%20of%20Base%20-%20Happy%20Nation.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music3/v4/fb/fd/a8/fbfda872-a03c-4c01-c3f1-8e185c081f7b/cover.jpg/600x600bb.jpg'
   },
   {
     title: 'NADIE SABE',
@@ -1369,7 +1436,7 @@ const realPhoneTracks = [
     album: 'Nadie Sabe Lo Que Va a Pasar Mañana',
     duration: 374,
     streamUrl: 'music/BAD%20BUNNY%20-%20%20NADIE%20SABE%20(Visualizer)%20_%20nadie%20sabe%20lo%20que%20va%20a%20pasar%20ma%C3%B1ana.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://upload.wikimedia.org/wikipedia/en/7/74/Bad_Bunny_-_Nadie_Sabe_Lo_Que_Va_a_Pasar_Ma%C3%B1ana.png'
   },
   {
     title: 'Dos Mil 16',
@@ -1377,7 +1444,7 @@ const realPhoneTracks = [
     album: 'Un Verano Sin Ti',
     duration: 208,
     streamUrl: 'music/Bad%20Bunny%20-%20Dos%20Mil%2016%20(360%C2%B0%20Visualizer)%20_%20Un%20Verano%20Sin%20Ti.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/3e/04/eb/3e04ebf6-370f-f59d-ec84-2c2643db92f1/196626945068.jpg/600x600bb.jpg'
   },
   {
     title: 'Breakin\' Dishes',
@@ -1385,31 +1452,31 @@ const realPhoneTracks = [
     album: 'Good Girl Gone Bad',
     duration: 200,
     streamUrl: 'music/Breakin_%20Dishes(M4A_128K).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/2b/c0/81/2bc081c8-25f0-ba43-d451-587a54613778/16UMGIM59202.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'QUÉ LÍO',
     artist: 'Blessd',
-    album: 'Infinix HOT 40i • Descargas',
+    album: 'CantoYo • QUÉ LÍO',
     duration: 135,
     streamUrl: 'music/Blessd%20%20-%20QU%C3%89%20L%C3%8DO%20(Lyric%20Video)%20_%20CantoYo.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/b4/8f/cc/b48fccb4-aaf0-913f-1dd6-bd4aa9c8ac2d/827568017680.jpg/600x600bb.jpg'
   },
   {
     title: 'Después De La Una',
     artist: 'Cris MJ, FloyyMenor, LOUKI',
-    album: 'Éxitos Urbanos 2024',
+    album: 'Después De La Una - Single',
     duration: 185,
     streamUrl: 'music/Cris%20MJ_%20FloyyMenor_%20LOUKI%20-%20Despu%C3%A9s%20De%20La%20Una%20(Vi(M4A_128K).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/47/64/f9/4764f901-1f97-26c4-61cf-fcf3dc016c09/430931.jpg/600x600bb.jpg'
   },
   {
     title: 'Guardian',
     artist: 'Curly & QORA',
-    album: 'Infinix HOT 40i • Music',
+    album: 'Guardian - Single',
     duration: 206,
     streamUrl: 'music/Curly%20%26%20QORA%20-%20Guardian.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music113/v4/73/5c/46/735c4661-ce10-71f4-1021-5a8efe0e9173/73589bec-0d08-4524-addf-e7d684335c1d.jpg/600x600bb.jpg'
   },
   {
     title: 'Let You Down (Ending Theme)',
@@ -1417,7 +1484,7 @@ const realPhoneTracks = [
     album: 'Cyberpunk: Edgerunners (Netflix)',
     duration: 238,
     streamUrl: 'music/Cyberpunk_%20Edgerunners%20-%20Ending%20Theme%20_%20Let%20You%20Down%20by%20Dawid%20Podsiadlo%20_%20Netflix.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/82/35/0e/82350ed4-f66f-600b-f572-c7507fc66a10/196589453082.jpg/600x600bb.jpg'
   },
   {
     title: 'Phantom Liberty',
@@ -1425,7 +1492,7 @@ const realPhoneTracks = [
     album: 'Cyberpunk 2077: Phantom Liberty',
     duration: 279,
     streamUrl: 'music/Dawid%20Podsiadlo%2C%20P.T.%20Adamczyk%20-%20Phantom%20Liberty%20(Official%20Cyberpunk%202077%20Music%20Video).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/e1/6e/79/e16e7907-1a77-8e18-64df-6a5d28ecc17d/196871442299.jpg/600x600bb.jpg'
   },
   {
     title: 'Pose',
@@ -1433,7 +1500,7 @@ const realPhoneTracks = [
     album: 'Talento de Barrio',
     duration: 220,
     streamUrl: 'music/Daddy%20Yankee%20_%20Pose%20%5BLetra%5D(M4A_128K).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/f9/95/52/f99552d9-b212-a3a0-cea4-fe0c5dc26243/24CRGIM46809.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'L\'Amour Toujours (Tanzen Vision Rmx)',
@@ -1441,7 +1508,7 @@ const realPhoneTracks = [
     album: 'Clásicos Electrónica',
     duration: 425,
     streamUrl: 'music/Topic%20-%20L%27Amour%20Toujours%20(Tanzen%20Vision%20Rmx).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/86/4c/46/864c4651-6277-6126-f58f-fec0ef34109f/090204669776_neu.jpg/600x600bb.jpg'
   },
   {
     title: 'Paparazzi (Dubstep Remix)',
@@ -1449,15 +1516,15 @@ const realPhoneTracks = [
     album: 'Remixes Electrónicos',
     duration: 185,
     streamUrl: 'music/Lady%20Gaga%20%3B%20Paparazzi%20Dubstep%20remix%20(Alximo)%20-%20(Sub.%20Espa%C3%B1ol).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/e0/80/34/e080341a-b442-72cd-1d0f-eb6863e8cb88/10UMGIM11335.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Abracadabra',
     artist: 'Lady Gaga',
-    album: 'Infinix HOT 40i • Music',
+    album: 'Abracadabra / Disease',
     duration: 245,
     streamUrl: 'music/Lady%20Gaga%20-%20Abracadabra%20(Official%20Music%20Video).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/08/12/80/08128053-d7df-489d-bfde-be6f45f075be/26UMGIM57129.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Bad Romance',
@@ -1465,7 +1532,7 @@ const realPhoneTracks = [
     album: 'The Fame Monster',
     duration: 295,
     streamUrl: 'music/Lady%20Gaga%20-%20Bad%20Romance%20(Official%20Music%20Video).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music124/v4/1f/25/c4/1f25c4bf-7f7a-ff26-8769-20ab6052dadf/09UMGIM40719.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Bloody Mary',
@@ -1473,7 +1540,7 @@ const realPhoneTracks = [
     album: 'Born This Way',
     duration: 244,
     streamUrl: 'music/Lady%20Gaga%20-%20Bloody%20Mary%20(Official%20Audio).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/42/9f/0f/429f0fd2-30bd-b64e-27fc-76d8fbbd0988/11UMGIM12476.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Just Dance',
@@ -1481,7 +1548,7 @@ const realPhoneTracks = [
     album: 'The Fame',
     duration: 241,
     streamUrl: 'music/Lady%20Gaga%20-%20Just%20Dance%20(Official%20Music%20Video)%20ft.%20Colby%20O%27Donis.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/a6/68/28/a66828c0-3fe3-5419-374d-ad98739f3166/08UMGIM13954.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Paparazzi (Original)',
@@ -1489,7 +1556,7 @@ const realPhoneTracks = [
     album: 'The Fame',
     duration: 238,
     streamUrl: 'music/Lady%20Gaga%20-%20Paparazzi%20(Official%20Music%20Video).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/1b/98/88/1b9888da-6a1f-bff0-ec03-518f445019f6/19UMGIM73435.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Color Your Night',
@@ -1497,7 +1564,7 @@ const realPhoneTracks = [
     album: 'Persona 3 Reload OST',
     duration: 228,
     streamUrl: 'music/Topic%20-%20Color%20Your%20Night.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music112/v4/d7/0e/72/d70e724e-d8c0-8043-516a-ba47299b1554/PA00136839_1_185077_jacket.jpg/600x600bb.jpg'
   },
   {
     title: 'A Phantom Pain',
@@ -1505,7 +1572,7 @@ const realPhoneTracks = [
     album: 'Metal Gear Solid V OST',
     duration: 239,
     streamUrl: 'music/Topic%20-%20A%20Phantom%20Pain.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music49/v4/c2/87/60/c2876016-b688-18cc-7649-c44049450c79/007725_4988602168907.jpg/600x600bb.jpg'
   },
   {
     title: 'Somos de Calle',
@@ -1513,7 +1580,7 @@ const realPhoneTracks = [
     album: 'Talento de Barrio',
     duration: 214,
     streamUrl: 'music/Somos%20de%20Calle.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/f9/95/52/f99552d9-b212-a3a0-cea4-fe0c5dc26243/24CRGIM46809.rgb.jpg/600x600bb.jpg'
   },
   {
     title: 'Duvet (Serial Experiments Lain)',
@@ -1521,7 +1588,7 @@ const realPhoneTracks = [
     album: 'Anime Classics',
     duration: 203,
     streamUrl: 'music/B%C3%B4a%20-%20Duvet%20(Sub.%20Espa%C3%B1ol%20%2B%20Lyrics).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music221/v4/45/44/15/45441528-0288-eedc-f6fc-93137b8cfe96/067003248969.png/600x600bb.jpg'
   },
   {
     title: 'LA PLENA (W Sound 05)',
@@ -1529,7 +1596,7 @@ const realPhoneTracks = [
     album: 'W Sound Series',
     duration: 151,
     streamUrl: 'music/W%20Sound%2005%20_LA%20PLENA_%20-%20Be%C3%A9le%2C%20Westcol%2C%20Ovy%20On%20The%20Drums.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/76/c1/83/76c18371-1a13-b500-12a5-da71f33a8d25/0.jpg/600x600bb.jpg'
   },
   {
     title: 'original sound (el_bonitillo_rb)',
@@ -1537,7 +1604,7 @@ const realPhoneTracks = [
     album: 'TikTok Trending',
     duration: 13,
     streamUrl: 'music/original%20sound%20-%20el_bonitillo_rb.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&auto=format&fit=crop&q=80'
   },
   {
     title: 'original sound (papo_yt1)',
@@ -1545,7 +1612,7 @@ const realPhoneTracks = [
     album: 'TikTok Trending',
     duration: 14,
     streamUrl: 'music/original%20sound%20-%20papo_yt1.mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80'
   },
   {
     title: 'SSRHD (Remix)',
@@ -1553,7 +1620,7 @@ const realPhoneTracks = [
     album: 'Suno AI • WhatsApp Audio',
     duration: 242,
     streamUrl: 'music/Ziraki%20-%20SSRHD%20(Remix).mp3',
-    coverUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=120&auto=format&fit=crop&q=80'
+    coverUrl: 'https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/25/b9/d0/25b9d0a5-323a-fd54-bce4-6c768c8b00e4/8721056924288.png/600x600bb.jpg'
   }
 ];
 
@@ -1722,22 +1789,38 @@ function showSyncFeedback(msg, type) {
   syncFeedback.classList.remove('hidden');
 }
 
-function renderPhoneTracksList() {
-  if (phoneSongsCount) phoneSongsCount.innerText = phoneTracks.length;
+const phoneSearchEmptyState = document.getElementById('phone-search-empty-state');
+const phoneSearchEmptyText = document.getElementById('phone-search-empty-text');
+
+function renderPhoneTracksList(filtered = null, searchQuery = '') {
+  const list = filtered !== null ? filtered : phoneTracks;
+  if (phoneSongsCount) phoneSongsCount.innerText = list.length;
   if (pstatSongs) pstatSongs.innerText = phoneTracks.length;
 
-  if (phoneTracks.length === 0) {
-    phoneEmptyState?.classList.remove('hidden');
+  if (list.length === 0) {
     phoneTrackTable?.classList.add('hidden');
+    if (searchQuery) {
+      phoneEmptyState?.classList.add('hidden');
+      if (phoneSearchEmptyState) {
+        phoneSearchEmptyState.classList.remove('hidden');
+        if (phoneSearchEmptyText) {
+          phoneSearchEmptyText.innerHTML = `No se encontraron canciones en tu celular para "<strong>${escapeHtml(searchQuery)}</strong>".`;
+        }
+      }
+    } else {
+      phoneSearchEmptyState?.classList.add('hidden');
+      phoneEmptyState?.classList.remove('hidden');
+    }
     return;
   }
 
+  phoneSearchEmptyState?.classList.add('hidden');
   phoneEmptyState?.classList.add('hidden');
   phoneTrackTable?.classList.remove('hidden');
   if (!phoneTrackList) return;
   phoneTrackList.innerHTML = '';
 
-  phoneTracks.forEach((track, i) => {
+  list.forEach((track, i) => {
     const tr = createTrackRow(track, i, true);
     phoneTrackList.appendChild(tr);
   });
@@ -1826,6 +1909,9 @@ function loadTrackMeta(index) {
   playerArtist.innerText = track.artist;
   if (track.coverUrl) {
     playerArt.src = track.coverUrl;
+    playerArt.onerror = () => {
+      playerArt.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80';
+    };
   }
   const lyrTitle = document.getElementById('lyrics-song-title');
   const lyrArtist = document.getElementById('lyrics-song-artist');
@@ -1853,7 +1939,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
-  const CATALOG_VERSION = '3.4.0';
+  const CATALOG_VERSION = '3.4.1';
   const savedVersion = localStorage.getItem('dave_catalog_ver');
   const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
   let loadedTracks = null;
@@ -1871,9 +1957,13 @@ function initApp() {
   if (!loadedTracks) {
     phoneTracks = [...realPhoneTracks];
   } else {
-    // Merge any missing tracks from realPhoneTracks
+    // Sincronizar carátulas oficiales y álbumes actualizados
     realPhoneTracks.forEach(rt => {
-      if (!loadedTracks.some(lt => lt.title === rt.title && lt.artist === rt.artist)) {
+      const existing = loadedTracks.find(lt => lt.title === rt.title && lt.artist === rt.artist);
+      if (existing) {
+        existing.coverUrl = rt.coverUrl;
+        if (rt.album) existing.album = rt.album;
+      } else {
         loadedTracks.push(rt);
       }
     });
