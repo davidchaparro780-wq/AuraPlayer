@@ -30,6 +30,9 @@
       <a href="#downloads" class="nav-link highlight"><i class="fa-solid fa-download"></i> Descargas</a>
     </nav>
     <div class="nav-actions">
+      <button id="btn-login-modal" class="btn-login-glow">
+        <i class="fa-solid fa-user"></i> <span id="user-display-name">Iniciar Sesión</span>
+      </button>
       <a href="https://github.com/davidchaparro780-wq/AuraPlayer" target="_blank" class="btn-github">
         <i class="fa-brands fa-github"></i> <span>GitHub</span>
       </a>
@@ -104,6 +107,10 @@
             <button class="nav-item" data-tab="folders">
               <i class="fa-solid fa-folder-open"></i> <span>Carpetas PC</span>
             </button>
+            <button class="nav-item special-phone" data-tab="phone">
+              <i class="fa-solid fa-mobile-screen-button"></i> <span>Mi Celular</span>
+              <span class="count-badge" id="phone-songs-count">0</span>
+            </button>
             <button class="nav-item" data-tab="playlists">
               <i class="fa-solid fa-list-ul"></i> <span>Playlists</span>
             </button>
@@ -164,6 +171,46 @@
               <h2>Carpetas Sincronizadas</h2>
               <p class="subtitle">Ubicaciones de tu computadora vinculadas a DaVE Player.</p>
               <div id="folders-list" class="folders-list"></div>
+            </div>
+          </section>
+
+          <!-- TAB: MI CELULAR -->
+          <section id="tab-phone" class="tab-content">
+            <div class="phone-sync-view">
+              <div class="sync-banner">
+                <div class="sync-banner-info">
+                  <h2><i class="fa-solid fa-mobile-screen-button"></i> Música de mi Celular</h2>
+                  <p id="phone-sync-status">Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.</p>
+                </div>
+                <div class="sync-banner-actions">
+                  <button id="btn-open-sync-modal" class="btn-primary-glow">
+                    <i class="fa-solid fa-arrows-rotate"></i> Conectar Celular / Sincronizar
+                  </button>
+                </div>
+              </div>
+
+              <!-- Phone Tracks Table / State -->
+              <div class="track-table-container" style="margin-top: 1rem;">
+                <div id="phone-empty-state" class="empty-state">
+                  <i class="fa-solid fa-mobile-screen-button"></i>
+                  <h2>No hay canciones sincronizadas aún</h2>
+                  <p>Inicia sesión con tu correo electrónico o abre DaVE Player en tu teléfono > <strong>🌐 Control Remoto PC</strong> para transferir tu lista al instante.</p>
+                  <button id="btn-empty-phone-connect" class="btn-primary-glow"><i class="fa-solid fa-wifi"></i> Conectar Mi Teléfono Ahora</button>
+                </div>
+
+                <table id="phone-track-table" class="track-table hidden">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px;">#</th>
+                      <th>Título</th>
+                      <th>Artista</th>
+                      <th>Álbum</th>
+                      <th style="width: 80px;"><i class="fa-regular fa-clock"></i></th>
+                    </tr>
+                  </thead>
+                  <tbody id="phone-track-list"></tbody>
+                </table>
+              </div>
             </div>
           </section>
 
@@ -446,6 +493,119 @@
       </div>
     </div>
   </footer>
+
+  <!-- Modal: Iniciar Sesión / Cuenta -->
+  <div id="modal-auth" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-user-shield" style="color: var(--accent-cyan);"></i>
+          <h3>Cuenta DaVE Cloud</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-auth"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="auth-form-container">
+        <p class="modal-desc">Inicia sesión para sincronizar automáticamente tu música, listas de reproducción y favoritos de tu celular.</p>
+        
+        <form id="auth-form">
+          <div class="form-group">
+            <label><i class="fa-regular fa-envelope"></i> Correo Electrónico</label>
+            <input type="email" id="auth-email" placeholder="ejemplo@correo.com" required>
+          </div>
+          <div class="form-group">
+            <label><i class="fa-solid fa-lock"></i> Contraseña o PIN</label>
+            <input type="password" id="auth-password" placeholder="••••••••" required>
+          </div>
+          <div class="form-options">
+            <label><input type="checkbox" id="auth-remember" checked> Recordar en esta PC</label>
+            <a href="#" id="auth-link-demo">Usar cuenta Demo</a>
+          </div>
+          <button type="submit" class="btn-primary-glow btn-full" style="margin-top: 1rem;">
+            <i class="fa-solid fa-right-to-bracket"></i> Iniciar Sesión y Sincronizar
+          </button>
+        </form>
+
+        <div class="auth-divider"><span>O CONTINUAR CON</span></div>
+        <button id="btn-google-login" class="btn-secondary btn-full">
+          <i class="fa-brands fa-google"></i> Continuar con Google
+        </button>
+      </div>
+
+      <!-- Logged In User State -->
+      <div class="modal-body hidden" id="auth-user-profile">
+        <div class="user-profile-header">
+          <div class="user-avatar" id="profile-avatar"><i class="fa-solid fa-user"></i></div>
+          <div class="user-info">
+            <h4 id="profile-name">Usuario DaVE</h4>
+            <span id="profile-email">usuario@correo.com</span>
+            <span class="badge-status-cloud"><i class="fa-solid fa-cloud-check"></i> Sincronización Activa</span>
+          </div>
+        </div>
+
+        <div class="profile-stats">
+          <div class="pstat">
+            <strong id="pstat-songs">0</strong>
+            <span>Canciones Celular</span>
+          </div>
+          <div class="pstat">
+            <strong id="pstat-favs">0</strong>
+            <span>Favoritas</span>
+          </div>
+        </div>
+
+        <div class="profile-actions">
+          <button id="btn-profile-sync" class="btn-primary-glow btn-full">
+            <i class="fa-solid fa-arrows-rotate"></i> Sincronizar con mi Celular Ahora
+          </button>
+          <button id="btn-profile-logout" class="btn-secondary btn-full" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.3);">
+            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Conexión con Celular (WiFi / IP / Cloud) -->
+  <div id="modal-sync" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-mobile-screen-button" style="color: var(--accent-cyan);"></i>
+          <h3>Conectar con DaVE Mobile</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-sync"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="sync-instructions">
+          <div class="step-badge">Paso 1</div>
+          <p>Abre <strong>DaVE Player en tu teléfono</strong> y pulsa en <strong>🌐 Control Remoto PC</strong> en el menú.</p>
+        </div>
+
+        <div class="sync-instructions" style="margin-top: 0.8rem;">
+          <div class="step-badge">Paso 2</div>
+          <p>Introduce la dirección IP o puerto que muestra tu celular:</p>
+        </div>
+
+        <div class="form-group" style="margin-top: 0.8rem;">
+          <label><i class="fa-solid fa-network-wired"></i> Dirección IP del Celular (Ej. 192.168.1.5:8080)</label>
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="sync-ip-input" placeholder="192.168.1.X:8080" style="flex: 1;">
+            <button id="btn-test-connect" class="btn-primary-glow" style="padding: 0.5rem 1rem;">
+              <i class="fa-solid fa-bolt"></i> Conectar
+            </button>
+          </div>
+        </div>
+
+        <div class="auth-divider"><span>O CARGAR MÚSICA DE MI CUENTA</span></div>
+
+        <button id="btn-cloud-fetch" class="btn-secondary btn-full">
+          <i class="fa-solid fa-cloud-arrow-down"></i> Sincronizar Biblioteca de mi Cuenta Cloud
+        </button>
+
+        <div id="sync-feedback" class="sync-feedback hidden"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- Hidden Inputs -->
   <input type="file" id="file-input-browser" accept="audio/*" multiple style="display: none;">
