@@ -123,7 +123,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import androidx.compose.material.icons.filled.Settings
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.data.repository.Playlist
@@ -172,6 +172,7 @@ fun MusicScreen(
     onToggleBubble: () -> Unit = {},
     isBubbleActive: Boolean = false,
     onOpenHeadphones: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     userManager: com.auraplayer.data.repository.UserManager,
     onOpenAuth: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -221,10 +222,19 @@ fun MusicScreen(
         }
     }
 
+    val settings = remember { com.auraplayer.data.repository.SettingsManager.getInstance(context) }
+
     // Process Filter and Sort
-    val filteredSongs = remember(songs, searchQuery, selectedFilterIndex, selectedSortMode, favoritesManager) {
-        var list = if (searchQuery.isBlank()) songs
-        else songs.filter {
+    val filteredSongs = remember(songs, searchQuery, selectedFilterIndex, selectedSortMode, favoritesManager, settings.hideShortAudioDurationSec) {
+        val hideShortSec = settings.hideShortAudioDurationSec
+        val baseSongs = if (hideShortSec > 0) {
+            songs.filter { it.duration >= hideShortSec * 1000L }
+        } else {
+            songs
+        }
+
+        var list = if (searchQuery.isBlank()) baseSongs
+        else baseSongs.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
             it.artist.contains(searchQuery, ignoreCase = true) ||
             it.album.contains(searchQuery, ignoreCase = true) ||
@@ -593,6 +603,10 @@ fun MusicScreen(
                         text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
                         onClick = { showToolsMenu = false; onOpenHeadphones() }
                     )
+                    DropdownMenuItem(
+                        text = { Text("⚙️ Ajustes & Confort", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                        onClick = { showToolsMenu = false; onOpenSettings() }
+                    )
                     val currentUser = userManager.currentUser
                     DropdownMenuItem(
                         text = {
@@ -639,6 +653,33 @@ fun MusicScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Settings Button (Aesthetic Neon Squircle)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF13182E))
+                    .border(
+                        1.dp,
+                        Color(0xFF38BDF8).copy(alpha = 0.4f),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable {
+                        AuraHaptic.click(view)
+                        onOpenSettings()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Ajustes",
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(22.dp)
+                )
             }
         }
 

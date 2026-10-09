@@ -65,12 +65,14 @@ class UpdateManager(private val context: Context) {
                 Log.d(tag, "version.json check: Remote $remoteVersion vs Current $currentVersion")
 
                 if (isVersionNewer(remoteVersion, currentVersion) && downloadUrl.isNotBlank()) {
-                    return@withContext UpdateInfo(
+                    val info = UpdateInfo(
                         versionName = "v$remoteVersion",
                         changelog = changelog,
                         downloadUrl = downloadUrl,
                         fileSizeMb = fileSizeMb
                     )
+                    com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
+                    return@withContext info
                 }
             }
         } catch (e: Exception) {
@@ -116,12 +118,14 @@ class UpdateManager(private val context: Context) {
                     }
 
                     if (apkUrl.isNotBlank()) {
-                        return@withContext UpdateInfo(
+                        val info = UpdateInfo(
                             versionName = rawTagName,
                             changelog = body,
                             downloadUrl = apkUrl,
                             fileSizeMb = String.format("%.1f", apkSize / (1024.0 * 1024.0)).toDoubleOrNull() ?: 23.0
                         )
+                        com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
+                        return@withContext info
                     }
                 }
             }

@@ -115,11 +115,13 @@ import com.auraplayer.ui.components.DaveSplashIntro
 import com.auraplayer.ui.components.DaveWrappedDialog
 import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
+import com.auraplayer.data.repository.SettingsManager
 import com.auraplayer.ui.screens.CarModeScreen
 import com.auraplayer.ui.screens.DiscoverScreen
 import com.auraplayer.ui.screens.EqualizerScreen
 import com.auraplayer.ui.screens.MusicScreen
 import com.auraplayer.ui.screens.PlayerScreen
+import com.auraplayer.ui.screens.SettingsScreen
 import com.auraplayer.ui.screens.VaultScreen
 import com.auraplayer.ui.screens.VideoPlayerScreen
 import com.auraplayer.ui.screens.VideoScreen
@@ -302,6 +304,9 @@ fun AuraApp(
     var activeVideo by remember { mutableStateOf<MediaModel?>(null) }
     var showVaultScreen by remember { mutableStateOf(false) }
     val vaultManager = remember { VaultManager(context) }
+    val settingsManager = remember { SettingsManager.getInstance(context) }
+    var showSettingsScreen by remember { mutableStateOf(false) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
 
     // In-App Auto Updater (DaVE Updater)
     val updateManager = remember { UpdateManager(context) }
@@ -311,6 +316,18 @@ fun AuraApp(
     var updateProgress by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
+        val currentIntent = (context as? Activity)?.intent
+        if (currentIntent?.action == "ACTION_SHOW_UPDATE") {
+            val vName = currentIntent.getStringExtra("UPDATE_VERSION_NAME") ?: ""
+            val cLog = currentIntent.getStringExtra("UPDATE_CHANGELOG") ?: ""
+            val dUrl = currentIntent.getStringExtra("UPDATE_DOWNLOAD_URL") ?: ""
+            val fSize = currentIntent.getDoubleExtra("UPDATE_FILE_SIZE", 23.0)
+            if (vName.isNotBlank() && dUrl.isNotBlank()) {
+                updateInfo = UpdateInfo(vName, cLog, dUrl, fSize)
+                showUpdateDialog = true
+            }
+        }
+
         downloadEngine.onUpdateNeeded = {
             scope.launch {
                 val info = updateManager.checkForUpdate()
@@ -326,6 +343,15 @@ fun AuraApp(
         if (info != null) {
             updateInfo = info
             showUpdateDialog = true
+        }
+    }
+
+    LaunchedEffect(showPlayerScreen, settingsManager.keepScreenOnInPlayer) {
+        val window = (context as? Activity)?.window
+        if (showPlayerScreen && settingsManager.keepScreenOnInPlayer) {
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -351,6 +377,9 @@ fun AuraApp(
             }
             showPlayerScreen -> {
                 showPlayerScreen = false
+            }
+            showSettingsScreen -> {
+                showSettingsScreen = false
             }
             showCarModeScreen -> {
                 showCarModeScreen = false
@@ -1396,6 +1425,7 @@ fun AuraApp(
                     },
                     isVirtualDjActive = isVirtualDjActive,
                     onOpenHeadphones = { showHeadphonesDialog = true },
+                    onOpenSettings = { showSettingsScreen = true },
                     userManager = userManager,
                     onOpenAuth = { showAuthDialog = true },
                     onOpenProfile = { showProfileDialog = true },
@@ -1723,6 +1753,45 @@ fun AuraApp(
             onPlayHiddenVideo = { hiddenVideo ->
                 activeVideo = hiddenVideo
             }
+        )
+    }
+
+    // Animated Fullscreen Settings & Comfort Screen
+    AnimatedVisibility(
+        visible = showSettingsScreen,
+        enter = slideInHorizontally(
+            initialOffsetX = { it },
+            animationSpec = tween(240, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(220)),
+        exit = slideOutHorizontally(
+            targetOffsetX = { it },
+            animationSpec = tween(220, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(180))
+    ) {
+        SettingsScreen(
+            onDismiss = { showSettingsScreen = false },
+            onRescanLibrary = {
+                scope.launch {
+                    val reloaded = mediaRepository.loadAudioFiles()
+                    songs = reloaded
+                    Toast.makeText(context, "Biblioteca re-escaneada: ${reloaded.size} canciones encontradas", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onCheckUpdate = {
+                scope.launch {
+                    isCheckingUpdate = true
+                    val info = updateManager.checkForUpdate()
+                    isCheckingUpdate = false
+                    if (info != null) {
+                        updateInfo = info
+                        showUpdateDialog = true
+                    } else {
+                        Toast.makeText(context, "¡DaVE está al día! Tienes la última versión (${updateManager.currentVersionName}) 🎉", Toast.LENGTH_LONG).show()
+                    }
+                }
+            },
+            isCheckingUpdate = isCheckingUpdate,
+            appVersion = updateManager.currentVersionName.removePrefix("v")
         )
     }
 

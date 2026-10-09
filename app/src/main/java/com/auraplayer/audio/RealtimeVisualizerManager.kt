@@ -143,10 +143,19 @@ class RealtimeVisualizerManager private constructor() {
     /**
      * Retrieves the amplitude factor (0.05f .. 1.0f) for a specific bar out of [totalBars].
      */
+    private fun getSensitivity(): Float {
+        return com.auraplayer.data.repository.SettingsManager.instance?.visualizerSensitivity ?: 1.0f
+    }
+
+    /**
+     * Retrieves normalized energy for a specific bar/band (0.0f .. 1.0f).
+     */
     fun getBand(index: Int, totalBars: Int, isPlaying: Boolean): Float {
         if (!isPlaying) {
             return 0.05f
         }
+
+        val sens = getSensitivity()
 
         // Check if we have recent real FFT data (within last 350ms)
         val hasRecentData = (SystemClock.uptimeMillis() - lastDataTime) < 350L
@@ -155,7 +164,7 @@ class RealtimeVisualizerManager private constructor() {
             val mappedIdx = ((index.toFloat() / totalBars.toFloat()) * NUM_BANDS)
                 .toInt()
                 .coerceIn(0, NUM_BANDS - 1)
-            return bandEnergies[mappedIdx].coerceIn(0.05f, 1.0f)
+            return (bandEnergies[mappedIdx] * sens).coerceIn(0.05f, 1.0f)
         }
 
         // High-energy music reactive fallback if Visualizer is temporarily unattached
@@ -163,7 +172,7 @@ class RealtimeVisualizerManager private constructor() {
         val freqBase = (sin(now * 5.2 + index * 0.45) + 1.0) * 0.5
         val freqKick = if (sin(now * 2.8) > 0.6) 0.35 else 0.0
         val harmonic = (sin(now * 8.4 + index * 0.8) + 1.0) * 0.25
-        return (freqBase * 0.55 + freqKick + harmonic).toFloat().coerceIn(0.08f, 1.0f)
+        return ((freqBase * 0.55 + freqKick + harmonic).toFloat() * sens).coerceIn(0.08f, 1.0f)
     }
 
     /**
@@ -172,17 +181,18 @@ class RealtimeVisualizerManager private constructor() {
     fun getWaveform(index: Int, totalPoints: Int, isPlaying: Boolean): Float {
         if (!isPlaying) return 0.0f
 
+        val sens = getSensitivity()
         val hasRecentData = (SystemClock.uptimeMillis() - lastDataTime) < 350L
         if (hasRecentData) {
             val mappedIdx = ((index.toFloat() / totalPoints.toFloat()) * WAVEFORM_POINTS)
                 .toInt()
                 .coerceIn(0, WAVEFORM_POINTS - 1)
-            return wavePoints[mappedIdx]
+            return (wavePoints[mappedIdx] * sens).coerceIn(-1.0f, 1.0f)
         }
 
         // Fallback synthetic wave
         val now = SystemClock.uptimeMillis() / 600.0
-        return sin(now + (index.toFloat() / totalPoints.toFloat()) * 4.0 * Math.PI).toFloat() * 0.45f
+        return (sin(now + (index.toFloat() / totalPoints.toFloat()) * 4.0 * Math.PI).toFloat() * 0.45f * sens).coerceIn(-1.0f, 1.0f)
     }
 
     /**
@@ -190,11 +200,12 @@ class RealtimeVisualizerManager private constructor() {
      */
     fun getBassEnergy(isPlaying: Boolean): Float {
         if (!isPlaying) return 0.05f
+        val sens = getSensitivity()
         val hasRecentData = (SystemClock.uptimeMillis() - lastDataTime) < 350L
-        if (hasRecentData) return bassEnergy
+        if (hasRecentData) return (bassEnergy * sens).coerceIn(0.05f, 1.0f)
 
         val now = SystemClock.uptimeMillis() / 1000.0
-        return (sin(now * 4.2) * 0.4 + 0.5).toFloat().coerceIn(0.08f, 1.0f)
+        return ((sin(now * 4.2) * 0.4 + 0.5).toFloat() * sens).coerceIn(0.08f, 1.0f)
     }
 
     /**
@@ -202,11 +213,12 @@ class RealtimeVisualizerManager private constructor() {
      */
     fun getTrebleEnergy(isPlaying: Boolean): Float {
         if (!isPlaying) return 0.04f
+        val sens = getSensitivity()
         val hasRecentData = (SystemClock.uptimeMillis() - lastDataTime) < 350L
-        if (hasRecentData) return trebleEnergy
+        if (hasRecentData) return (trebleEnergy * sens).coerceIn(0.04f, 1.0f)
 
         val now = SystemClock.uptimeMillis() / 1000.0
-        return (sin(now * 7.5) * 0.35 + 0.45).toFloat().coerceIn(0.05f, 1.0f)
+        return ((sin(now * 7.5) * 0.35 + 0.45).toFloat() * sens).coerceIn(0.05f, 1.0f)
     }
 
     @Synchronized
