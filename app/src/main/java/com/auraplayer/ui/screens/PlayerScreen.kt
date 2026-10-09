@@ -417,7 +417,7 @@ fun PlayerScreen(
     val shuffleRotation = remember { Animatable(0f) }
     val repeatBounce = remember { Animatable(1f) }
 
-    var supernovaTrigger by remember { mutableLongStateOf(0L) }
+    var supernovaTrigger by remember { mutableStateOf(0L) }
 
     // Hardware-accelerated continuous vinyl rotation (RenderThread / GPU execution with zero Compose recomposition)
     val vinylRotation = remember { Animatable(0f) }
