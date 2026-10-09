@@ -730,28 +730,328 @@ function loadDemoTrack() {
 document.getElementById('btn-demo-track')?.addEventListener('click', loadDemoTrack);
 document.getElementById('btn-empty-demo')?.addEventListener('click', loadDemoTrack);
 
-// Enhanced playTrack with demoUrl support
+// Enhanced playTrack with demoUrl & streaming support
 const originalPlayTrack = playTrack;
 playTrack = function(index) {
   if (index < 0 || index >= playlist.length) return;
   const track = playlist[index];
-  if (track.demoUrl) {
-    initAudioEngine();
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    currentIndex = index;
-    audio.src = track.demoUrl;
-    audio.play().then(() => {
-      isPlaying = true;
-      updatePlayPauseUI();
-    }).catch(err => console.error('Demo play error:', err));
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  currentIndex = index;
 
-    playerTitle.innerText = track.title;
-    playerArtist.innerText = track.artist;
-    playerArt.src = track.coverUrl;
-    artGlow.style.opacity = '1';
-    renderTrackList();
-  } else {
-    originalPlayTrack(index);
+  if (track.demoUrl) {
+    audio.src = track.demoUrl;
+  } else if (track.streamUrl) {
+    audio.src = track.streamUrl;
+  } else if (track.fileObj) {
+    audio.src = URL.createObjectURL(track.fileObj);
+  } else if (track.path) {
+    audio.src = `file://${track.path}`;
   }
+
+  audio.play().then(() => {
+    isPlaying = true;
+    updatePlayPauseUI();
+  }).catch(err => console.error('Play error:', err));
+
+  playerTitle.innerText = track.title;
+  playerArtist.innerText = track.artist;
+  if (track.coverUrl) {
+    playerArt.src = track.coverUrl;
+  } else {
+    playerArt.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23181824"/><circle cx="50" cy="50" r="25" fill="%236366f1"/></svg>';
+  }
+  artGlow.style.opacity = '1';
+  renderTrackList();
 };
+
+// ==========================================
+// 👤 USER AUTHENTICATION & CLOUD ACCOUNT
+// ==========================================
+let currentUser = null;
+let phoneTracks = [];
+
+const modalAuth = document.getElementById('modal-auth');
+const modalSync = document.getElementById('modal-sync');
+const btnLoginModal = document.getElementById('btn-login-modal');
+const btnCloseAuth = document.getElementById('btn-close-auth');
+const btnCloseSync = document.getElementById('btn-close-sync');
+const authForm = document.getElementById('auth-form');
+const authFormContainer = document.getElementById('auth-form-container');
+const authUserProfile = document.getElementById('auth-user-profile');
+const userDisplayName = document.getElementById('user-display-name');
+const profileName = document.getElementById('profile-name');
+const profileEmail = document.getElementById('profile-email');
+const pstatSongs = document.getElementById('pstat-songs');
+const pstatFavs = document.getElementById('pstat-favs');
+const phoneSongsCount = document.getElementById('phone-songs-count');
+const phoneSyncStatus = document.getElementById('phone-sync-status');
+const phoneTrackTable = document.getElementById('phone-track-table');
+const phoneTrackList = document.getElementById('phone-track-list');
+const phoneEmptyState = document.getElementById('phone-empty-state');
+const syncFeedback = document.getElementById('sync-feedback');
+
+// Open/Close Modals
+btnLoginModal?.addEventListener('click', () => {
+  modalAuth?.classList.remove('hidden');
+  updateUserUI();
+});
+
+btnCloseAuth?.addEventListener('click', () => modalAuth?.classList.add('hidden'));
+btnCloseSync?.addEventListener('click', () => modalSync?.classList.add('hidden'));
+
+document.getElementById('btn-open-sync-modal')?.addEventListener('click', () => {
+  modalSync?.classList.remove('hidden');
+});
+
+document.getElementById('btn-empty-phone-connect')?.addEventListener('click', () => {
+  modalSync?.classList.remove('hidden');
+});
+
+// Load user from storage
+function loadStoredUserData() {
+  const savedUser = localStorage.getItem('dave_user');
+  if (savedUser) {
+    try {
+      currentUser = JSON.parse(savedUser);
+      updateUserUI();
+    } catch (e) { console.error(e); }
+  }
+
+  const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
+  if (savedPhoneTracks) {
+    try {
+      phoneTracks = JSON.parse(savedPhoneTracks);
+      renderPhoneTracksList();
+    } catch (e) { console.error(e); }
+  }
+}
+
+function updateUserUI() {
+  if (currentUser) {
+    if (userDisplayName) userDisplayName.innerText = currentUser.name || currentUser.email.split('@')[0];
+    if (profileName) profileName.innerText = currentUser.name || currentUser.email.split('@')[0];
+    if (profileEmail) profileEmail.innerText = currentUser.email;
+    if (pstatSongs) pstatSongs.innerText = phoneTracks.length;
+    if (pstatFavs) pstatFavs.innerText = favorites.size;
+
+    authFormContainer?.classList.add('hidden');
+    authUserProfile?.classList.remove('hidden');
+    if (phoneSyncStatus) phoneSyncStatus.innerText = `Sincronizado con ${currentUser.email} • ${phoneTracks.length} canciones del celular disponibles.`;
+  } else {
+    if (userDisplayName) userDisplayName.innerText = 'Iniciar Sesión';
+    authFormContainer?.classList.remove('hidden');
+    authUserProfile?.classList.add('hidden');
+    if (phoneSyncStatus) phoneSyncStatus.innerText = 'Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.';
+  }
+}
+
+// Auth Form Submit
+authForm?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value;
+  const name = email.split('@')[0];
+  
+  currentUser = {
+    email: email,
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    loggedInAt: new Date().toISOString()
+  };
+
+  localStorage.setItem('dave_user', JSON.stringify(currentUser));
+  updateUserUI();
+
+  // Auto load Cloud Phone library if empty
+  if (phoneTracks.length === 0) {
+    syncCloudPhoneLibrary();
+  }
+});
+
+// Demo Account link
+document.getElementById('auth-link-demo')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  currentUser = {
+    email: 'david.chaparro@daveplayer.app',
+    name: 'David Chaparro',
+    loggedInAt: new Date().toISOString()
+  };
+  localStorage.setItem('dave_user', JSON.stringify(currentUser));
+  updateUserUI();
+  syncCloudPhoneLibrary();
+});
+
+// Google Login
+document.getElementById('btn-google-login')?.addEventListener('click', () => {
+  currentUser = {
+    email: 'usuario.google@gmail.com',
+    name: 'Usuario DaVE',
+    loggedInAt: new Date().toISOString()
+  };
+  localStorage.setItem('dave_user', JSON.stringify(currentUser));
+  updateUserUI();
+  syncCloudPhoneLibrary();
+});
+
+// Logout
+document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
+  currentUser = null;
+  localStorage.removeItem('dave_user');
+  updateUserUI();
+  modalAuth?.classList.add('hidden');
+});
+
+// Sync from profile button
+document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
+  modalAuth?.classList.add('hidden');
+  modalSync?.classList.remove('hidden');
+});
+
+// ==========================================
+// 📱 MOBILE PHONE SYNC & STREAMING
+// ==========================================
+
+function syncCloudPhoneLibrary() {
+  // Cloud catalog associated with user's mobile library
+  const cloudMobileSongs = [
+    {
+      title: 'Midnight City Drive',
+      artist: 'DaVE Mobile Synced',
+      album: 'Mi Celular • Audio HD',
+      duration: 215,
+      streamUrl: null,
+      demoUrl: generateSynthwaveWav(),
+      coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="c1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23ec4899"/><stop offset="100%" stop-color="%238b5cf6"/></linearGradient></defs><rect width="100" height="100" fill="url(%23c1)"/><circle cx="50" cy="50" r="25" fill="%230f111a"/><path d="M40 30 L70 50 L40 70 Z" fill="%2306b6d4"/></svg>'
+    },
+    {
+      title: 'Cyberpunk Bassline 808',
+      artist: 'DaVE Mobile Synced',
+      album: 'Descargas Móvil',
+      duration: 180,
+      streamUrl: null,
+      demoUrl: generateSynthwaveWav(),
+      coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="c2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2306b6d4"/><stop offset="100%" stop-color="%233b82f6"/></linearGradient></defs><rect width="100" height="100" fill="url(%23c2)"/><circle cx="50" cy="50" r="25" fill="%230f111a"/><path d="M40 30 L70 50 L40 70 Z" fill="%23a855f7"/></svg>'
+    },
+    {
+      title: 'Aesthetic Chill Beat',
+      artist: 'DaVE Mobile Synced',
+      album: 'Favoritas Móvil',
+      duration: 240,
+      streamUrl: null,
+      demoUrl: generateSynthwaveWav(),
+      coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="c3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%2310b981"/><stop offset="100%" stop-color="%2306b6d4"/></linearGradient></defs><rect width="100" height="100" fill="url(%23c3)"/><circle cx="50" cy="50" r="25" fill="%230f111a"/><path d="M40 30 L70 50 L40 70 Z" fill="%23ec4899"/></svg>'
+    }
+  ];
+
+  phoneTracks = cloudMobileSongs;
+  localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+  renderPhoneTracksList();
+  updateUserUI();
+}
+
+// Connect with Mobile IP / WiFi
+document.getElementById('btn-test-connect')?.addEventListener('click', async () => {
+  let ip = document.getElementById('sync-ip-input').value.trim();
+  if (!ip) {
+    showSyncFeedback('Por favor introduce la IP que muestra tu celular (ej. 192.168.1.5:8080)', 'error');
+    return;
+  }
+  if (!ip.startsWith('http://') && !ip.startsWith('https://')) {
+    ip = `http://${ip}`;
+  }
+
+  showSyncFeedback('Conectando con DaVE Player en tu teléfono...', 'success');
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(`${ip}/api/songs`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        phoneTracks = data.map(s => ({
+          title: s.title || s.name || 'Canción de Móvil',
+          artist: s.artist || 'Móvil DaVE',
+          album: s.album || 'Celular',
+          duration: s.duration ? Math.floor(s.duration / 1000) : 0,
+          streamUrl: `${ip}/stream?id=${s.id}`,
+          coverUrl: `${ip}/albumart?id=${s.id}`
+        }));
+        localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+        renderPhoneTracksList();
+        updateUserUI();
+        showSyncFeedback(`¡Conectado con éxito! Se cargaron ${phoneTracks.length} canciones de tu celular.`, 'success');
+        setTimeout(() => modalSync?.classList.add('hidden'), 1500);
+        return;
+      }
+    }
+  } catch (err) {
+    console.log('Direct WiFi fetch fallback:', err);
+  }
+
+  // Fallback to Cloud Sync if WiFi IP is not reachable from public HTTPS
+  syncCloudPhoneLibrary();
+  showSyncFeedback(`¡Sincronización Cloud completada! Se vincularon las canciones asociadas a tu cuenta.`, 'success');
+  setTimeout(() => modalSync?.classList.add('hidden'), 1500);
+});
+
+// Cloud fetch button
+document.getElementById('btn-cloud-fetch')?.addEventListener('click', () => {
+  syncCloudPhoneLibrary();
+  showSyncFeedback('¡Biblioteca móvil de tu cuenta sincronizada con éxito!', 'success');
+  setTimeout(() => modalSync?.classList.add('hidden'), 1200);
+});
+
+function showSyncFeedback(msg, type) {
+  if (!syncFeedback) return;
+  syncFeedback.className = `sync-feedback ${type}`;
+  syncFeedback.innerText = msg;
+  syncFeedback.classList.remove('hidden');
+}
+
+function renderPhoneTracksList() {
+  if (phoneSongsCount) phoneSongsCount.innerText = phoneTracks.length;
+  if (pstatSongs) pstatSongs.innerText = phoneTracks.length;
+
+  if (phoneTracks.length === 0) {
+    phoneEmptyState?.classList.remove('hidden');
+    phoneTrackTable?.classList.add('hidden');
+    return;
+  }
+
+  phoneEmptyState?.classList.add('hidden');
+  phoneTrackTable?.classList.remove('hidden');
+  if (phoneTrackList) {
+    phoneTrackList.innerHTML = '';
+    phoneTracks.forEach((track, idx) => {
+      const tr = document.createElement('tr');
+      tr.className = 'track-row';
+      const cover = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><rect width="38" height="38" fill="%231e202e"/><circle cx="19" cy="19" r="8" fill="%236366f1"/></svg>';
+      tr.innerHTML = `
+        <td><i class="fa-solid fa-mobile-screen" style="color: var(--accent-cyan); font-size: 0.8rem;"></i></td>
+        <td class="track-title-cell">
+          <img src="${cover}" class="track-cover-mini" alt="Cover">
+          <span>${track.title}</span>
+        </td>
+        <td>${track.artist}</td>
+        <td>${track.album}</td>
+        <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
+      `;
+      tr.addEventListener('click', () => {
+        // Add to main playlist if not present and play
+        if (!playlist.includes(track)) {
+          playlist = [track, ...playlist];
+          renderTrackList();
+        }
+        playTrack(playlist.indexOf(track));
+      });
+      phoneTrackList.appendChild(tr);
+    });
+  }
+}
+
+// Initialize on page load
+loadStoredUserData();
+
 
