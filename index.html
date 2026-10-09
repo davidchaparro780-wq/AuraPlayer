@@ -1106,7 +1106,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.4.0</span>
+        <span class="brand-badge">PRO v3.4.1</span>
       </div>
 
       <div class="search-wrapper">
@@ -1217,6 +1217,15 @@
               </div>
             </div>
 
+            <div id="search-empty-state" class="empty-shelf hidden" style="padding: 2.5rem 1.5rem;">
+              <i class="fa-solid fa-magnifying-glass" style="font-size: 2.5rem; color: var(--text-dim); margin-bottom: 0.8rem;"></i>
+              <h3 style="font-size: 1.25rem;">No se encontraron canciones</h3>
+              <p id="search-empty-text" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">No hay canciones que coincidan con tu búsqueda.</p>
+              <button id="btn-search-clear-action" class="btn-outline-secondary" style="margin: 0 auto;">
+                <i class="fa-solid fa-xmark"></i> Limpiar búsqueda
+              </button>
+            </div>
+
             <table id="track-table" class="song-table hidden">
               <thead>
                 <tr>
@@ -1302,6 +1311,15 @@
                   <i class="fa-solid fa-cloud"></i> Cargar Canciones Cloud
                 </button>
               </div>
+            </div>
+
+            <div id="phone-search-empty-state" class="empty-shelf hidden" style="padding: 2.5rem 1.5rem;">
+              <i class="fa-solid fa-magnifying-glass" style="font-size: 2.5rem; color: var(--text-dim); margin-bottom: 0.8rem;"></i>
+              <h3 style="font-size: 1.25rem;">No se encontraron canciones</h3>
+              <p id="phone-search-empty-text" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">No hay coincidencias en tu celular.</p>
+              <button id="btn-phone-search-clear-action" class="btn-outline-secondary" style="margin: 0 auto;">
+                <i class="fa-solid fa-xmark"></i> Limpiar búsqueda
+              </button>
             </div>
 
             <table id="phone-track-table" class="song-table hidden">
@@ -1632,6 +1650,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.4.0"></script>
+  <script src="app.js?v=3.4.1"></script>
 </body>
 </html>
