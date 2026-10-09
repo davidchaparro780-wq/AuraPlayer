@@ -49,6 +49,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import android.view.KeyEvent
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.auraplayer.ui.components.bounceClick
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Explore
@@ -134,6 +153,85 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        var activeController: MediaController? = null
+    }
+
+    private var lastVolumeUpTime = 0L
+    private var lastVolumeDownTime = 0L
+    private var isVolumeLongPressHandled = false
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val ctrl = activeController
+        if (ctrl != null) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        if (event.repeatCount == 1) { // Long-press threshold reached (~500ms)
+                            isVolumeLongPressHandled = true
+                            ctrl.seekToNextMediaItem()
+                            try {
+                                val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                                vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                            } catch (_: Exception) {}
+                            Toast.makeText(this, "⏭ Siguiente canción", Toast.LENGTH_SHORT).show()
+                            return true
+                        } else if (event.repeatCount == 0) {
+                            isVolumeLongPressHandled = false
+                            val now = System.currentTimeMillis()
+                            if (now - lastVolumeUpTime < 350L) { // Rapid double-tap
+                                lastVolumeUpTime = 0L
+                                ctrl.seekToNextMediaItem()
+                                try {
+                                    val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                                    vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                } catch (_: Exception) {}
+                                Toast.makeText(this, "⏭ Siguiente canción", Toast.LENGTH_SHORT).show()
+                                return true
+                            }
+                            lastVolumeUpTime = now
+                        }
+                    } else if (event.action == KeyEvent.ACTION_UP && isVolumeLongPressHandled) {
+                        isVolumeLongPressHandled = false
+                        return true
+                    }
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        if (event.repeatCount == 1) { // Long-press threshold reached (~500ms)
+                            isVolumeLongPressHandled = true
+                            ctrl.seekToPreviousMediaItem()
+                            try {
+                                val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                                vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                            } catch (_: Exception) {}
+                            Toast.makeText(this, "⏮ Canción anterior", Toast.LENGTH_SHORT).show()
+                            return true
+                        } else if (event.repeatCount == 0) {
+                            isVolumeLongPressHandled = false
+                            val now = System.currentTimeMillis()
+                            if (now - lastVolumeDownTime < 350L) { // Rapid double-tap
+                                lastVolumeDownTime = 0L
+                                ctrl.seekToPreviousMediaItem()
+                                try {
+                                    val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                                    vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                } catch (_: Exception) {}
+                                Toast.makeText(this, "⏮ Canción anterior", Toast.LENGTH_SHORT).show()
+                                return true
+                            }
+                            lastVolumeDownTime = now
+                        }
+                    } else if (event.action == KeyEvent.ACTION_UP && isVolumeLongPressHandled) {
+                        isVolumeLongPressHandled = false
+                        return true
+                    }
+                }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -269,6 +367,32 @@ fun AuraApp(
     var hasPromptedStartupAuth by remember { mutableStateOf(false) }
 
     var controller by remember { mutableStateOf<MediaController?>(null) }
+
+    LaunchedEffect(controller) {
+        MainActivity.activeController = controller
+    }
+
+    // Smart Resume State ("Continuar donde lo dejaste")
+    val savedResumeSongId = remember { appPrefs.getLong("smart_resume_song_id", -1L) }
+    val savedResumePosMs = remember { appPrefs.getLong("smart_resume_pos_ms", 0L) }
+    val savedResumeTitle = remember { appPrefs.getString("smart_resume_title", "") ?: "" }
+    val savedResumeArtist = remember { appPrefs.getString("smart_resume_artist", "") ?: "" }
+    val savedResumeArtwork = remember { appPrefs.getString("smart_resume_artwork", "") ?: "" }
+    var showSmartResumeBanner by remember { mutableStateOf(savedResumeSongId > 0L) }
+
+    // Persist playback position & song info for Smart Resume
+    LaunchedEffect(currentPositionMs, isPlaying) {
+        val curr = currentMedia
+        if (curr != null && curr.id > 0L && currentPositionMs > 2000L) {
+            appPrefs.edit()
+                .putLong("smart_resume_song_id", curr.id)
+                .putLong("smart_resume_pos_ms", currentPositionMs)
+                .putString("smart_resume_title", curr.title)
+                .putString("smart_resume_artist", curr.artist)
+                .putString("smart_resume_artwork", curr.artworkUri?.toString() ?: "")
+                .apply()
+        }
+    }
 
     val headphoneManager = remember { com.auraplayer.audio.HeadphoneManager(context) }
     DisposableEffect(Unit) {
@@ -1143,6 +1267,181 @@ fun AuraApp(
         Scaffold(
         bottomBar = {
             androidx.compose.foundation.layout.Column {
+                // Smart Resume ("Continuar donde lo dejaste") Banner
+                AnimatedVisibility(
+                    visible = currentMedia == null && showSmartResumeBanner && savedResumeSongId > 0L,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .shadow(16.dp, RoundedCornerShape(20.dp), spotColor = Color(0xFF00F0FF).copy(alpha = 0.35f))
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xF0121729),
+                                        Color(0xF01B122C),
+                                        Color(0xF00F1524)
+                                    )
+                                )
+                            )
+                            .border(
+                                1.2.dp,
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xFF00F0FF).copy(alpha = 0.6f),
+                                        Color(0xFFEC4899).copy(alpha = 0.6f),
+                                        Color(0xFF8B5CF6).copy(alpha = 0.6f)
+                                    )
+                                ),
+                                RoundedCornerShape(20.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            // Artwork
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF222B40))
+                                    .border(1.dp, Color(0xFF00F0FF).copy(alpha = 0.4f), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (savedResumeArtwork.isNotBlank()) {
+                                    AsyncImage(
+                                        model = savedResumeArtwork,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.MusicNote,
+                                        contentDescription = null,
+                                        tint = Color(0xFF00F0FF),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            // Text details
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "CONTINUAR DONDE QUEDASTE",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF00F0FF),
+                                        letterSpacing = 1.sp
+                                    )
+                                    if (savedResumePosMs > 0L) {
+                                        val min = (savedResumePosMs / 1000) / 60
+                                        val sec = (savedResumePosMs / 1000) % 60
+                                        Text(
+                                            text = " • " + String.format(java.util.Locale.ROOT, "%02d:%02d", min, sec),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFEC4899)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = savedResumeTitle.ifEmpty { "Última canción" },
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = savedResumeArtist.ifEmpty { "Artista" },
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Play Resume Button
+                            IconButton(
+                                onClick = {
+                                    val target = songs.find { it.id == savedResumeSongId }
+                                    if (target != null) {
+                                        currentMedia = target
+                                        playlistManager.recordPlay(target.id)
+                                        controller?.run {
+                                            val songIndex = songs.indexOfFirst { it.id == target.id }.coerceAtLeast(0)
+                                            val mediaItemList = songs.map { s ->
+                                                MediaItem.Builder()
+                                                    .setUri(s.uri)
+                                                    .setMediaId(s.id.toString())
+                                                    .setMediaMetadata(
+                                                        MediaMetadata.Builder()
+                                                            .setTitle(s.title)
+                                                            .setArtist(s.artist)
+                                                            .setAlbumTitle(s.album)
+                                                            .setArtworkUri(s.artworkUri)
+                                                            .build()
+                                                    )
+                                                    .build()
+                                            }
+                                            setMediaItems(mediaItemList, songIndex, savedResumePosMs)
+                                            prepare()
+                                            play()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .bounceClick()
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF00F0FF), Color(0xFF8B5CF6))
+                                        )
+                                    )
+                                    .shadow(8.dp, CircleShape, spotColor = Color(0xFF00F0FF))
+                            ) {
+                                Icon(
+                                    Icons.Default.PlayArrow,
+                                    contentDescription = "Continuar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            // Dismiss button
+                            IconButton(
+                                onClick = { showSmartResumeBanner = false },
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .bounceClick()
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Ocultar",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // Mini Player
                 val effectiveDuration = if (durationMs > 0L) durationMs else (currentMedia?.duration ?: 0L)
                 val progress = if (effectiveDuration > 0L) currentPositionMs.toFloat() / effectiveDuration.toFloat() else 0f

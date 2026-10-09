@@ -19,6 +19,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
+import com.auraplayer.ui.components.bounceClick
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -214,6 +219,25 @@ fun PlayerScreen(
     var showAudioSpecSheet by remember { mutableStateOf(false) }
     var visualizerMode by remember { mutableIntStateOf(0) } // 0: Spectrum bars, 1: Neon wave, 2: Radial pulse, 3: Starfield
     var lyricsFontSizeMultiplier by remember { mutableFloatStateOf(1.0f) }
+
+    var seekBadgeText by remember { mutableStateOf("") }
+    var showSeekBadge by remember { mutableStateOf(false) }
+    var seekBadgeIsForward by remember { mutableStateOf(true) }
+    var showHeartBurst by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSeekBadge) {
+        if (showSeekBadge) {
+            delay(850)
+            showSeekBadge = false
+        }
+    }
+
+    LaunchedEffect(showHeartBurst) {
+        if (showHeartBurst) {
+            delay(950)
+            showHeartBurst = false
+        }
+    }
 
     fun triggerPiP() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -456,9 +480,28 @@ fun PlayerScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Header bar
+                // Swipe-down dismiss handle
+                Box(
+                    modifier = Modifier
+                        .padding(bottom = 6.dp)
+                        .width(42.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White.copy(alpha = 0.28f))
+                )
+
+                // Header bar (swipe down to dismiss)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures { _, dragAmount ->
+                                if (dragAmount > 20f) {
+                                    AuraHaptic.click(view)
+                                    onDismiss()
+                                }
+                            }
+                        },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -643,9 +686,33 @@ fun PlayerScreen(
                                         ambientColor = Color(0xFF8B5CF6).copy(alpha = dynamicGlowAlpha * 0.7f)
                                     )
                                     .clip(CircleShape)
-                                    .clickable {
-                                        AuraHaptic.click(view)
-                                        centerVisualizerMode = 1
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                AuraHaptic.click(view)
+                                                centerVisualizerMode = 1
+                                            },
+                                            onDoubleTap = { offset ->
+                                                val w = size.width
+                                                if (offset.x < w * 0.35f) {
+                                                    onSeekRelative(-10000L)
+                                                    seekBadgeText = "-10s"
+                                                    seekBadgeIsForward = false
+                                                    showSeekBadge = true
+                                                    AuraHaptic.click(view)
+                                                } else if (offset.x > w * 0.65f) {
+                                                    onSeekRelative(10000L)
+                                                    seekBadgeText = "+10s"
+                                                    seekBadgeIsForward = true
+                                                    showSeekBadge = true
+                                                    AuraHaptic.click(view)
+                                                } else {
+                                                    onToggleFavorite()
+                                                    showHeartBurst = true
+                                                    AuraHaptic.heavy(view)
+                                                }
+                                            }
+                                        )
                                     }
                                     .background(
                                         Brush.radialGradient(
@@ -729,7 +796,34 @@ fun PlayerScreen(
                                         Brush.sweepGradient(listOf(Color(0xFF00F0FF), Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF))),
                                         RoundedCornerShape(28.dp)
                                     )
-                                    .clickable { centerVisualizerMode = 0 }
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                AuraHaptic.click(view)
+                                                centerVisualizerMode = 0
+                                            },
+                                            onDoubleTap = { offset ->
+                                                val w = size.width
+                                                if (offset.x < w * 0.35f) {
+                                                    onSeekRelative(-10000L)
+                                                    seekBadgeText = "-10s"
+                                                    seekBadgeIsForward = false
+                                                    showSeekBadge = true
+                                                    AuraHaptic.click(view)
+                                                } else if (offset.x > w * 0.65f) {
+                                                    onSeekRelative(10000L)
+                                                    seekBadgeText = "+10s"
+                                                    seekBadgeIsForward = true
+                                                    showSeekBadge = true
+                                                    AuraHaptic.click(view)
+                                                } else {
+                                                    onToggleFavorite()
+                                                    showHeartBurst = true
+                                                    AuraHaptic.heavy(view)
+                                                }
+                                            }
+                                        )
+                                    }
                                     .padding(20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -901,6 +995,82 @@ fun PlayerScreen(
                                     }
                                 }
                             }
+                        }
+                    // Animated Neon Seek Badge Overlay (+10s / -10s)
+                    AnimatedVisibility(
+                        visible = showSeekBadge,
+                        enter = fadeIn() + scaleIn(initialScale = 0.65f),
+                        exit = fadeOut() + scaleOut(targetScale = 1.35f),
+                        modifier = Modifier
+                            .align(if (seekBadgeIsForward) Alignment.CenterEnd else Alignment.CenterStart)
+                            .padding(horizontal = 24.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xE6080C16),
+                            border = BorderStroke(
+                                1.5.dp,
+                                Brush.horizontalGradient(
+                                    if (seekBadgeIsForward) listOf(Color(0xFF00F0FF), Color(0xFF38BDF8))
+                                    else listOf(Color(0xFFEC4899), Color(0xFF8B5CF6))
+                                )
+                            ),
+                            shadowElevation = 16.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (seekBadgeIsForward) Icons.Default.FastForward else Icons.Default.FastRewind,
+                                    contentDescription = null,
+                                    tint = if (seekBadgeIsForward) Color(0xFF00F0FF) else Color(0xFFEC4899),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = seekBadgeText,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 17.sp,
+                                    color = Color.White,
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Animated Glowing Neon Heart Burst Overlay
+                    AnimatedVisibility(
+                        visible = showHeartBurst,
+                        enter = fadeIn() + scaleIn(initialScale = 0.35f),
+                        exit = fadeOut() + scaleOut(targetScale = 1.6f),
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(116.dp)
+                                .shadow(28.dp, CircleShape, spotColor = Color(0xFFFF0055), ambientColor = Color(0xFFFF2A85))
+                                .background(Color(0xF0140718), CircleShape)
+                                .border(
+                                    2.5.dp,
+                                    Brush.sweepGradient(
+                                        listOf(
+                                            Color(0xFFFF0055),
+                                            Color(0xFFEC4899),
+                                            Color(0xFFF43F5E),
+                                            Color(0xFFFF0055)
+                                        )
+                                    ),
+                                    CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = null,
+                                tint = Color(0xFFFF0055),
+                                modifier = Modifier.size(64.dp)
+                            )
                         }
                     }
                 }
@@ -1458,10 +1628,13 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Shuffle
-                    IconButton(onClick = {
-                        AuraHaptic.click(view)
-                        onShuffleToggle()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            AuraHaptic.click(view)
+                            onShuffleToggle()
+                        },
+                        modifier = Modifier.bounceClick()
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Shuffle,
                             contentDescription = "Aleatorio",
@@ -1475,7 +1648,9 @@ fun PlayerScreen(
                             AuraHaptic.tick(view)
                             onPreviousClick()
                         },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .bounceClick()
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipPrevious,
@@ -1493,6 +1668,7 @@ fun PlayerScreen(
                         },
                         modifier = Modifier
                             .size(74.dp)
+                            .bounceClick()
                             .clip(CircleShape)
                             .background(
                                 Brush.linearGradient(
@@ -1518,7 +1694,9 @@ fun PlayerScreen(
                             AuraHaptic.tick(view)
                             onNextClick()
                         },
-                        modifier = Modifier.size(48.dp)
+                        modifier = Modifier
+                            .size(48.dp)
+                            .bounceClick()
                     ) {
                         Icon(
                             imageVector = Icons.Default.SkipNext,
@@ -1529,7 +1707,10 @@ fun PlayerScreen(
                     }
 
                     // Repeat
-                    IconButton(onClick = onRepeatToggle) {
+                    IconButton(
+                        onClick = onRepeatToggle,
+                        modifier = Modifier.bounceClick()
+                    ) {
                         Icon(
                             imageVector = when (repeatMode) {
                                 RepeatMode.ONE -> Icons.Default.RepeatOne
