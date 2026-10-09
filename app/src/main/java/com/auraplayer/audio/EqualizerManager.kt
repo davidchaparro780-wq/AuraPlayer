@@ -350,6 +350,18 @@ class EqualizerManager private constructor() {
         persistSettings()
     }
 
+    fun applyGenrePreset(genreName: String) {
+        when {
+            genreName.contains("Urbano", ignoreCase = true) -> applyPreset(1) // Cyber Bass
+            genreName.contains("Rock", ignoreCase = true) -> applyPreset(4) // Rock Velvet
+            genreName.contains("Electro", ignoreCase = true) -> applyPreset(6) // Electronic
+            genreName.contains("Acústico", ignoreCase = true) || genreName.contains("Acoustic", ignoreCase = true) -> applyPreset(7) // Audiophile Hi-Fi
+            genreName.contains("Pop", ignoreCase = true) -> applyPreset(3) // Neon Pop
+            else -> applyPreset(0) // Flat
+        }
+    }
+
+
     fun release() {
         try {
             equalizer?.release()

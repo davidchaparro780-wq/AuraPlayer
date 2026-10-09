@@ -141,6 +141,8 @@ import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.data.repository.Playlist
 import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.ui.components.TagEditorDialog
+import androidx.compose.material.icons.filled.QrCode2
+import com.auraplayer.ui.components.QrShareDialog
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -185,6 +187,9 @@ fun MusicScreen(
     isBubbleActive: Boolean = false,
     onOpenHeadphones: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenAiPlaylist: () -> Unit = {},
+    onOpenDuplicateCleaner: () -> Unit = {},
+    onOpenBackupRestore: () -> Unit = {},
     userManager: com.auraplayer.data.repository.UserManager,
     onOpenAuth: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
@@ -218,6 +223,7 @@ fun MusicScreen(
 
     var selectedSongForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var songToDelete by remember { mutableStateOf<MediaModel?>(null) }
+    var songForQrShare by remember { mutableStateOf<MediaModel?>(null) }
     var songForDetails by remember { mutableStateOf<MediaModel?>(null) }
     var selectedSongForTagEdit by remember { mutableStateOf<MediaModel?>(null) }
     var songToAddToPlaylist by remember { mutableStateOf<MediaModel?>(null) }
@@ -420,6 +426,18 @@ fun MusicScreen(
                         onDismissRequest = { showToolsMenu = false },
                         modifier = Modifier.background(Color(0xFF0F172A))
                     ) {
+                        DropdownMenuItem(
+                            text = { Text("🤖 DaVE AI Playlists", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenAiPlaylist() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🧹 Limpiador de Duplicados", color = Color(0xFFF43F5E), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenDuplicateCleaner() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("💾 Copia de Seguridad & Restaurar", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenBackupRestore() }
+                        )
                         DropdownMenuItem(
                             text = { Text("🔔 Buscar Actualizaciones", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onCheckUpdates() }
@@ -1414,6 +1432,14 @@ fun MusicScreen(
         )
     }
 
+    // Offline QR Share Dialog
+    if (songForQrShare != null) {
+        QrShareDialog(
+            song = songForQrShare!!,
+            onDismiss = { songForQrShare = null }
+        )
+    }
+
     // Song Options BottomSheet Modal (Musicolet Style Queuing & Tags)
     if (selectedSongForMenu != null) {
         val song = selectedSongForMenu!!
@@ -1539,6 +1565,17 @@ fun MusicScreen(
                             putExtra(Intent.EXTRA_TEXT, "Escuchando '${song.title}' de ${song.artist} en Aura Player")
                         }
                         context.startActivity(Intent.createChooser(shareIntent, "Compartir audio"))
+                    }
+                )
+
+                MenuOptionItem(
+                    icon = Icons.Default.QrCode2,
+                    iconColor = Color(0xFF06B6D4),
+                    title = "Compartir con Código QR (Offline)",
+                    onClick = {
+                        val target = song
+                        selectedSongForMenu = null
+                        songForQrShare = target
                     }
                 )
 

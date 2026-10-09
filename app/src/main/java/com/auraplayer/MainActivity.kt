@@ -136,6 +136,7 @@ import com.auraplayer.ui.components.MiniPlayer
 import com.auraplayer.ui.components.SleepTimerDialog
 import com.auraplayer.data.repository.SettingsManager
 import com.auraplayer.ui.screens.CarModeScreen
+import com.auraplayer.ui.screens.StandByScreen
 import com.auraplayer.ui.screens.DiscoverScreen
 import com.auraplayer.ui.screens.EqualizerScreen
 import com.auraplayer.ui.screens.MusicScreen
@@ -366,6 +367,14 @@ fun AuraApp(
     var showProfileDialog by remember { mutableStateOf(false) }
     var hasPromptedStartupAuth by remember { mutableStateOf(false) }
 
+    var showStandByScreen by remember { mutableStateOf(false) }
+    var showAiPlaylistDialog by remember { mutableStateOf(false) }
+    var showDuplicateCleanerDialog by remember { mutableStateOf(false) }
+    var showBackupRestoreDialog by remember { mutableStateOf(false) }
+
+    val crossfadeManager = remember { com.auraplayer.audio.CrossfadeManager.getInstance(context) }
+    val tubeAmpManager = remember { com.auraplayer.audio.TubeAmpManager.getInstance(context) }
+
     var controller by remember { mutableStateOf<MediaController?>(null) }
 
     LaunchedEffect(controller) {
@@ -530,6 +539,18 @@ fun AuraApp(
             }
             showCarModeScreen -> {
                 showCarModeScreen = false
+            }
+            showStandByScreen -> {
+                showStandByScreen = false
+            }
+            showAiPlaylistDialog -> {
+                showAiPlaylistDialog = false
+            }
+            showDuplicateCleanerDialog -> {
+                showDuplicateCleanerDialog = false
+            }
+            showBackupRestoreDialog -> {
+                showBackupRestoreDialog = false
             }
             showSleepTimerDialog -> {
                 showSleepTimerDialog = false
@@ -909,6 +930,9 @@ fun AuraApp(
                             durationMs = fallbackDuration
                         }
                     }
+                    currentMedia?.let { cm ->
+                        tubeAmpManager.detectAndApplyAutoEq(cm.title, cm.artist, cm.album)
+                    }
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -1190,6 +1214,46 @@ fun AuraApp(
         com.auraplayer.ui.components.BatchMetadataDialog(
             songs = songs,
             onDismiss = { showBatchCleanerDialog = false }
+        )
+    }
+
+    // DaVE AI Playlists Dialog
+    if (showAiPlaylistDialog) {
+        com.auraplayer.ui.components.AiPlaylistDialog(
+            allSongs = songs,
+            onDismiss = { showAiPlaylistDialog = false },
+            onPlaylistCreated = { name, selectedSongs ->
+                val newPl = playlistManager.createPlaylist(name)
+                selectedSongs.forEach { song ->
+                    playlistManager.addSongToPlaylist(newPl.id, song.id)
+                }
+                Toast.makeText(context, "Playlist '${name}' creada con ${selectedSongs.size} canciones", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // Duplicate Audio Cleaner Dialog
+    if (showDuplicateCleanerDialog) {
+        com.auraplayer.ui.components.DuplicateCleanerDialog(
+            allSongs = songs,
+            onDismiss = { showDuplicateCleanerDialog = false },
+            onDeleteDuplicates = { duplicates ->
+                duplicates.forEach { song ->
+                    handleDeleteSong(song)
+                }
+                Toast.makeText(context, "Se limpiaron ${duplicates.size} archivos duplicados", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // Full Backup & Restore Dialog (.davebackup JSON)
+    if (showBackupRestoreDialog) {
+        com.auraplayer.ui.components.BackupRestoreDialog(
+            playlistManager = playlistManager,
+            onDismiss = { showBackupRestoreDialog = false },
+            onRestored = {
+                Toast.makeText(context, "Copia restaurada exitosamente", Toast.LENGTH_SHORT).show()
+            }
         )
     }
 
@@ -1749,6 +1813,9 @@ fun AuraApp(
                     isVirtualDjActive = isVirtualDjActive,
                     onOpenHeadphones = { showHeadphonesDialog = true },
                     onOpenSettings = { showSettingsScreen = true },
+                    onOpenAiPlaylist = { showAiPlaylistDialog = true },
+                    onOpenDuplicateCleaner = { showDuplicateCleanerDialog = true },
+                    onOpenBackupRestore = { showBackupRestoreDialog = true },
                     userManager = userManager,
                     onOpenAuth = { showAuthDialog = true },
                     onOpenProfile = { showProfileDialog = true },
@@ -2041,6 +2108,7 @@ fun AuraApp(
                 },
                 onOpenSleepTimer = { showSleepTimerDialog = true },
                 onOpenCarMode = { showCarModeScreen = true },
+                onOpenStandBy = { showStandByScreen = true },
                 onDeleteSong = { song ->
                     handleDeleteSong(song)
                 },
@@ -2083,6 +2151,33 @@ fun AuraApp(
             },
             onClose = {
                 showCarModeScreen = false
+            }
+        )
+    }
+
+    // Animated Fullscreen StandBy OLED Screen (AOD Nightstand Mode)
+    AnimatedVisibility(
+        visible = showStandByScreen,
+        enter = fadeIn(animationSpec = tween(220)),
+        exit = fadeOut(animationSpec = tween(180))
+    ) {
+        StandByScreen(
+            currentMedia = currentMedia,
+            isPlaying = isPlaying,
+            onPlayPause = {
+                controller?.let {
+                    if (it.isPlaying) crossfadeManager.smoothPause(it)
+                    else crossfadeManager.smoothPlay(it)
+                }
+            },
+            onNext = {
+                controller?.seekToNextMediaItem()
+            },
+            onPrevious = {
+                controller?.seekToPreviousMediaItem()
+            },
+            onClose = {
+                showStandByScreen = false
             }
         )
     }

@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Flare
@@ -190,6 +191,7 @@ fun PlayerScreen(
     onAudioFxChange: (speed: Float, pitch: Float) -> Unit,
     onOpenSleepTimer: () -> Unit,
     onOpenCarMode: () -> Unit = {},
+    onOpenStandBy: () -> Unit = {},
     onDeleteSong: (MediaModel) -> Unit,
     vibeMode: com.auraplayer.audio.AudioVibe = com.auraplayer.audio.AudioVibe.NORMAL,
     onCycleVibe: () -> com.auraplayer.audio.AudioVibe = { com.auraplayer.audio.AudioVibe.NORMAL },
@@ -210,6 +212,10 @@ fun PlayerScreen(
     var isSpatial8D by remember { mutableStateOf(EqualizerManager.instance.isSpatial8DEnabled) }
     var centerVisualizerMode by remember { mutableIntStateOf(0) } // 0: Vinyl disc, 1: Live Spectrum Waves
     var showSoundboardDialog by remember { mutableStateOf(false) }
+
+    val tubeAmpManager = remember { com.auraplayer.audio.TubeAmpManager.getInstance(context) }
+    var isTubeAmpActive by remember { mutableStateOf(tubeAmpManager.isTubeAmpEnabled) }
+    var isNightDrcActive by remember { mutableStateOf(tubeAmpManager.isNightDrcEnabled) }
 
     var showFxDialog by remember { mutableStateOf(false) }
     var showCutterDialog by remember { mutableStateOf(false) }
@@ -555,6 +561,16 @@ fun PlayerScreen(
                                 imageVector = Icons.Default.DirectionsCar,
                                 contentDescription = "Modo Conducción",
                                 tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // StandBy OLED Button (Always-On Display Style)
+                        IconButton(onClick = onOpenStandBy) {
+                            Icon(
+                                imageVector = Icons.Default.Bedtime,
+                                contentDescription = "Modo StandBy OLED",
+                                tint = Color(0xFFA855F7),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -1311,6 +1327,52 @@ fun PlayerScreen(
                                 fontSize = 11.sp
                             )
                         }
+                    }
+
+                    // Tube Amp Analog Warmth Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isTubeAmpActive) Color(0xFFD97706).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .border(1.dp, if (isTubeAmpActive) Color(0xFFF59E0B) else Color.Transparent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                isTubeAmpActive = !isTubeAmpActive
+                                tubeAmpManager.isTubeAmpEnabled = isTubeAmpActive
+                                if (isTubeAmpActive) {
+                                    EqualizerManager.instance.setBassBoostStrength(650.toShort())
+                                }
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isTubeAmpActive) "🔥 TUBE AMP" else "💡 TUBE",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isTubeAmpActive) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Night DRC Compressor Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isNightDrcActive) Color(0xFF6366F1).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                            .border(1.dp, if (isNightDrcActive) Color(0xFF818CF8) else Color.Transparent, RoundedCornerShape(12.dp))
+                            .clickable {
+                                isNightDrcActive = !isNightDrcActive
+                                tubeAmpManager.isNightDrcEnabled = isNightDrcActive
+                                EqualizerManager.instance.setReplayGainEnabled(isNightDrcActive)
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isNightDrcActive) "🌙 DRC NOCHE" else "🌙 DRC",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isNightDrcActive) Color(0xFF818CF8) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 11.sp
+                        )
                     }
 
                     // Ringtone Cutter Tool

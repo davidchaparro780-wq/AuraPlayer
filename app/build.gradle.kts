@@ -14,8 +14,8 @@ android {
         applicationId = "com.auraplayer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 57
-        versionName = "2.7.5"
+        versionCode = 58
+        versionName = "2.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -107,4 +107,7 @@ dependencies {
 
     // WorkManager for Automatic Background Update Checks
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // ZXing for Offline QR Code Sharing
+    implementation("com.google.zxing:core:3.5.3")
 }

@@ -15,7 +15,9 @@ data class Playlist(
 data class TagOverride(
     val title: String,
     val artist: String,
-    val album: String
+    val album: String,
+    val genre: String = "",
+    val year: String = ""
 )
 
 class PlaylistManager(context: Context) {
@@ -157,11 +159,13 @@ class PlaylistManager(context: Context) {
 
     // --- TAG EDITOR PERSISTENCE (Pulsar / Musicolet Style) ---
 
-    fun saveTagOverride(songId: Long, title: String, artist: String, album: String) {
+    fun saveTagOverride(songId: Long, title: String, artist: String, album: String, genre: String = "", year: String = "") {
         val obj = JSONObject().apply {
             put("title", title)
             put("artist", artist)
             put("album", album)
+            put("genre", genre)
+            put("year", year)
         }
         prefs.edit().putString("tag_$songId", obj.toString()).apply()
     }
@@ -171,12 +175,63 @@ class PlaylistManager(context: Context) {
         return try {
             val obj = JSONObject(jsonStr)
             TagOverride(
-                title = obj.getString("title"),
-                artist = obj.getString("artist"),
-                album = obj.getString("album")
+                title = obj.optString("title", ""),
+                artist = obj.optString("artist", ""),
+                album = obj.optString("album", ""),
+                genre = obj.optString("genre", ""),
+                year = obj.optString("year", "")
             )
         } catch (e: Exception) {
             null
+        }
+    }
+
+    // --- COPIA DE SEGURIDAD & RESTAURACIÓN (.davebackup JSON) ---
+
+    fun exportBackupJson(): String {
+        val root = JSONObject()
+        root.put("version", 1)
+        root.put("timestamp", System.currentTimeMillis())
+        root.put("playlists", JSONArray(prefs.getString("playlists_data", "[]")))
+
+        val tagsObj = JSONObject()
+        prefs.all.forEach { (k, v) ->
+            if (k.startsWith("tag_") && v is String) {
+                tagsObj.put(k, v)
+            }
+        }
+        root.put("tags", tagsObj)
+        root.put("theme_accent", getThemeAccent())
+        root.put("crossfade_sec", getCrossfadeSeconds())
+        return root.toString(2)
+    }
+
+    fun importBackupJson(jsonStr: String): Boolean {
+        return try {
+            val root = JSONObject(jsonStr)
+            val editor = prefs.edit()
+            if (root.has("playlists")) {
+                editor.putString("playlists_data", root.getJSONArray("playlists").toString())
+            }
+            if (root.has("tags")) {
+                val tagsObj = root.getJSONObject("tags")
+                val keys = tagsObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    editor.putString(k, tagsObj.getString(k))
+                }
+            }
+            if (root.has("theme_accent")) {
+                editor.putString("theme_accent", root.getString("theme_accent"))
+            }
+            if (root.has("crossfade_sec")) {
+                editor.putInt("audio_crossfade_sec", root.getInt("crossfade_sec"))
+            }
+            editor.apply()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 
