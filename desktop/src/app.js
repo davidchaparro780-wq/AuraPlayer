@@ -1423,6 +1423,7 @@ function disconnectPhoneServer(isRemoteDisconnect = false) {
   stopPhoneHeartbeat();
   updatePhoneConnectionUI(false);
   localStorage.removeItem('dave_connected_phone_ip');
+  sessionStorage.removeItem('dave_active_session');
 
   // 1. Detener audio inmediatamente
   if (isPlaying) {
@@ -1438,6 +1439,7 @@ function disconnectPhoneServer(isRemoteDisconnect = false) {
   playlist = [];
   phoneTracks = [];
   localStorage.removeItem('dave_phone_tracks');
+  localStorage.removeItem('dave_cloud_tracks');
   renderTrackList();
   renderPhoneTracksList();
 
@@ -1514,6 +1516,7 @@ function handleSuccessfulLoginCloudSync(userObj = null) {
     currentUser = userObj;
     localStorage.setItem('dave_user', JSON.stringify(currentUser));
   }
+  sessionStorage.setItem('dave_active_session', 'true');
 
   // 1. Ocultar pantallas de login
   document.getElementById('full-login-screen')?.classList.add('hidden');
@@ -2131,69 +2134,54 @@ function initApp() {
   if (filterFavCount) filterFavCount.innerText = favorites.size;
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
-  // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
-  const CATALOG_VERSION = '3.4.4';
-  const savedVersion = localStorage.getItem('dave_catalog_ver');
-  const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
-  let loadedTracks = null;
-
-  if (savedPhoneTracks && savedVersion === CATALOG_VERSION) {
-    try {
-      const parsed = JSON.parse(savedPhoneTracks);
-      // Valid if not old mock data and has at least all catalog tracks
-      if (parsed.length >= realPhoneTracks.length && !parsed.some(t => t.title === 'Midnight City Drive')) {
-        loadedTracks = parsed;
-      }
-    } catch (e) {}
-  }
-
-  if (!loadedTracks) {
-    phoneTracks = [...realPhoneTracks];
-  } else {
-    // Sincronizar carátulas oficiales y álbumes actualizados
-    realPhoneTracks.forEach(rt => {
-      const existing = loadedTracks.find(lt => lt.title === rt.title && lt.artist === rt.artist);
-      if (existing) {
-        existing.coverUrl = rt.coverUrl;
-        if (rt.album) existing.album = rt.album;
-      } else {
-        loadedTracks.push(rt);
-      }
-    });
-    phoneTracks = loadedTracks;
-  }
-
+  // 3. Versioning y catálogo
+  const CATALOG_VERSION = '3.5.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
-  localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
 
+  // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
+  const hasActiveSession = sessionStorage.getItem('dave_active_session') === 'true';
   const savedUser = localStorage.getItem('dave_user');
+  let rememberedUser = null;
   if (savedUser) {
     try {
-      currentUser = JSON.parse(savedUser);
+      rememberedUser = JSON.parse(savedUser);
     } catch (e) {}
   }
 
-  // Si no hay usuario autenticado (o tras desconectar el servidor):
-  // NO MOSTRAR NINGUNA MÚSICA Y REGRESAR A LA PANTALLA INICIAL DE INICIAR SESIÓN
-  if (!currentUser) {
+  // Pre-rellenar correo en el formulario inicial si existía un usuario previo
+  if (rememberedUser && rememberedUser.email) {
+    const fullLoginEmail = document.getElementById('full-login-email');
+    if (fullLoginEmail && !fullLoginEmail.value) {
+      fullLoginEmail.value = rememberedUser.email;
+    }
+  }
+
+  if (!hasActiveSession) {
+    // ESTRICTO: NO MOSTRAR NINGUNA MÚSICA Y MOSTRAR ÚNICAMENTE LA PANTALLA INICIAL DE INICIAR SESIÓN
+    currentUser = null;
     playlist = [];
     phoneTracks = [];
     renderTrackList();
     renderPhoneTracksList();
+
     document.querySelector('.app-viewport')?.classList.add('hidden');
     const fullLogin = document.getElementById('full-login-screen');
     if (fullLogin) {
       fullLogin.classList.remove('hidden');
       const title = document.getElementById('full-login-status-title');
       const desc = document.getElementById('full-login-status-desc');
-      if (title) title.innerText = 'Iniciar Sesión en DaVE Player';
-      if (desc) desc.innerText = 'Inicia sesión con tu cuenta para acceder a todas las canciones que tienes en la nube.';
+      if (title) title.innerText = 'Iniciar Sesión en DaVE Cloud';
+      if (desc) desc.innerText = 'Inicia sesión con tu cuenta para acceder y escuchar todas las canciones que tienes guardadas en la nube.';
     }
   } else {
-    // Usuario autenticado: mostrar app completa y canciones de la nube
+    // Sesión activa confirmada: cargar canciones de la nube y mostrar app
+    currentUser = rememberedUser || { email: 'david.chaparro@daveplayer.app', name: 'David Chaparro' };
+    phoneTracks = [...realPhoneTracks];
+    playlist = [...realPhoneTracks];
+    localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks));
+
     document.querySelector('.app-viewport')?.classList.remove('hidden');
     document.getElementById('full-login-screen')?.classList.add('hidden');
-    playlist = [...phoneTracks];
     setupFilterChips();
     renderTrackList();
     renderPhoneTracksList();
@@ -2203,15 +2191,10 @@ function initApp() {
   }
   updateUserUI();
 
-  // 4. Verificar si había un servidor de teléfono previamente conectado
+  // 5. Verificar si había un servidor de teléfono previamente conectado
   const savedConnectedIp = localStorage.getItem('dave_connected_phone_ip');
-  if (savedConnectedIp) {
+  if (savedConnectedIp && hasActiveSession) {
     startPhoneHeartbeat(savedConnectedIp);
-  }
-
-  // 5. Preload first track metadata si hay playlist lista
-  if (playlist.length > 0) {
-    loadTrackMeta(0);
   }
 }
 
