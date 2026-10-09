@@ -396,7 +396,10 @@ footer{text-align:center;color:#64748b;font-size:13px;margin-top:30px}
 <h1 id='pageHeaderTitle'>🎵 DaVE Player</h1>
 <p id='pageHeaderSub' style='color:#64748b;font-size:14px;margin-top:2px;'>Consola de Control Remoto WiFi • ${songList.size} canciones sincronizadas</p>
 </div>
+<div style='display:flex;align-items:center;gap:10px;'>
 <div id='connectionBadge' class='badge'>🟢 Conectado</div>
+<button id='btnHeaderLogout' class='btn-aux' style='background:rgba(239,68,68,0.15);color:#ef4444;border-color:rgba(239,68,68,0.3);padding:6px 12px;font-size:12px;font-weight:700;' onclick='onServerDisconnected()'>🚪 Cerrar Sesión</button>
+</div>
 </header>
 
 <div class='player-card'>
@@ -553,6 +556,8 @@ function onServerDisconnected(){
   if (cloudAudio) { cloudAudio.pause(); cloudAudio.src = ''; }
 
   // 4. Mostrar exclusivamente la ventana de inicio de sesion (100% opaca)
+  var btnHLogout = document.getElementById('btnHeaderLogout');
+  if (btnHLogout) btnHLogout.style.display = 'none';
   var modal = document.getElementById('disconnectLoginModal');
   if (modal) {
     modal.style.display = 'flex';
@@ -572,6 +577,8 @@ function quickDemoLogin(){
 function restoreCloudLibrary(){
   isCloudMode = true;
   document.getElementById('disconnectLoginModal').style.display = 'none';
+  var btnHLogout = document.getElementById('btnHeaderLogout');
+  if (btnHLogout) btnHLogout.style.display = 'inline-block';
 
   // Re-mostrar tabla y reproductor
   var table = document.querySelector('table');

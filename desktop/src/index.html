@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=3.5.0">
+  <link rel="stylesheet" href="style.css?v=3.5.1">
 
   <style>
     /* CRITICAL INLINE STYLES (Guarantees zero-cache rendering) */
@@ -1481,7 +1481,7 @@
       <div class="login-brand">
         <i class="fa-solid fa-compact-disc login-brand-icon"></i>
         <h1>DaVE <strong>Player</strong></h1>
-        <span class="brand-badge">PRO v3.5.0 CLOUD</span>
+        <span class="brand-badge">PRO v3.5.1 CLOUD</span>
       </div>
 
       <div id="full-login-status-box" class="full-login-status-box">
@@ -1536,7 +1536,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.5.0</span>
+        <span class="brand-badge">PRO v3.5.1</span>
       </div>
 
       <div class="search-wrapper">
@@ -1560,6 +1560,10 @@
 
         <button id="btn-login-modal" class="btn-action-pill btn-user-auth">
           <i class="fa-solid fa-user"></i> <span id="user-display-name">Iniciar Sesión</span>
+        </button>
+
+        <button id="btn-topbar-logout" class="btn-action-pill hidden" title="Cerrar Sesión" style="color: #ef4444; border-color: rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.12);">
+          <i class="fa-solid fa-right-from-bracket"></i> <span>Cerrar Sesión</span>
         </button>
       </div>
     </header>
@@ -1602,6 +1606,13 @@
           </button>
           <button class="nav-btn" data-tab="club-party">
             <i class="fa-solid fa-wand-magic-sparkles" style="color: var(--accent-pink);"></i> <span>Modo Club Party</span>
+          </button>
+        </div>
+
+        <div class="sidebar-section-title sidebar-auth-title hidden" id="sidebar-auth-title" style="margin-top: auto; padding-top: 1rem;">SESIÓN</div>
+        <div class="nav-list sidebar-auth-list hidden" id="sidebar-auth-list">
+          <button class="nav-btn" id="btn-sidebar-logout" style="color: #ef4444; width: 100%;">
+            <i class="fa-solid fa-right-from-bracket"></i> <span>Cerrar Sesión</span>
           </button>
         </div>
       </nav>
@@ -2103,6 +2114,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.5.0"></script>
+  <script src="app.js?v=3.5.1"></script>
 </body>
 </html>
