@@ -39,6 +39,9 @@ import com.auraplayer.ui.components.NeonPlasmaCrown
 import com.auraplayer.ui.components.SupernovaShockwave
 import com.auraplayer.ui.components.EdgeAuroraGlow
 import com.auraplayer.ui.components.HyperdriveWarpTunnel
+import com.auraplayer.ui.components.StemMixerDialog
+import com.auraplayer.ui.components.StealthCalculatorDialog
+import com.auraplayer.ui.components.ClubPartyDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectTapGestures
 import com.auraplayer.ui.components.bounceClick
@@ -246,6 +249,10 @@ fun PlayerScreen(
     var showSyncedLyricsDialog by remember { mutableStateOf(false) }
     var showIpodClassicDialog by remember { mutableStateOf(false) }
     var showAudioQualityDialog by remember { mutableStateOf(false) }
+    var showStemMixerDialog by remember { mutableStateOf(false) }
+    var showStealthCalculator by remember { mutableStateOf(false) }
+    var showClubPartyDialog by remember { mutableStateOf(false) }
+    val stemManager = remember { com.auraplayer.audio.StemMixerManager.getInstance(context) }
     val syncedLyricsManager = remember { SyncedLyricsManager.getInstance(context) }
     val viralEffectsManager = remember { ViralAudioEffectsManager.getInstance(context) }
     var currentViralMode by remember { mutableStateOf(viralEffectsManager.currentMode) }
@@ -1702,6 +1709,38 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // AI Stem Mixer Chip
+                    FilterChip(
+                        selected = stemManager.isEnabled,
+                        onClick = { showStemMixerDialog = true },
+                        label = { Text("🎛️ AI Stem Mixer", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF38BDF8).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF38BDF8),
+                            labelColor = Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // Club Party Strobe Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showClubPartyDialog = true },
+                        label = { Text("🔦 Modo Club Strobe", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFFFBBF24)
+                        )
+                    )
+
+                    // Stealth Panic Calculator Disguise Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showStealthCalculator = true },
+                        label = { Text("🕵️ Calculadora Secreta", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF94A3B8)
+                        )
+                    )
+
                     // 8D Audio Chip
                     FilterChip(
                         selected = isSpatial8D,
@@ -2644,6 +2683,30 @@ fun PlayerScreen(
         AudioQualityDialog(
             song = currentMedia,
             onDismiss = { showAudioQualityDialog = false }
+        )
+    }
+
+    // AI Stem Mixer Studio Dialog
+    if (showStemMixerDialog) {
+        StemMixerDialog(
+            isPlaying = isPlaying,
+            stemManager = stemManager,
+            onDismiss = { showStemMixerDialog = false }
+        )
+    }
+
+    // Stealth Panic Calculator Disguise Dialog
+    if (showStealthCalculator) {
+        StealthCalculatorDialog(
+            onUnlock = { showStealthCalculator = false }
+        )
+    }
+
+    // Club Party Strobe Hub Dialog
+    if (showClubPartyDialog) {
+        ClubPartyDialog(
+            isPlaying = isPlaying,
+            onDismiss = { showClubPartyDialog = false }
         )
     }
 }
