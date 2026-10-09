@@ -1,0 +1,46 @@
+{
+  "name": "dave-player-desktop",
+  "version": "1.0.0",
+  "description": "DaVE Player Desktop Edition for Windows — Aesthetic Music Player with AI Stem Mixer & Party Strobe",
+  "main": "main.js",
+  "author": "DaVE Team",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64"
+  },
+  "dependencies": {
+    "music-metadata": "^7.14.0"
+  },
+  "devDependencies": {
+    "electron": "^29.1.5",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.auraplayer.dave.desktop",
+    "productName": "DaVE Player",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DaVE Player"
+    }
+  }
+}
