@@ -1489,6 +1489,10 @@ document.getElementById('btn-empty-phone-connect')?.addEventListener('click', ()
 document.getElementById('btn-phone-sync-trigger')?.addEventListener('click', () => modalSync?.classList.remove('hidden'));
 
 function updateUserUI() {
+  const topbarLogout = document.getElementById('btn-topbar-logout');
+  const sidebarAuthTitle = document.getElementById('sidebar-auth-title');
+  const sidebarAuthList = document.getElementById('sidebar-auth-list');
+
   if (currentUser) {
     if (userDisplayName) userDisplayName.innerText = currentUser.name || currentUser.email.split('@')[0];
     if (profileName) profileName.innerText = currentUser.name || currentUser.email.split('@')[0];
@@ -1501,6 +1505,11 @@ function updateUserUI() {
     if (phoneSyncStatus && !connectedPhoneIp) {
       phoneSyncStatus.innerText = `Sincronizado con ${currentUser.email} • ${phoneTracks.length} canciones de tu nube disponibles.`;
     }
+
+    // Mostrar botones de cerrar sesión
+    topbarLogout?.classList.remove('hidden');
+    sidebarAuthTitle?.classList.remove('hidden');
+    sidebarAuthList?.classList.remove('hidden');
   } else {
     if (userDisplayName) userDisplayName.innerText = 'Iniciar Sesión';
     authFormContainer?.classList.remove('hidden');
@@ -1508,6 +1517,11 @@ function updateUserUI() {
     if (phoneSyncStatus && !connectedPhoneIp) {
       phoneSyncStatus.innerText = 'Inicia sesión con tu correo o conecta tu celular por WiFi/PIN para ver tus canciones aquí.';
     }
+
+    // Ocultar botones de cerrar sesión
+    topbarLogout?.classList.add('hidden');
+    sidebarAuthTitle?.classList.add('hidden');
+    sidebarAuthList?.classList.add('hidden');
   }
 }
 
@@ -1603,8 +1617,77 @@ document.getElementById('btn-full-login-google')?.addEventListener('click', () =
   });
 });
 
-document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
-  disconnectPhoneServer(false);
+function logoutUser() {
+  // 1. Detener audio inmediatamente
+  if (isPlaying) {
+    audioPlayer.pause();
+    isPlaying = false;
+    updatePlayButton();
+  }
+  audioPlayer.src = '';
+  currentTrackIndex = -1;
+  currentTrack = null;
+
+  // 2. Limpiar sesión y almacenamiento local
+  currentUser = null;
+  sessionStorage.removeItem('dave_active_session');
+  localStorage.removeItem('dave_user');
+  localStorage.removeItem('dave_phone_tracks');
+  localStorage.removeItem('dave_cloud_tracks');
+  localStorage.removeItem('dave_connected_phone_ip');
+  stopPhoneHeartbeat();
+  updatePhoneConnectionUI(false);
+
+  // 3. VACIAR COMPLETAMENTE LAS LISTAS DE MÚSICA PARA QUE NO APAREZCA NADA
+  playlist = [];
+  phoneTracks = [];
+  renderTrackList();
+  renderPhoneTracksList();
+
+  if (nowPlayingTitle) nowPlayingTitle.innerText = 'Sin música';
+  if (nowPlayingArtist) nowPlayingArtist.innerText = 'Inicia sesión para cargar tu música';
+  if (playerArt) playerArt.src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&auto=format&fit=crop&q=80';
+
+  // 4. Actualizar interfaz de usuario
+  updateUserUI();
+
+  // 5. Cerrar cualquier modal abierto
+  modalAuth?.classList.add('hidden');
+  modalSync?.classList.add('hidden');
+  document.getElementById('modal-shortcuts')?.classList.add('hidden');
+
+  // 6. OCULTAR TOTALMENTE EL REPRODUCTOR Y MOSTRAR LA PANTALLA PRINCIPAL DE INICIAR SESIÓN
+  document.querySelector('.app-viewport')?.classList.add('hidden');
+  const fullLogin = document.getElementById('full-login-screen');
+  if (fullLogin) {
+    fullLogin.classList.remove('hidden');
+    const title = document.getElementById('full-login-status-title');
+    const desc = document.getElementById('full-login-status-desc');
+    if (title) title.innerText = 'Iniciar Sesión en DaVE Cloud';
+    if (desc) desc.innerText = 'Has cerrado sesión. Inicia sesión con tu cuenta para acceder y escuchar todas las canciones que tienes guardadas en la nube.';
+    
+    const passInput = document.getElementById('full-login-password');
+    if (passInput) passInput.value = '';
+
+    setTimeout(() => document.getElementById('full-login-email')?.focus(), 250);
+  }
+
+  showToast('👋 Sesión cerrada correctamente', 'info', 'fa-right-from-bracket');
+}
+
+document.getElementById('btn-profile-logout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  logoutUser();
+});
+
+document.getElementById('btn-topbar-logout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  logoutUser();
+});
+
+document.getElementById('btn-sidebar-logout')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  logoutUser();
 });
 
 document.getElementById('btn-profile-sync')?.addEventListener('click', () => {
@@ -2135,7 +2218,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '3.5.0';
+  const CATALOG_VERSION = '3.5.1';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
