@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=3.4.2">
+  <link rel="stylesheet" href="style.css?v=3.5.0">
 
   <style>
     /* CRITICAL INLINE STYLES (Guarantees zero-cache rendering) */
@@ -1475,20 +1475,20 @@
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <!-- Pantalla Completa Inicial de Iniciar Sesión (Regreso al principio al desconectar servidor) -->
-  <div id="full-login-screen" class="full-login-screen hidden">
+  <!-- Pantalla Completa Inicial de Iniciar Sesión (Visible por defecto hasta iniciar sesión) -->
+  <div id="full-login-screen" class="full-login-screen">
     <div class="full-login-container">
       <div class="login-brand">
         <i class="fa-solid fa-compact-disc login-brand-icon"></i>
         <h1>DaVE <strong>Player</strong></h1>
-        <span class="brand-badge">PRO CLOUD</span>
+        <span class="brand-badge">PRO v3.5.0 CLOUD</span>
       </div>
 
       <div id="full-login-status-box" class="full-login-status-box">
-        <i class="fa-solid fa-triangle-exclamation" style="color:#ef4444; font-size:1.35rem; margin-top:0.15rem;"></i>
+        <i class="fa-solid fa-cloud-arrow-down" style="color:var(--accent-cyan); font-size:1.4rem; margin-top:0.15rem;"></i>
         <div>
-          <strong id="full-login-status-title">Servidor del teléfono desconectado</strong>
-          <p id="full-login-status-desc">Se ha cerrado la conexión con tu celular. Inicia sesión con tu cuenta para acceder a todas las canciones que tenías en la nube.</p>
+          <strong id="full-login-status-title">Iniciar Sesión en DaVE Cloud</strong>
+          <p id="full-login-status-desc">Inicia sesión con tu cuenta para acceder y escuchar todas las canciones que tienes guardadas en la nube.</p>
         </div>
       </div>
 
@@ -1528,15 +1528,15 @@
   <!-- Ambient Glow -->
   <div id="ambient-glow" class="ambient-glow"></div>
 
-  <!-- Fullscreen App Viewport -->
-  <div class="app-viewport">
+  <!-- Fullscreen App Viewport (Oculto por defecto hasta autenticación) -->
+  <div class="app-viewport hidden" id="app-viewport">
     
     <!-- Topbar -->
     <header class="topbar">
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.4.4</span>
+        <span class="brand-badge">PRO v3.5.0</span>
       </div>
 
       <div class="search-wrapper">
@@ -2103,6 +2103,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.4.4"></script>
+  <script src="app.js?v=3.5.0"></script>
 </body>
 </html>
