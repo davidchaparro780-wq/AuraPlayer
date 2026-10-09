@@ -598,27 +598,160 @@ searchInput.addEventListener('input', (e) => {
   renderTrackList(filtered);
 });
 
-// Keyboard Shortcuts
-window.addEventListener('keydown', (e) => {
-  if (e.target.tagName === 'INPUT') return;
-  if (e.code === 'Space') {
-    e.preventDefault();
-    playBtn.click();
-  } else if (e.code === 'ArrowRight') {
-    if (e.shiftKey) nextBtn.click();
-    else audio.currentTime += 5;
-  } else if (e.code === 'ArrowLeft') {
-    if (e.shiftKey) prevBtn.click();
-    else audio.currentTime -= 5;
-  } else if (e.code === 'ArrowUp') {
-    volumeSlider.value = Math.min(100, parseInt(volumeSlider.value) + 5);
-    volumeSlider.dispatchEvent(new Event('input'));
-  } else if (e.code === 'ArrowDown') {
-    volumeSlider.value = Math.max(0, parseInt(volumeSlider.value) - 5);
-    volumeSlider.dispatchEvent(new Event('input'));
-  } else if (e.code === 'KeyM') {
-    muteBtn.click();
-  } else if (e.code === 'KeyF') {
-    document.getElementById('btn-party-fullscreen')?.click();
+// Demo Track Synthesizer (Generates an authentic retro synthwave beat)
+function generateSynthwaveWav() {
+  const sampleRate = 44100;
+  const bpm = 120;
+  const seconds = 24; // 12 bars loop
+  const totalSamples = sampleRate * seconds;
+  const buffer = new Float32Array(totalSamples);
+  const beatSec = 60 / bpm;
+  const sixteenth = beatSec / 4;
+
+  const chords = [
+    [130.81, 164.81, 196.00], // C
+    [110.00, 130.81, 164.81], // Am
+    [146.83, 174.61, 220.00], // Dm
+    [98.00, 123.47, 146.83]   // G
+  ];
+
+  for (let i = 0; i < totalSamples; i++) {
+    const t = i / sampleRate;
+    const bar = Math.floor(t / (beatSec * 4));
+    const chordIdx = bar % chords.length;
+    const currentChord = chords[chordIdx];
+    const beatInBar = (t % (beatSec * 4)) / beatSec;
+
+    let sample = 0;
+
+    // 1. Kick (Drums) on every beat
+    const beatPos = (t % beatSec);
+    if (beatPos < 0.2) {
+      const kickFreq = 150 * Math.exp(-beatPos * 30);
+      sample += Math.sin(2 * Math.PI * kickFreq * beatPos) * Math.exp(-beatPos * 15) * 0.7;
+    }
+
+    // 2. Snare / Claps (Drums) on beats 2 and 4
+    if ((beatInBar >= 1 && beatInBar < 1.3) || (beatInBar >= 3 && beatInBar < 3.3)) {
+      const snarePos = beatInBar % 2;
+      const noise = (Math.random() * 2 - 1) * Math.exp(-snarePos * 12) * 0.35;
+      sample += noise;
+    }
+
+    // 3. Hi-Hats (Drums) on 16th notes
+    const hihatPos = (t % sixteenth);
+    if (hihatPos < 0.05) {
+      sample += (Math.random() * 2 - 1) * Math.exp(-hihatPos * 60) * 0.15;
+    }
+
+    // 4. Rolling 808 Bassline (Bass)
+    const bassNote = currentChord[0] / 2;
+    const bassPulse = (t % (sixteenth * 2));
+    const bassEnv = Math.exp(-bassPulse * 8);
+    const bassWave = Math.sin(2 * Math.PI * bassNote * t) + 0.3 * Math.sin(4 * Math.PI * bassNote * t);
+    sample += bassWave * bassEnv * 0.45;
+
+    // 5. Synthwave Pad / Melodies (Melodies)
+    let pad = 0;
+    currentChord.forEach((f) => {
+      pad += Math.sin(2 * Math.PI * f * t) + 0.25 * Math.sin(2 * Math.PI * f * 2 * t);
+    });
+    sample += pad * 0.12;
+
+    // 6. Lead Synth / Vocals Arp (Vocals / Lead)
+    const arpFreq = currentChord[Math.floor((t / sixteenth) % currentChord.length)] * 2;
+    const arpEnv = Math.exp(-(t % sixteenth) * 6);
+    sample += Math.sin(2 * Math.PI * arpFreq * t) * arpEnv * 0.18;
+
+    buffer[i] = Math.max(-1, Math.min(1, sample));
   }
-});
+
+  // Convert Float32Array to WAV Blob
+  const wavBlob = encodeWav(buffer, sampleRate);
+  return URL.createObjectURL(wavBlob);
+}
+
+function encodeWav(samples, sampleRate) {
+  const numChannels = 1;
+  const bytesPerSample = 2;
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = samples.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + dataSize, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+
+  return new Blob([view], { type: 'audio/wav' });
+}
+
+function loadDemoTrack() {
+  const demoUrl = generateSynthwaveWav();
+  const demoTrack = {
+    title: 'DaVE Neon Nights (Synthwave Studio Demo)',
+    artist: 'DaVE Audio Engine',
+    album: 'Master Pro Suite 2026',
+    duration: 24,
+    path: null,
+    fileObj: null,
+    demoUrl: demoUrl,
+    coverUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%236366f1"/><stop offset="100%" stop-color="%23ec4899"/></linearGradient></defs><rect width="100" height="100" fill="url(%23g)"/><circle cx="50" cy="50" r="28" fill="%230f111a"/><polygon points="44,38 64,50 44,62" fill="%2338bdf8"/></svg>'
+  };
+
+  playlist = [demoTrack, ...playlist];
+  renderTrackList();
+  playTrack(0);
+}
+
+document.getElementById('btn-demo-track')?.addEventListener('click', loadDemoTrack);
+document.getElementById('btn-empty-demo')?.addEventListener('click', loadDemoTrack);
+
+// Enhanced playTrack with demoUrl support
+const originalPlayTrack = playTrack;
+playTrack = function(index) {
+  if (index < 0 || index >= playlist.length) return;
+  const track = playlist[index];
+  if (track.demoUrl) {
+    initAudioEngine();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    currentIndex = index;
+    audio.src = track.demoUrl;
+    audio.play().then(() => {
+      isPlaying = true;
+      updatePlayPauseUI();
+    }).catch(err => console.error('Demo play error:', err));
+
+    playerTitle.innerText = track.title;
+    playerArtist.innerText = track.artist;
+    playerArt.src = track.coverUrl;
+    artGlow.style.opacity = '1';
+    renderTrackList();
+  } else {
+    originalPlayTrack(index);
+  }
+};
+
