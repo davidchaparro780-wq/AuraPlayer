@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=3.4.0">
+  <link rel="stylesheet" href="style.css?v=3.4.2">
 
   <style>
     /* CRITICAL INLINE STYLES (Guarantees zero-cache rendering) */
@@ -317,35 +317,61 @@
       background: rgba(10, 12, 19, 0.5);
     }
 
-    /* Welcome Banner inside Player */
+    /* Welcome Banner inside Player (Compact & Comfortable) */
     .welcome-banner {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(6, 182, 212, 0.12));
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(6, 182, 212, 0.08));
       border: 1px solid var(--border-glow);
       border-radius: var(--radius-lg);
-      padding: 1rem 1.4rem;
+      padding: 0.75rem 1.25rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 1.2rem;
+      margin-bottom: 0.85rem;
       gap: 1rem;
+      flex-shrink: 0;
+      transition: all 0.25s ease;
+    }
+
+    .welcome-banner.dismissed {
+      display: none !important;
     }
 
     .banner-text h2 {
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 800;
       color: #fff;
     }
 
     .banner-text p {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
-      margin-top: 0.2rem;
+      margin-top: 0.15rem;
     }
 
     .banner-actions {
       display: flex;
-      gap: 0.6rem;
+      align-items: center;
+      gap: 0.55rem;
       flex-shrink: 0;
+    }
+
+    .banner-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 0.45rem;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .banner-close-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .btn-glow-primary {
@@ -435,56 +461,330 @@
       margin-bottom: 1.2rem;
     }
 
+    /* Table Component */
     .song-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       text-align: left;
+      table-layout: fixed;
     }
 
     .song-table th {
-      padding: 0.8rem 1rem;
+      position: sticky;
+      top: 0;
+      background: rgba(14, 18, 27, 0.95);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      padding: 0.85rem 1rem;
       font-size: 0.72rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.7px;
       color: var(--text-dim);
       border-bottom: 1px solid var(--border-subtle);
     }
 
     .song-table td {
-      padding: 0.7rem 1rem;
+      padding: 0.55rem 1rem;
       border-bottom: 1px solid rgba(255, 255, 255, 0.03);
       color: var(--text-muted);
+      vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .track-row {
       cursor: pointer;
-      transition: background 0.15s ease;
+      transition: background 0.15s ease, transform 0.1s ease;
+      height: 58px;
     }
 
     .track-row:hover {
       background: rgba(255, 255, 255, 0.05);
     }
 
+    .track-row.playing {
+      background: rgba(6, 182, 212, 0.08);
+    }
+
     .track-row.playing td {
       color: var(--accent-cyan);
+    }
+
+    .track-row.playing .track-title-text {
+      color: var(--accent-cyan) !important;
+      font-weight: 700;
+    }
+
+    .row-num-cell {
+      width: 48px;
+      text-align: center;
+      position: relative;
+    }
+
+    .row-index-num {
+      display: inline-block;
+      color: var(--text-dim);
+      font-size: 0.84rem;
       font-weight: 600;
     }
 
-    .title-cell {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      color: #fff;
+    .row-hover-play {
+      display: none;
+      color: var(--accent-cyan);
+      font-size: 0.95rem;
     }
 
-    .cover-thumb {
-      width: 38px;
-      height: 38px;
-      border-radius: 6px;
-      object-fit: cover;
-      background: #1e2230;
+    .track-row:hover .row-index-num {
+      display: none;
     }
+
+    .track-row:hover .row-hover-play {
+      display: inline-block;
+    }
+
+    .track-row.playing .row-index-num,
+    .track-row.playing .row-hover-play {
+      display: none;
+    }
+
+    .track-title-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      color: #fff;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .track-cover-mini,
+    .cover-thumb {
+      width: 44px !important;
+      height: 44px !important;
+      min-width: 44px !important;
+      min-height: 44px !important;
+      max-width: 44px !important;
+      max-height: 44px !important;
+      border-radius: 8px;
+      object-fit: cover !important;
+      flex-shrink: 0;
+      background: #1e2230;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
+      transition: transform 0.2s ease;
+    }
+
+    .track-row:hover .track-cover-mini {
+      transform: scale(1.05);
+    }
+
+    .track-meta-col {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .track-title-text {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: #fff;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      line-height: 1.3;
+    }
+
+    .track-artist-sub {
+      font-size: 0.76rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .sound-wave-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2.5px;
+      height: 16px;
+      width: 16px;
+      vertical-align: middle;
+    }
+
+    .sound-wave-bars span {
+      width: 2.5px;
+      height: 100%;
+      background: var(--accent-cyan);
+      border-radius: 2px;
+      animation: waveBarBounce 0.75s ease-in-out infinite alternate;
+    }
+
+    .sound-wave-bars span:nth-child(1) { animation-delay: 0.1s; height: 35%; }
+    .sound-wave-bars span:nth-child(2) { animation-delay: 0.35s; height: 85%; }
+    .sound-wave-bars span:nth-child(3) { animation-delay: 0.2s; height: 55%; }
+    .sound-wave-bars span:nth-child(4) { animation-delay: 0.45s; height: 100%; }
+
+    .sound-wave-bars.paused span {
+      animation-play-state: paused;
+      height: 30% !important;
+    }
+
+    @keyframes waveBarBounce {
+      0% { height: 25%; }
+      100% { height: 100%; }
+    }
+
+    .row-actions-cell {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      justify-content: flex-end;
+    }
+
+    .btn-row-action {
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 0.4rem;
+      font-size: 0.9rem;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      opacity: 0.45;
+    }
+
+    .track-row:hover .btn-row-action,
+    .btn-row-action.active {
+      opacity: 1;
+    }
+
+    .btn-row-action:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      transform: scale(1.15);
+    }
+
+    .btn-row-action.heart.active {
+      color: #f43f5e;
+      opacity: 1;
+    }
+
+    .btn-row-action.download:hover {
+      color: var(--accent-cyan);
+    }
+
+    /* Filter Chips Bar (Category Pills) */
+    .filter-chips-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.02);
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      z-index: 12;
+      backdrop-filter: blur(8px);
+    }
+
+    .filter-chips-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-chip {
+      padding: 0.4rem 0.9rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .filter-chip:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .filter-chip.active {
+      background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 3px 12px var(--primary-glow);
+      font-weight: 700;
+    }
+
+    /* Toast Notification Container (Positioned comfortably at bottom-right) */
+    .toast-container {
+      position: fixed;
+      bottom: calc(var(--player-height) + 16px);
+      right: 20px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.5rem;
+      pointer-events: none;
+      max-width: 360px;
+    }
+
+    .toast {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: rgba(14, 18, 27, 0.96);
+      border: 1px solid var(--border-glow);
+      backdrop-filter: blur(16px);
+      padding: 0.65rem 1rem;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.2);
+      animation: slideToastUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transition: all 0.25s ease;
+    }
+
+    .toast.removing {
+      opacity: 0;
+      transform: translateY(12px) scale(0.95);
+    }
+
+    @keyframes slideToastUp {
+      from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .toast i {
+      font-size: 1rem;
+    }
+
+    .toast.info i { color: var(--accent-cyan); }
+    .toast.success i { color: var(--accent-green); }
+    .toast.heart i { color: #f43f5e; }
+    .toast.warning i { color: #f59e0b; }
 
     /* AI Stem Studio View */
     .stem-view {
@@ -1106,7 +1406,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.4.1</span>
+        <span class="brand-badge">PRO v3.4.2</span>
       </div>
 
       <div class="search-wrapper">
@@ -1180,17 +1480,20 @@
       <main class="viewport-content">
         
         <!-- Welcome Action Banner -->
-        <div class="welcome-banner">
+        <div class="welcome-banner" id="welcome-banner">
           <div class="banner-text">
             <h2>✨ DaVE Player — Web & Desktop Studio</h2>
             <p>Escucha música en alta fidelidad, aisla voces o instrumentos en vivo y sincroniza con tu celular.</p>
           </div>
           <div class="banner-actions">
             <button id="btn-demo-track" class="btn-glow-primary">
-              <i class="fa-solid fa-play"></i> Probar Demo Synthwave
+              <i class="fa-solid fa-play"></i> Probar Demo
             </button>
             <button id="btn-import-files" class="btn-outline-secondary">
-              <i class="fa-solid fa-folder-open"></i> Cargar Archivos de PC
+              <i class="fa-solid fa-folder-open"></i> Cargar Archivos
+            </button>
+            <button id="btn-banner-close" class="banner-close-btn" title="Ocultar banner">
+              <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
         </div>
@@ -1229,11 +1532,11 @@
             <table id="track-table" class="song-table hidden">
               <thead>
                 <tr>
-                  <th style="width: 45px; text-align: center;">#</th>
-                  <th>Título</th>
-                  <th>Artista</th>
-                  <th>Álbum</th>
-                  <th style="width: 70px;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 48px; text-align: center;">#</th>
+                  <th style="width: 38%;">Título</th>
+                  <th style="width: 24%;">Artista</th>
+                  <th style="width: 22%;">Álbum</th>
+                  <th style="width: 65px; text-align: right;"><i class="fa-regular fa-clock"></i></th>
                   <th style="width: 85px; text-align: right;">Acciones</th>
                 </tr>
               </thead>
@@ -1325,11 +1628,11 @@
             <table id="phone-track-table" class="song-table hidden">
               <thead>
                 <tr>
-                  <th style="width: 45px; text-align: center;">#</th>
-                  <th>Título</th>
-                  <th>Artista</th>
-                  <th>Álbum</th>
-                  <th style="width: 70px;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 48px; text-align: center;">#</th>
+                  <th style="width: 38%;">Título</th>
+                  <th style="width: 24%;">Artista</th>
+                  <th style="width: 22%;">Álbum</th>
+                  <th style="width: 65px; text-align: right;"><i class="fa-regular fa-clock"></i></th>
                   <th style="width: 85px; text-align: right;">Acciones</th>
                 </tr>
               </thead>
@@ -1650,6 +1953,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.4.1"></script>
+  <script src="app.js?v=3.4.2"></script>
 </body>
 </html>

@@ -92,6 +92,12 @@ const ctx = canvas ? canvas.getContext('2d') : null;
 function showToast(message, type = 'info', icon = null) {
   const container = document.getElementById('toast-container');
   if (!container) return;
+
+  // Máximo 2 notificaciones para no saturar la vista
+  while (container.children.length >= 2) {
+    container.firstElementChild.remove();
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
 
@@ -107,7 +113,7 @@ function showToast(message, type = 'info', icon = null) {
   setTimeout(() => {
     toast.classList.add('removing');
     setTimeout(() => toast.remove(), 260);
-  }, 3200);
+  }, 2400);
 }
 
 // ==========================================
@@ -823,15 +829,15 @@ function createTrackRow(track, displayIndex, isPhoneTab = false) {
       `}
     </td>
     <td class="track-title-cell">
-      <img src="${cover}" class="track-cover-mini" alt="Cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'">
-      <div style="display:flex; flex-direction:column; overflow:hidden;">
-        <span style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.title}</span>
-        <span style="font-size:0.75rem; color:var(--text-dim);" class="mobile-sub-artist">${track.artist}</span>
+      <img src="${cover}" class="track-cover-mini" style="width:44px; height:44px; min-width:44px; max-width:44px; border-radius:8px; object-fit:cover; flex-shrink:0;" alt="Cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'">
+      <div class="track-meta-col" style="display:flex; flex-direction:column; overflow:hidden; min-width:0;">
+        <span class="track-title-text" style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:0.9rem; color:#fff;">${track.title}</span>
+        <span class="track-artist-sub mobile-sub-artist" style="font-size:0.75rem; color:var(--text-dim); white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.artist}</span>
       </div>
     </td>
-    <td>${track.artist}</td>
-    <td>${track.album || 'Infinix HOT 40i'}</td>
-    <td>${track.duration ? formatTime(track.duration) : '--:--'}</td>
+    <td class="track-artist-col" style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.artist}</td>
+    <td class="track-album-col" style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.album || 'Infinix HOT 40i'}</td>
+    <td class="track-duration-col" style="text-align:right; font-variant-numeric:tabular-nums;">${track.duration ? formatTime(track.duration) : '--:--'}</td>
     <td>
       <div class="row-actions-cell">
         <button class="btn-row-action heart ${isFav ? 'active' : ''}" title="${isFav ? 'Quitar de Favoritas' : 'Añadir a Favoritas'}" data-action="fav">
@@ -1295,6 +1301,16 @@ function loadDemoTrack() {
 
 document.getElementById('btn-demo-track')?.addEventListener('click', loadDemoTrack);
 document.getElementById('btn-empty-demo')?.addEventListener('click', loadDemoTrack);
+document.getElementById('btn-banner-close')?.addEventListener('click', () => {
+  const banner = document.getElementById('welcome-banner');
+  if (banner) {
+    banner.classList.add('dismissed');
+    sessionStorage.setItem('dave_banner_dismissed', 'true');
+  }
+});
+if (sessionStorage.getItem('dave_banner_dismissed') === 'true') {
+  document.getElementById('welcome-banner')?.classList.add('dismissed');
+}
 
 // ==========================================
 // 12. TAB SWITCHING & NAVBAR LINKS
@@ -1939,7 +1955,7 @@ function initApp() {
   if (pstatFavs) pstatFavs.innerText = favorites.size;
 
   // 3. Load or initialize real phone tracks (Infinix HOT 40i - 25 Canciones)
-  const CATALOG_VERSION = '3.4.1';
+  const CATALOG_VERSION = '3.4.2';
   const savedVersion = localStorage.getItem('dave_catalog_ver');
   const savedPhoneTracks = localStorage.getItem('dave_phone_tracks');
   let loadedTracks = null;
