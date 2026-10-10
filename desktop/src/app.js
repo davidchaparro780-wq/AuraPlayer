@@ -2078,6 +2078,8 @@ function logoutUser() {
   document.getElementById('modal-backup')?.classList.add('hidden');
   document.getElementById('modal-tubewarmth')?.classList.add('hidden');
   document.getElementById('overlay-fullscreen-lyrics')?.classList.add('hidden');
+  document.getElementById('fx-studio-tray')?.classList.add('hidden');
+  document.getElementById('btn-toggle-fx-tray')?.classList.remove('active');
   if (activeRingtoneAudio) {
     try {
       activeRingtoneAudio.pause();
@@ -3664,6 +3666,7 @@ function toggle8DAudio() {
     }
     showToast('Audio 8D desactivado', 'info', 'fa-headphones');
   }
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 btnToggle8D?.addEventListener('click', toggle8DAudio);
@@ -3690,6 +3693,7 @@ function toggleSlowedReverb() {
     setSpatialReverb('off');
     showToast('Modo normal restaurado (1.0x)', 'info', 'fa-hourglass-start');
   }
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 btnSlowedReverb?.addEventListener('click', toggleSlowedReverb);
@@ -4366,6 +4370,7 @@ function toggleDJAutomix() {
     isDJAutomix ? 'success' : 'info',
     'fa-compact-disc'
   );
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 function triggerDJCrossfade() {
@@ -4442,6 +4447,7 @@ function toggleABLoop() {
     clearABLoop();
     showToast('Bucle A-B desactivado.', 'info', 'fa-xmark');
   }
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 function clearABLoop() {
@@ -4449,8 +4455,9 @@ function clearABLoop() {
   abLoopB = null;
   isABLooping = false;
   btnABLoop?.classList.remove('ab-active');
-  if (abLoopLabel) abLoopLabel.innerText = 'A-B';
+  if (abLoopLabel) abLoopLabel.innerText = 'Bucle A-B';
   if (scrubberABFill) scrubberABFill.classList.add('hidden');
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 btnABLoop?.addEventListener('click', toggleABLoop);
@@ -4987,6 +4994,7 @@ function setTubeWarmth(mode = 'off', silent = false) {
     if (exciterStatus) exciterStatus.innerText = '+9.0 dB @ 55Hz (Bestia a Válvulas)';
     if (!silent) showToast('Calor a Tubos: ¡Bestia a Válvulas al Máximo!', 'warning', 'fa-fire-flame-curved');
   }
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 const modalTubeWarmth = document.getElementById('modal-tubewarmth');
@@ -5365,6 +5373,7 @@ function setStereoWidener(mode = 'normal', silent = false) {
     btn?.setAttribute('title', 'Expansor Estéreo: 3D Holográfico (200%)');
     if (!silent) showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', '¡Inmersión 3D Total (200%)!');
   }
+  if (typeof updateActiveFXBadge === 'function') updateActiveFXBadge();
 }
 
 document.getElementById('btn-toggle-widener')?.addEventListener('click', () => {
@@ -5490,6 +5499,64 @@ function showHUD(icon, title, sub = '') {
 }
 
 // ==========================================
+// 49.5. FX STUDIO TRAY CONTROLLER (v4.3.2)
+// ==========================================
+const fxStudioTray = document.getElementById('fx-studio-tray');
+const btnToggleFxTray = document.getElementById('btn-toggle-fx-tray');
+const btnCloseFxTray = document.getElementById('btn-close-fx-tray');
+const activeFxBadge = document.getElementById('active-fx-badge');
+
+function toggleFxStudioTray() {
+  if (!fxStudioTray) return;
+  const isHidden = fxStudioTray.classList.toggle('hidden');
+  btnToggleFxTray?.classList.toggle('active', !isHidden);
+}
+
+btnToggleFxTray?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toggleFxStudioTray();
+});
+
+btnCloseFxTray?.addEventListener('click', () => {
+  fxStudioTray?.classList.add('hidden');
+  btnToggleFxTray?.classList.remove('active');
+});
+
+// Click outside closes the tray
+document.addEventListener('click', (e) => {
+  if (fxStudioTray && !fxStudioTray.classList.contains('hidden')) {
+    if (!fxStudioTray.contains(e.target) && !btnToggleFxTray?.contains(e.target)) {
+      fxStudioTray.classList.add('hidden');
+      btnToggleFxTray?.classList.remove('active');
+    }
+  }
+});
+
+function updateActiveFXBadge() {
+  let count = 0;
+  if (typeof isSlowedReverb !== 'undefined' && isSlowedReverb) count++;
+  if (typeof animFrame8D !== 'undefined' && animFrame8D) count++;
+  if (typeof currentTubeMode !== 'undefined' && currentTubeMode !== 'off') count++;
+  if (typeof stereoWidenerMode !== 'undefined' && stereoWidenerMode !== 'normal') count++;
+  if (typeof isDJAutomix !== 'undefined' && isDJAutomix) count++;
+  if (typeof isNormalizerActive !== 'undefined' && isNormalizerActive) count++;
+  if (typeof isABLooping !== 'undefined' && isABLooping) count++;
+  if (typeof sleepTimerRemaining !== 'undefined' && sleepTimerRemaining > 0) count++;
+  if (typeof isRecordingAudio !== 'undefined' && isRecordingAudio) count++;
+
+  if (activeFxBadge) {
+    if (count > 0) {
+      activeFxBadge.innerText = count;
+      activeFxBadge.classList.remove('hidden');
+      btnToggleFxTray?.classList.add('active');
+    } else {
+      activeFxBadge.classList.add('hidden');
+      btnToggleFxTray?.classList.remove('active');
+    }
+  }
+}
+
+// ==========================================
 // 50. STARTUP INITIALIZATION (v4.3.0 INFINITY)
 // ==========================================
 function initApp() {
@@ -5548,6 +5615,8 @@ function initApp() {
       setPitchSemitones(pVal, true);
     }
   }
+
+  updateActiveFXBadge();
 
   // 3. Versioning y catálogo
   const CATALOG_VERSION = '4.3.0';
