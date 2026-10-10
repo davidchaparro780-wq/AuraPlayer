@@ -1,7 +1,7 @@
 {
-  "versionCode": 68,
-  "versionName": "3.5.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.5.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v3.5.0 (Build 68):\n• 🎙️ Búsqueda por Voz: Toca el icono de micrófono en la barra neón y busca tus canciones hablando.\n• 🔤 Búsqueda insensible a tildes: Encuentra 'Corazón' buscando 'corazon' y resaltado inteligente de coincidencias.\n• 🔋 Modo Ultra Ahorro de Batería: Optimización del motor de audio en segundo plano al estar en pausa.\n• 🎚️ Auto-reconexión del Ecualizador y Visualizador al cambiar de pista y formato (MP3 a FLAC/M4A).\n• 📁 Carpetas & Artistas Mejorados: Explora las canciones de cualquier carpeta o artista con vista dedicada y botones de reproducir/mezclar todo.",
+  "versionCode": 69,
+  "versionName": "3.6.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.6.0/app-debug.apk",
+  "changelog": "🔥 DaVE Player v3.6.0 (Build 69):\n• ❤️ Botón de Favoritos directo en la Barra de Notificaciones y Pantalla de Bloqueo de Android.\n• 🔀 Botón de Modo Aleatorio (Shuffle) en la notificación del sistema sin abrir la app.\n• 📝 Soporte Automático para Letras Locales (.LRC): Detecta archivos .lrc descargados junto a tus canciones sin consumir internet.\n• 🌈 Barra de Progreso Líquida Neón en el Mini-Player con transiciones suaves.",
   "fileSizeMb": 23.9
 }

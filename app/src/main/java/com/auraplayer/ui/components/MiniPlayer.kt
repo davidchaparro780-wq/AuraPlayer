@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -377,15 +378,28 @@ fun MiniPlayer(
                             }
                         }
 
-                        // Progress bar line at the bottom with neon gradient
-                        LinearProgressIndicator(
-                            progress = { progress.coerceIn(0f, 1f) },
+                        // Ultra Neon Liquid Progress Bar with Ambient Glow
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.5.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        )
+                                .height(3.dp)
+                                .background(Color.White.copy(alpha = 0.08f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                    .fillMaxHeight()
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color(0xFF8B5CF6),
+                                                Color(0xFF38BDF8),
+                                                Color(0xFF00F0FF)
+                                            )
+                                        )
+                                    )
+                            )
+                        }
                     }
                 }
             }

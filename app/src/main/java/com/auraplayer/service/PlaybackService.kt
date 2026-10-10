@@ -146,8 +146,81 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+        val favoriteCommand = androidx.media3.session.SessionCommand("ACTION_TOGGLE_FAVORITE", android.os.Bundle.EMPTY)
+        val shuffleCommand = androidx.media3.session.SessionCommand("ACTION_TOGGLE_SHUFFLE", android.os.Bundle.EMPTY)
+
+        val favoriteButton = androidx.media3.session.CommandButton.Builder()
+            .setDisplayName("Favorito")
+            .setIconResId(com.auraplayer.R.drawable.ic_favorite_notification)
+            .setSessionCommand(favoriteCommand)
+            .build()
+
+        val shuffleButton = androidx.media3.session.CommandButton.Builder()
+            .setDisplayName("Aleatorio")
+            .setIconResId(com.auraplayer.R.drawable.ic_shuffle_notification)
+            .setSessionCommand(shuffleCommand)
+            .build()
+
+        val sessionCallback = object : MediaSession.Callback {
+            override fun onConnect(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo
+            ): MediaSession.ConnectionResult {
+                val connectionResult = super.onConnect(session, controller)
+                val sessionCommands = connectionResult.availableSessionCommands.buildUpon()
+                    .add(favoriteCommand)
+                    .add(shuffleCommand)
+                    .build()
+                return MediaSession.ConnectionResult.accept(
+                    sessionCommands,
+                    connectionResult.availablePlayerCommands
+                )
+            }
+
+            override fun onCustomCommand(
+                session: MediaSession,
+                controller: MediaSession.ControllerInfo,
+                customCommand: androidx.media3.session.SessionCommand,
+                args: android.os.Bundle
+            ): com.google.common.util.concurrent.ListenableFuture<androidx.media3.session.SessionResult> {
+                when (customCommand.customAction) {
+                    "ACTION_TOGGLE_FAVORITE" -> {
+                        val currentMediaItem = player.currentMediaItem
+                        val mediaId = currentMediaItem?.mediaId?.toLongOrNull()
+                        if (mediaId != null && mediaId > 0L) {
+                            val favManager = com.auraplayer.data.repository.FavoritesManager(this@PlaybackService)
+                            val isFav = favManager.toggleFavorite(mediaId)
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                android.widget.Toast.makeText(
+                                    this@PlaybackService,
+                                    if (isFav) "❤️ Añadida a Favoritos" else "Eliminada de Favoritos",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                    "ACTION_TOGGLE_SHUFFLE" -> {
+                        val newMode = !player.shuffleModeEnabled
+                        player.shuffleModeEnabled = newMode
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            android.widget.Toast.makeText(
+                                this@PlaybackService,
+                                if (newMode) "🔀 Modo Aleatorio Activado" else "Modo Aleatorio Desactivado",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }
+                return com.google.common.util.concurrent.Futures.immediateFuture(
+                    androidx.media3.session.SessionResult(androidx.media3.session.SessionResult.RESULT_SUCCESS)
+                )
+            }
+        }
+
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(pendingIntent)
+            .setCallback(sessionCallback)
+            .setCustomLayout(listOf(favoriteButton, shuffleButton))
             .build()
     }
 

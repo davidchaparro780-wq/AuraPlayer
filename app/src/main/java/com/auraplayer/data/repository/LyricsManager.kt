@@ -32,6 +32,27 @@ class LyricsManager(private val context: Context) {
         val cached = getCachedLyrics(song.id)
         if (cached != null) return@withContext cached
 
+        // 1.5. Check local .lrc file in the same directory as the audio file (Offline lyrics)
+        if (song.path.isNotBlank()) {
+            try {
+                val audioFile = File(song.path)
+                val lrcFile = File(audioFile.parentFile, "${audioFile.nameWithoutExtension}.lrc")
+                if (lrcFile.exists() && lrcFile.isFile) {
+                    val lrcContent = lrcFile.readText()
+                    if (lrcContent.isNotBlank()) {
+                        val parsed = parseLyrics(lrcContent, null)
+                        if (parsed.lines.isNotEmpty()) {
+                            saveToCache(song.id, org.json.JSONObject().apply {
+                                put("syncedLyrics", lrcContent)
+                                put("plainLyrics", "")
+                            }.toString())
+                            return@withContext parsed
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
         // 2. Query LRCLIB API
         try {
             val cleanTitle = cleanSongTitle(song.title)
