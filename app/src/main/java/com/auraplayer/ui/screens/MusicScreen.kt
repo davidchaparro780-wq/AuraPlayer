@@ -79,10 +79,16 @@ import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Whatshot
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -202,6 +208,8 @@ fun MusicScreen(
     userManager: com.auraplayer.data.repository.UserManager,
     onOpenAuth: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onRefreshLibrary: () -> Unit = {},
+    onShuffleAll: (List<MediaModel>) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -214,9 +222,9 @@ fun MusicScreen(
     val tabs = listOf("Canciones", "Playlists 📂", "Favoritos ❤️", "Carpetas", "Artistas")
 
     // Filter & Sort States
-    // 0: Todas, 1: Recientes, 2: Más Escuchadas, 3: HD/Lossless, 4: Favoritas, 5: Cortas, 6: Largas
+    // 0: Todas, 1: Descargas, 2: Recientes, 3: Más Escuchadas, 4: HD/Lossless, 5: Favoritas, 6: Cortas, 7: Largas
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
-    var selectedSortMode by remember { mutableIntStateOf(0) } // 0: Título, 1: Artista, 2: Duración, 3: Más Escuchadas
+    var selectedSortMode by remember { mutableIntStateOf(0) } // 0: Recién Descargadas, 1: Título, 2: Artista, 3: Duración, 4: Más Escuchadas
     var showSortMenu by remember { mutableStateOf(false) }
     var showToolsMenu by remember { mutableStateOf(false) }
     var showRelaxDialog by remember { mutableStateOf(false) }
@@ -286,34 +294,40 @@ fun MusicScreen(
 
         // Apply quick filter
         list = when (selectedFilterIndex) {
-            1 -> {
+            1 -> list.filter {
+                val p = it.path.lowercase()
+                p.contains("/download") || p.contains("snaptube") || p.contains("descargas") || it.folderName.equals("download", true) || it.folderName.equals("snaptube", true)
+            }
+            2 -> {
                 val recentIds = playlistManager.getRecentlyPlayedIds()
                 val idMap = list.associateBy { it.id }
                 recentIds.mapNotNull { idMap[it] }
             }
-            2 -> playlistManager.getMostPlayedSongs(list)
-            3 -> list.filter {
+            3 -> playlistManager.getMostPlayedSongs(list)
+            4 -> list.filter {
                 val ext = File(it.path).extension.lowercase()
                 ext in listOf("flac", "wav", "m4a", "alac", "dsf", "dff")
             }
-            4 -> {
+            5 -> {
                 val favs = favoritesManager.getFavoriteIds()
                 list.filter { favs.contains(it.id) }
             }
-            5 -> list.filter { it.duration in 1..150000L } // < 2.5 min
-            6 -> list.filter { it.duration >= 240000L } // > 4 min
+            6 -> list.filter { it.duration in 1..150000L } // < 2.5 min
+            7 -> list.filter { it.duration >= 240000L } // > 4 min
             else -> list
         }
 
-        // Apply sort (keep chronological order for Recientes)
-        if (selectedFilterIndex == 1) {
+        // Apply sort (keep chronological order for Recientes escuchadas)
+        if (selectedFilterIndex == 2) {
             list
         } else {
             when (selectedSortMode) {
-                1 -> list.sortedBy { it.artist.lowercase() }
-                2 -> list.sortedByDescending { it.duration }
-                3 -> list.sortedByDescending { playlistManager.getPlayCount(it.id) }
-                else -> list.sortedBy { it.title.lowercase() }
+                0 -> list.sortedByDescending { it.dateAdded } // Recién Descargadas / Más nuevas
+                1 -> list.sortedBy { it.title.lowercase() }
+                2 -> list.sortedBy { it.artist.lowercase() }
+                3 -> list.sortedByDescending { it.duration }
+                4 -> list.sortedByDescending { playlistManager.getPlayCount(it.id) }
+                else -> list.sortedByDescending { it.dateAdded }
             }
         }
     }
@@ -388,10 +402,26 @@ fun MusicScreen(
                         onDismissRequest = { showSortMenu = false },
                         modifier = Modifier.background(Color(0xFF0F172A))
                     ) {
-                        DropdownMenuItem(text = { Text("🔤 Título (A-Z)", color = Color.White) }, onClick = { selectedSortMode = 0; showSortMenu = false })
-                        DropdownMenuItem(text = { Text("👤 Artista", color = Color.White) }, onClick = { selectedSortMode = 1; showSortMenu = false })
-                        DropdownMenuItem(text = { Text("⏱️ Mayor Duración", color = Color.White) }, onClick = { selectedSortMode = 2; showSortMenu = false })
-                        DropdownMenuItem(text = { Text("🔥 Más Reproducidas", color = Color.White) }, onClick = { selectedSortMode = 3; showSortMenu = false })
+                        DropdownMenuItem(
+                            text = { Text("📥 Recién Descargadas", color = if (selectedSortMode == 0) Color(0xFF38BDF8) else Color.White, fontWeight = if (selectedSortMode == 0) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = { selectedSortMode = 0; showSortMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🔤 Título (A-Z)", color = if (selectedSortMode == 1) Color(0xFF38BDF8) else Color.White, fontWeight = if (selectedSortMode == 1) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = { selectedSortMode = 1; showSortMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("👤 Artista", color = if (selectedSortMode == 2) Color(0xFF38BDF8) else Color.White, fontWeight = if (selectedSortMode == 2) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = { selectedSortMode = 2; showSortMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("⏱️ Mayor Duración", color = if (selectedSortMode == 3) Color(0xFF38BDF8) else Color.White, fontWeight = if (selectedSortMode == 3) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = { selectedSortMode = 3; showSortMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🔥 Más Reproducidas", color = if (selectedSortMode == 4) Color(0xFF38BDF8) else Color.White, fontWeight = if (selectedSortMode == 4) FontWeight.Bold else FontWeight.Normal) },
+                            onClick = { selectedSortMode = 4; showSortMenu = false }
+                        )
                     }
                 }
 
@@ -865,7 +895,7 @@ fun MusicScreen(
                     .padding(horizontal = 14.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val filters = listOf("Todas", "🕒 Recientes", "🔥 Más Escuchadas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
+                val filters = listOf("Todas", "📥 Descargas", "🕒 Recientes", "🔥 Más Escuchadas", "💎 Lossless", "❤️ Favoritas", "⚡ Cortas", "☕ Largas")
                 itemsIndexed(filters) { index, label ->
                     val isSelected = selectedFilterIndex == index
                     Box(
@@ -982,24 +1012,105 @@ fun MusicScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     item {
-                                        // Stats Bar
+                                        // Header Action Bar: Stats, Current Sort, Refresh & Smart Shuffle
                                         Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(horizontal = 18.dp, vertical = 4.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween
+                                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "${filteredSongs.size} canciones • $totalDurationFormatted",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = "100% Offline • 0 Ads",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
+                                            Column {
+                                                Text(
+                                                    text = "${filteredSongs.size} canciones • $totalDurationFormatted",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                                val sortLabel = when (selectedSortMode) {
+                                                    0 -> "📥 Recién Descargadas"
+                                                    1 -> "🔤 Título (A-Z)"
+                                                    2 -> "👤 Artista"
+                                                    3 -> "⏱️ Mayor Duración"
+                                                    4 -> "🔥 Más Reproducidas"
+                                                    else -> "📥 Más Nuevas"
+                                                }
+                                                Text(
+                                                    text = "Orden: $sortLabel",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = Color(0xFF38BDF8)
+                                                )
+                                            }
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                // Quick Refresh Button
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(Color(0xFF13182E))
+                                                        .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                                        .clickable {
+                                                            AuraHaptic.click(view)
+                                                            onRefreshLibrary()
+                                                        }
+                                                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Refresh,
+                                                            contentDescription = "Refrescar canciones",
+                                                            tint = Color(0xFF38BDF8),
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "Refrescar",
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Color(0xFF38BDF8)
+                                                        )
+                                                    }
+                                                }
+
+                                                Spacer(modifier = Modifier.width(6.dp))
+
+                                                // Smart Shuffle Button
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(
+                                                            Brush.horizontalGradient(
+                                                                listOf(Color(0xFF8B5CF6), Color(0xFF06B6D4))
+                                                            )
+                                                        )
+                                                        .clickable {
+                                                            AuraHaptic.click(view)
+                                                            if (filteredSongs.isNotEmpty()) {
+                                                                onShuffleAll(filteredSongs)
+                                                            }
+                                                        }
+                                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Shuffle,
+                                                            contentDescription = "Mezclar Todo",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size(13.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "Mezclar Todo",
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Color.White
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                     items(filteredSongs, key = { it.id }, contentType = { "song" }) { song ->
@@ -1008,6 +1119,7 @@ fun MusicScreen(
                                             song = song,
                                             isSelected = isSelected,
                                             isFavorite = favoritesManager.isFavorite(song.id),
+                                            highlightQuery = searchQuery,
                                             onClick = {
                                                 if (searchQuery.isNotBlank()) searchHistoryManager.addQuery(searchQuery)
                                                 onSongClick(song)
@@ -1026,7 +1138,7 @@ fun MusicScreen(
                                     }
                                 }
 
-                                if (searchQuery.isBlank() && selectedFilterIndex != 1 && filteredSongs.size > 10) {
+                                if (searchQuery.isBlank() && selectedSortMode == 1 && filteredSongs.size > 10) {
                                     AlphabetFastScroller(
                                         onLetterSelected = { char ->
                                             val targetIdx = filteredSongs.indexOfFirst {
@@ -1860,12 +1972,77 @@ fun LiveEqualizerIndicator(
     }
 }
 
+@Composable
+fun HighlightedText(
+    text: String,
+    query: String,
+    style: TextStyle,
+    color: Color,
+    highlightColor: Color = Color(0xFF00E5FF),
+    highlightBg: Color = Color(0xFF00E5FF).copy(alpha = 0.25f),
+    maxLines: Int = 1,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
+    modifier: Modifier = Modifier
+) {
+    if (query.isBlank() || !text.contains(query, ignoreCase = true)) {
+        Text(
+            text = text,
+            style = style,
+            color = color,
+            maxLines = maxLines,
+            overflow = overflow,
+            modifier = modifier
+        )
+        return
+    }
+
+    val annotated = remember(text, query, color, highlightColor, highlightBg) {
+        buildAnnotatedString {
+            var currentIndex = 0
+            val lowerText = text.lowercase()
+            val lowerQuery = query.lowercase()
+
+            while (currentIndex < text.length) {
+                val matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
+                if (matchIndex < 0) {
+                    append(text.substring(currentIndex))
+                    break
+                }
+                if (matchIndex > currentIndex) {
+                    append(text.substring(currentIndex, matchIndex))
+                }
+                val matchEnd = matchIndex + lowerQuery.length
+                withStyle(
+                    SpanStyle(
+                        color = highlightColor,
+                        background = highlightBg,
+                        fontWeight = FontWeight.Bold
+                    )
+                ) {
+                    append(text.substring(matchIndex, matchEnd))
+                }
+                currentIndex = matchEnd
+            }
+        }
+    }
+
+    Text(
+        text = annotated,
+        style = style,
+        color = color,
+        maxLines = maxLines,
+        overflow = overflow,
+        modifier = modifier
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongListItem(
     song: MediaModel,
     isSelected: Boolean,
     isFavorite: Boolean,
+    highlightQuery: String = "",
     extraBadge: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -2044,10 +2221,12 @@ fun SongListItem(
 
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
+                    HighlightedText(
                         text = song.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        query = highlightQuery,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        ),
                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -2078,12 +2257,19 @@ fun SongListItem(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "${song.artist} • ${song.formattedDuration}",
+                    HighlightedText(
+                        text = song.artist,
+                        query = highlightQuery,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = " • ${song.formattedDuration}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                     Spacer(modifier = Modifier.width(6.dp))
 
@@ -2100,6 +2286,24 @@ fun SongListItem(
                             fontWeight = FontWeight.Bold,
                             color = if (ext == "FLAC" || ext == "WAV") Color(0xFF06B6D4) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+
+                    if (song.isRecentlyAdded) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFF10B981).copy(alpha = 0.22f))
+                                .border(0.8.dp, Color(0xFF10B981).copy(alpha = 0.75f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "NUEVA",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF10B981)
+                            )
+                        }
                     }
 
                     if (extraBadge != null) {

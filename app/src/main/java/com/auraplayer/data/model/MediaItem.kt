@@ -13,8 +13,18 @@ data class MediaModel(
     val isVideo: Boolean = false,
     val folderName: String = "",
     val path: String = "",
-    val size: Long = 0L
+    val size: Long = 0L,
+    val dateAdded: Long = 0L
 ) {
+    val isRecentlyAdded: Boolean
+        get() {
+            if (dateAdded <= 0L) return false
+            // MediaStore DATE_ADDED is in seconds, ensure millisecond comparison
+            val addedMs = if (dateAdded > 100_000_000_000L) dateAdded else dateAdded * 1000L
+            val diffMs = System.currentTimeMillis() - addedMs
+            return diffMs in 0..(48 * 3600 * 1000L) // Added in last 48 hours
+        }
+
     val formattedDuration: String
         get() {
             val totalSeconds = (duration / 1000).coerceAtLeast(0)

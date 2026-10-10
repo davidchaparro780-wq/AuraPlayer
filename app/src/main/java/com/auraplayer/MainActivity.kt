@@ -277,6 +277,15 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
     }
+
+    override fun onResume() {
+        super.onResume()
+        onResumeCallback?.invoke()
+    }
+
+    companion object {
+        var onResumeCallback: (() -> Unit)? = null
+    }
 }
 
 @OptIn(UnstableApi::class)
@@ -1107,6 +1116,70 @@ fun AuraApp(
                     }
                 }
             }
+        }
+    }
+
+    // Auto-rescan download folders when app returns to foreground (e.g. after downloading songs with Snaptube or browser)
+    DisposableEffect(hasPermission) {
+        MainActivity.onResumeCallback = {
+            if (hasPermission) {
+                scope.launch {
+                    mediaRepository.rescanDownloadDirectories()
+                    val freshSongs = mediaRepository.loadAudioFiles()
+                    if (freshSongs.size != songs.size || (freshSongs.isNotEmpty() && songs.isNotEmpty() && freshSongs.first().id != songs.first().id)) {
+                        songs = freshSongs.map { s ->
+                            val override = playlistManager.getTagOverride(s.id)
+                            if (override != null) s.copy(title = override.title, artist = override.artist, album = override.album) else s
+                        }
+                    }
+                }
+            }
+        }
+        onDispose {
+            MainActivity.onResumeCallback = null
+        }
+    }
+
+    val handleRefreshLibrary: () -> Unit = {
+        scope.launch {
+            isLoading = true
+            mediaRepository.rescanDownloadDirectories()
+            kotlinx.coroutines.delay(350)
+            val freshSongs = mediaRepository.loadAudioFiles()
+            songs = freshSongs.map { s ->
+                val override = playlistManager.getTagOverride(s.id)
+                if (override != null) s.copy(title = override.title, artist = override.artist, album = override.album) else s
+            }
+            isLoading = false
+            Toast.makeText(context, "Biblioteca actualizada: ${freshSongs.size} canciones", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val handleShuffleAll: (List<com.auraplayer.data.model.MediaModel>) -> Unit = { listToShuffle ->
+        if (listToShuffle.isNotEmpty()) {
+            val shuffled = listToShuffle.shuffled()
+            currentMedia = shuffled.first()
+            playlistManager.recordPlay(shuffled.first().id)
+            controller?.run {
+                val mediaItemList = shuffled.map { s ->
+                    androidx.media3.common.MediaItem.Builder()
+                        .setUri(s.uri)
+                        .setMediaId(s.id.toString())
+                        .setMediaMetadata(
+                            androidx.media3.common.MediaMetadata.Builder()
+                                .setTitle(s.title)
+                                .setArtist(s.artist)
+                                .setAlbumTitle(s.album)
+                                .setArtworkUri(s.artworkUri)
+                                .build()
+                        )
+                        .build()
+                }
+                setMediaItems(mediaItemList, 0, 0L)
+                prepare()
+                play()
+            }
+            Toast.makeText(context, "🔀 Mezclando ${shuffled.size} canciones", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -2058,6 +2131,8 @@ fun AuraApp(
                     userManager = userManager,
                     onOpenAuth = { showAuthDialog = true },
                     onOpenProfile = { showProfileDialog = true },
+                    onRefreshLibrary = handleRefreshLibrary,
+                    onShuffleAll = handleShuffleAll,
                     modifier = Modifier.fillMaxSize()
                 )
             }

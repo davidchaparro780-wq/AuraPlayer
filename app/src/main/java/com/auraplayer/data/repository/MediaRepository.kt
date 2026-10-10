@@ -29,7 +29,8 @@ class MediaRepository(private val context: Context) {
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.SIZE
+            MediaStore.Audio.Media.SIZE,
+            MediaStore.Audio.Media.DATE_ADDED
         )
 
         // Broaden selection: include music, audio files by extension (.mp3, .m4a, .flac, .wav, .aac, .ogg, .opus)
@@ -54,6 +55,7 @@ class MediaRepository(private val context: Context) {
                 val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+                val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
 
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
@@ -63,6 +65,12 @@ class MediaRepository(private val context: Context) {
                     val duration = cursor.getLong(durationCol)
                     val data = cursor.getString(dataCol) ?: ""
                     val size = cursor.getLong(sizeCol)
+                    val rawDateAdded = try { cursor.getLong(dateAddedCol) } catch (_: Exception) { 0L }
+                    val dateAdded = if (rawDateAdded > 0L) rawDateAdded else {
+                        try {
+                            if (data.isNotBlank()) File(data).lastModified() / 1000L else 0L
+                        } catch (_: Exception) { 0L }
+                    }
 
                     // Clean artist & title if MediaStore indexed file as "Artist - Title" with unknown artist
                     var finalArtist = if (rawArtist.equals("<unknown>", ignoreCase = true) || rawArtist.equals("Unknown Artist", ignoreCase = true) || rawArtist.isBlank()) {
@@ -114,7 +122,8 @@ class MediaRepository(private val context: Context) {
                         isVideo = false,
                         folderName = folderName,
                         path = data,
-                        size = size
+                        size = size,
+                        dateAdded = dateAdded
                     )
 
                     audioList.add(mediaModel)
@@ -258,6 +267,47 @@ class MediaRepository(private val context: Context) {
         try {
             val coverById = File(context.filesDir, "covers/${song.id}.jpg")
             if (coverById.exists()) coverById.delete()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun rescanDownloadDirectories() = withContext(Dispatchers.IO) {
+        try {
+            val pathsToScan = mutableListOf<String>()
+            val extStorage = android.os.Environment.getExternalStorageDirectory()
+            val candidateDirs = listOf(
+                File(extStorage, "Download"),
+                File(extStorage, "Download/Snaptube"),
+                File(extStorage, "snaptube/download"),
+                File(extStorage, "Music"),
+                File(extStorage, "Music/Snaptube"),
+                File(extStorage, "WhatsApp/Media/WhatsApp Audio"),
+                File(extStorage, "Telegram/Telegram Audio")
+            )
+            for (dir in candidateDirs) {
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { file ->
+                        if (file.isFile && (file.extension.equals("mp3", true) ||
+                                    file.extension.equals("m4a", true) ||
+                                    file.extension.equals("flac", true) ||
+                                    file.extension.equals("wav", true) ||
+                                    file.extension.equals("aac", true) ||
+                                    file.extension.equals("opus", true) ||
+                                    file.extension.equals("ogg", true))) {
+                            pathsToScan.add(file.absolutePath)
+                        }
+                    }
+                }
+            }
+            if (pathsToScan.isNotEmpty()) {
+                android.media.MediaScannerConnection.scanFile(
+                    context,
+                    pathsToScan.toTypedArray(),
+                    null,
+                    null
+                )
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
