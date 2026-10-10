@@ -285,6 +285,13 @@ fun PlayerScreen(
     var abLoopB by remember { mutableStateOf<Long?>(null) }
     var isAbLoopActive by remember { mutableStateOf(false) }
 
+    // Reset A-B looper whenever track changes so new song starts fresh
+    LaunchedEffect(currentMedia?.id) {
+        abLoopA = null
+        abLoopB = null
+        isAbLoopActive = false
+    }
+
     LaunchedEffect(currentPositionMs, isAbLoopActive, abLoopA, abLoopB, isPlaying) {
         if (isAbLoopActive && abLoopA != null && abLoopB != null && isPlaying) {
             if (currentPositionMs >= abLoopB!!) {

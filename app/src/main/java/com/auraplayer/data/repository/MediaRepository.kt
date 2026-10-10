@@ -172,21 +172,23 @@ class MediaRepository(private val context: Context) {
 
         try {
             context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
-                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+                val idCol = cursor.getColumnIndex(MediaStore.Video.Media._ID)
+                val titleCol = cursor.getColumnIndex(MediaStore.Video.Media.TITLE)
+                val durationCol = cursor.getColumnIndex(MediaStore.Video.Media.DURATION)
+                val dataCol = cursor.getColumnIndex(MediaStore.Video.Media.DATA)
+                val sizeCol = cursor.getColumnIndex(MediaStore.Video.Media.SIZE)
 
                 while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val title = cursor.getString(titleCol) ?: "Video"
-                    val duration = cursor.getLong(durationCol)
-                    val data = cursor.getString(dataCol) ?: ""
-                    val size = cursor.getLong(sizeCol)
+                    val id = if (idCol >= 0) cursor.getLong(idCol) else 0L
+                    if (id == 0L) continue
+
+                    val title = if (titleCol >= 0) cursor.getString(titleCol) ?: "Video" else "Video"
+                    val duration = if (durationCol >= 0) cursor.getLong(durationCol) else 0L
+                    val data = if (dataCol >= 0) cursor.getString(dataCol) ?: "" else ""
+                    val size = if (sizeCol >= 0) cursor.getLong(sizeCol) else 0L
 
                     // 1. Skip if empty, inside vault, or marked as hidden
-                    if (data.isBlank() || data.contains(".secure_vault") || vaultManager.isPathHidden(data)) {
+                    if (data.isBlank() || data.contains(".secure_vault") || data.contains(".dave_vault") || vaultManager.isPathHidden(data)) {
                         continue
                     }
 

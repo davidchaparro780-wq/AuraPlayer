@@ -962,7 +962,9 @@ fun AuraApp(
                 }
 
                 override fun onMediaItemTransition(item: MediaItem?, reason: Int) {
-                    sleepTimerManager.onTrackEnded()
+                    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                        sleepTimerManager.onTrackEnded()
+                    }
                     val mediaId = item?.mediaId?.toLongOrNull()
                     if (mediaId != null) {
                         val found = songs.find { it.id == mediaId }
@@ -1990,6 +1992,25 @@ fun AuraApp(
                         }
                         if (currentMedia?.id == song.id) {
                             currentMedia = currentMedia?.copy(title = newTitle, artist = newArtist, album = newAlbum, artworkUri = finalCoverUri)
+                            // Live update notification and lockscreen MediaMetadata
+                            controller?.let { ctrl ->
+                                val currentItem = ctrl.currentMediaItem
+                                if (currentItem != null) {
+                                    val updatedMeta = currentItem.mediaMetadata.buildUpon()
+                                        .setTitle(newTitle)
+                                        .setArtist(newArtist)
+                                        .setAlbumTitle(newAlbum)
+                                        .setArtworkUri(finalCoverUri)
+                                        .build()
+                                    val updatedItem = currentItem.buildUpon()
+                                        .setMediaMetadata(updatedMeta)
+                                        .build()
+                                    val currentIndex = ctrl.currentMediaItemIndex
+                                    val wasPlaying = ctrl.isPlaying
+                                    ctrl.replaceMediaItem(currentIndex, updatedItem)
+                                    if (wasPlaying) ctrl.play()
+                                }
+                            }
                         }
                         Toast.makeText(context, "Etiquetas y carátula actualizadas", Toast.LENGTH_SHORT).show()
                     },
@@ -2242,6 +2263,7 @@ fun AuraApp(
                 videos = videos,
                 isLoading = isLoading,
                 onVideoClick = { video ->
+                    controller?.pause()
                     activeVideo = video
                 },
                 onOpenVault = {
@@ -2514,6 +2536,7 @@ fun AuraApp(
                 }
             },
             onPlayHiddenVideo = { hiddenVideo ->
+                controller?.pause()
                 activeVideo = hiddenVideo
             }
         )

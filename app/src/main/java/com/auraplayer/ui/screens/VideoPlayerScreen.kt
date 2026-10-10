@@ -5,6 +5,7 @@ import android.app.PictureInPictureParams
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Rational
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
@@ -23,7 +24,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -33,6 +37,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.PictureInPictureModeChangedInfo
+import androidx.core.util.Consumer
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -51,7 +59,24 @@ fun VideoPlayerScreen(
         onBack()
     }
     val context = LocalContext.current
-    val exoPlayer = remember {
+    val activity = context as? Activity
+
+    var isInPipMode by remember {
+        mutableStateOf(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) activity?.isInPictureInPictureMode == true else false)
+    }
+
+    DisposableEffect(activity) {
+        val componentActivity = activity as? ComponentActivity
+        val listener = Consumer<PictureInPictureModeChangedInfo> { info ->
+            isInPipMode = info.isInPictureInPictureMode
+        }
+        componentActivity?.addOnPictureInPictureModeChangedListener(listener)
+        onDispose {
+            componentActivity?.removeOnPictureInPictureModeChangedListener(listener)
+        }
+    }
+
+    val exoPlayer = remember(video.uri) {
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
                 /* minBufferMs = */ 1500,
@@ -61,8 +86,14 @@ fun VideoPlayerScreen(
             )
             .build()
 
+        val audioAttributes = AudioAttributes.Builder()
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .setUsage(C.USAGE_MEDIA)
+            .build()
+
         ExoPlayer.Builder(context)
             .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
             .build().apply {
                 setMediaItem(MediaItem.fromUri(video.uri))
                 prepare()
@@ -70,7 +101,7 @@ fun VideoPlayerScreen(
             }
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(exoPlayer) {
         onDispose {
             exoPlayer.stop()
             exoPlayer.release()
@@ -86,29 +117,33 @@ fun VideoPlayerScreen(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
-                    useController = true
+                    useController = !isInPipMode
                 }
+            },
+            update = { playerView ->
+                playerView.useController = !isInPipMode
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        // Overlay top controls with dark scrim & statusBarsPadding protection
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.8f),
-                            Color.Black.copy(alpha = 0.4f),
-                            Color.Transparent
+        // Overlay top controls with dark scrim & statusBarsPadding protection (hidden in PiP mode)
+        if (!isInPipMode) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.8f),
+                                Color.Black.copy(alpha = 0.4f),
+                                Color.Transparent
+                            )
                         )
                     )
-                )
-                .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .align(Alignment.TopCenter)
-        ) {
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .align(Alignment.TopCenter)
+            ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -150,6 +185,7 @@ fun VideoPlayerScreen(
                     }
                 }
             }
+        }
         }
     }
 }

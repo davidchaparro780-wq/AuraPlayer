@@ -1,7 +1,7 @@
 {
-  "versionCode": 72,
-  "versionName": "3.7.2",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.2/app-debug.apk",
-  "changelog": "🛡️ DaVE Player v3.7.2 (Build 72):\n• 🚫 Cero duplicados en la Bóveda: Detección inteligente de nombres originales y deduplicación por archivo para evitar que se muestren videos repetidos.\n• 🔕 Eliminada notificación repetitiva de permisos: Ya no te redirige a los ajustes del sistema en cada video guardado. Flujo limpio y silencioso con banner opcional y descartable con (X).",
+  "versionCode": 73,
+  "versionName": "3.7.3",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.3/app-debug.apk",
+  "changelog": "⚡ DaVE Player v3.7.3 (Build 73) — Mega Actualización de Corrección de Bugs:\n• 🔊 Silenciado automático de música al reproducir videos (cero superposición de audio).\n• 🔂 Bucle A-B reiniciado al cambiar de canción (evita bucles cruzados).\n• ⏱️ Temporizador de apagado al fin de canción solo se activa en transición natural.\n• 🗂️ Exclusión blindada de réplicas .dave_vault en la galería de videos.\n• 🛡️ Carga a prueba de fallos de videos en todas las marcas y capas de Android (índices seguros de columnas).\n• 🖼️ Ocultación limpia de barra de controles en ventana flotante PiP.\n• 🔔 Actualización en tiempo real de carátula y metadatos en la notificación y pantalla de bloqueo al editar etiquetas ID3.",
   "fileSizeMb": 24.1
 }
