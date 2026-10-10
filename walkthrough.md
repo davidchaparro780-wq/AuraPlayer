@@ -255,3 +255,15 @@
       - Parser JS: 0 discrepancias (`pDepth: 0`, `bDepth: 0`, `bracketDepth: 0`).
       - Parser HTML: 349 `<div>` abiertas / 349 cerradas; 163 `<button>` abiertos / 163 cerrados.
     - *Despliegue:* Versión `v4.3.5` subida a la rama `main`, desplegada en GitHub Pages y respaldada en Google Drive.
+31. **🚀 Suite de Mejoras Pro & Experiencia de Usuario Studio (v4.3.6):**
+    - *Mejoras Implementadas:*
+      1. **Ordenación Interactiva por Columnas:** La tabla de pistas ahora permite ordenar haciendo clic en cualquier cabecera (`#`, `Título`, `Artista`, `Álbum`, `Duración` con ícono de reloj). Incluye indicadores visuales neón `▲` y `▼` para orden ascendente/descendente y restauración del orden original al tercer clic.
+      2. **Smart Shuffle ("Mezclar Todo") Directo:** Nuevo botón interactivo de mezcla aleatoria colocado directamente en la barra de categorías (`#btn-shuffle-all`), que baraja la lista con el algoritmo Fisher-Yates, activa el modo shuffle y comienza la reproducción de inmediato con notificación toast.
+      3. **Resaltado Inteligente de Búsqueda:** Las coincidencias en tiempo real de búsqueda de texto se resaltan automáticamente en el título, artista y álbum con la etiqueta `<mark class="search-highlight">` con resplandor cian neón.
+      4. **Control de Volumen con Rueda del Ratón & Tooltip Porcentual:** Ahora se puede ajustar el volumen simplemente desplazando la rueda del ratón (`wheel`) sobre el clúster de volumen, mostrando un badge flotante dinámico con el porcentaje exacto (ej. `85%`, `MUTE`) que se desvanece suavemente.
+      5. **Acceso Rápido a Mini-Player PiP:** Se añadió `#btn-quick-pip` en la barra inferior para activar con 1 solo clic la ventana flotante Picture-in-Picture nativa de Windows con carátula, espectro en vivo y controles multimedia.
+      6. **Atajos de Teclado Globales Ampliados:** Presionar `/` en cualquier parte de la app enfoca instantáneamente la barra de búsqueda (con hint en el placeholder); `Escape` limpia y desenfoca la búsqueda; `Espacio` conmuta Play/Pausa; `Ctrl + Flechas` salta de pista; `M` activa/desactiva silenciar; `F` marca favorito; `L` abre letras.
+    - *Verificación AST y Balance de Etiquetas:*
+      - Parser JS: 0 discrepancias (`pDepth: 0`, `bDepth: 0`, `bracketDepth: 0`).
+      - Parser HTML: 349 `<div>` abiertas / 349 cerradas; 165 `<button>` abiertos / 165 cerrados.
+    - *Despliegue:* Versión `v4.3.6` subida a la rama `main`, desplegada en vivo en GitHub Pages y espejada en Google Drive (`G:\` y `H:\`).
