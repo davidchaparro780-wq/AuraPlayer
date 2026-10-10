@@ -157,6 +157,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         var activeController: MediaController? = null
+        var onResumeCallback: (() -> Unit)? = null
     }
 
     private var lastVolumeUpTime = 0L
@@ -281,10 +282,6 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         onResumeCallback?.invoke()
-    }
-
-    companion object {
-        var onResumeCallback: (() -> Unit)? = null
     }
 }
 
