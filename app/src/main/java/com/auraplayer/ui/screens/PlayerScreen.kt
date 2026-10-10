@@ -238,6 +238,10 @@ fun PlayerScreen(
 ) {
     if (currentMedia == null) return
 
+    val effectiveDurationMs = remember(durationMs, currentMedia.duration) {
+        if (durationMs > 0L) durationMs else currentMedia.duration
+    }
+
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
@@ -1386,9 +1390,6 @@ fun PlayerScreen(
 
                 // Seek Bar & Timeline
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    val effectiveDurationMs = remember(durationMs, currentMedia.duration) {
-                        if (durationMs > 0L) durationMs else currentMedia.duration
-                    }
                     val sliderValue = if (effectiveDurationMs > 0L) (currentPositionMs.toFloat() / effectiveDurationMs.toFloat()) else 0f
 
                     // Dynamic Rhythmic Audio Waveform Track (Reactive to real audio frequencies)
