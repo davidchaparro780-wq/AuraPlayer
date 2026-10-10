@@ -51,6 +51,25 @@ let activePlaylistId = null;
 
 let pipDrawInterval = null;
 
+// Audio Recorder State
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
+let recordTimer = null;
+let recordSeconds = 0;
+let audioRecorderDestination = null;
+
+// Radio 24/7 State
+let activeRadioStation = null;
+
+// DJ Automix State
+let isDJAutomix = localStorage.getItem('dave_dj_automix') === 'true';
+let isDJTransitioning = false;
+
+// 3D Visualizer State
+let viz3dMode = 'tunnel';
+let animFrame3D = null;
+
 let eqFilters = [];
 const eqFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -270,6 +289,12 @@ function initAudioEngine() {
   }
 
   masterGain.connect(audioCtx.destination);
+
+  // 8. Studio Audio Recording Destination (Captures master output with all active effects)
+  if (!audioRecorderDestination && audioCtx.createMediaStreamDestination) {
+    audioRecorderDestination = audioCtx.createMediaStreamDestination();
+    masterGain.connect(audioRecorderDestination);
+  }
 
   // Audio element itself stays at 1.0 so analyser always receives full audio signal
   audio.volume = 1.0;
@@ -613,6 +638,12 @@ function playTrack(index) {
 
   currentIndex = index;
   const track = playlist[index];
+  isDJTransitioning = false;
+
+  if (activeRadioStation) {
+    activeRadioStation = null;
+    document.querySelectorAll('.radio-station-card').forEach(c => c.classList.remove('active-station'));
+  }
 
   // Smooth Crossfade & Anti-Click: subtle volume dip before new track
   if (masterGain && audioCtx && audioCtx.state === 'running') {
@@ -778,12 +809,27 @@ repeatBtn?.addEventListener('click', () => {
 
 // Audio Time Updates
 audio.addEventListener('timeupdate', () => {
+  if (activeRadioStation) {
+    currentTimeEl.innerText = '🔴 EN VIVO';
+    totalTimeEl.innerText = 'RADIO';
+    progressFill.style.width = '100%';
+    return;
+  }
+
   if (!audio.duration || !isFinite(audio.duration)) return;
   const ratio = audio.currentTime / audio.duration;
   progressFill.style.width = `${ratio * 100}%`;
   currentTimeEl.innerText = formatTime(audio.currentTime);
   totalTimeEl.innerText = formatTime(audio.duration);
   renderLyrics(audio.currentTime);
+
+  // DaVE DJ Automix Crossfade
+  if (isDJAutomix && !activeRadioStation && playlist.length > 1 && audio.duration > 20) {
+    const remaining = audio.duration - audio.currentTime;
+    if (remaining <= 5.5 && !isDJTransitioning) {
+      triggerDJCrossfade();
+    }
+  }
 
   // Sync native MediaSession position state (lock screen & Windows widget)
   if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
@@ -1485,6 +1531,8 @@ function switchTab(name) {
     setTimeout(resizeCanvas, 50);
   } else if (name === 'playlists') {
     renderPlaylistsTab();
+  } else if (name === 'radio') {
+    renderRadioStations();
   }
 }
 
@@ -3611,7 +3659,539 @@ btnViewStats?.addEventListener('click', renderStatsModal);
 btnCloseStats?.addEventListener('click', () => modalStats?.classList.add('hidden'));
 
 // ==========================================
-// 31. STARTUP INITIALIZATION (v3.9.0)
+// 32. LIVE AUDIO EFFECT RECORDER (v4.0.0)
+// ==========================================
+const btnRecordAudio = document.getElementById('btn-record-audio');
+const recordTimerBadge = document.getElementById('record-timer-badge');
+
+function toggleAudioRecording() {
+  if (isRecording) {
+    stopAudioRecording();
+  } else {
+    startAudioRecording();
+  }
+}
+
+function startAudioRecording() {
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  if (typeof MediaRecorder === 'undefined') {
+    showToast('Tu navegador no soporta MediaRecorder para grabar audio.', 'warning', 'fa-triangle-exclamation');
+    return;
+  }
+
+  if (!audioRecorderDestination && audioCtx.createMediaStreamDestination) {
+    audioRecorderDestination = audioCtx.createMediaStreamDestination();
+    masterGain.connect(audioRecorderDestination);
+  }
+
+  if (!audioRecorderDestination) {
+    showToast('No se pudo inicializar el canal de captura de audio.', 'warning', 'fa-triangle-exclamation');
+    return;
+  }
+
+  try {
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '');
+    mediaRecorder = mimeType ? new MediaRecorder(audioRecorderDestination.stream, { mimeType }) : new MediaRecorder(audioRecorderDestination.stream);
+    recordedChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        recordedChunks.push(e.data);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      saveRecordedAudio();
+    };
+
+    mediaRecorder.start(250);
+    isRecording = true;
+    recordSeconds = 0;
+
+    btnRecordAudio?.classList.add('recording-active');
+    if (recordTimerBadge) {
+      recordTimerBadge.innerText = '0:00';
+      recordTimerBadge.classList.remove('hidden');
+    }
+
+    recordTimer = setInterval(() => {
+      recordSeconds++;
+      if (recordTimerBadge) {
+        recordTimerBadge.innerText = formatTime(recordSeconds);
+      }
+    }, 1000);
+
+    showToast('🔴 Grabando audio con efectos en vivo... Haz clic de nuevo para guardar.', 'info', 'fa-circle-dot');
+  } catch (err) {
+    console.error('Error starting recorder:', err);
+    showToast('Error al iniciar la grabación de audio.', 'warning', 'fa-triangle-exclamation');
+  }
+}
+
+function stopAudioRecording() {
+  if (!isRecording) return;
+  clearInterval(recordTimer);
+  isRecording = false;
+
+  btnRecordAudio?.classList.remove('recording-active');
+  if (recordTimerBadge) {
+    recordTimerBadge.classList.add('hidden');
+  }
+
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}
+
+function saveRecordedAudio() {
+  if (recordedChunks.length === 0) {
+    showToast('No se capturó audio durante la grabación.', 'warning', 'fa-circle-exclamation');
+    return;
+  }
+
+  const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+
+  let baseName = 'Audio';
+  if (activeRadioStation) {
+    baseName = activeRadioStation.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  } else if (currentIndex >= 0 && playlist[currentIndex]) {
+    baseName = playlist[currentIndex].title.replace(/[^a-zA-Z0-9_-]/g, '_');
+  }
+
+  a.href = url;
+  a.download = `DaVE_Master_${baseName}_${Date.now()}.webm`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  showToast(`💾 ¡Grabación guardada con éxito! (${formatTime(recordSeconds)})`, 'success', 'fa-download');
+}
+
+btnRecordAudio?.addEventListener('click', toggleAudioRecording);
+
+// ==========================================
+// 33. RADIO LO-FI & CYBERPUNK 24/7 (v4.0.0)
+// ==========================================
+const radioStations = [
+  {
+    id: 'lofi-groove',
+    title: 'Groove Salad Lo-Fi',
+    genre: 'Downtempo • Ambient • Lo-Fi Beats',
+    desc: 'Un clásico mundial para estudiar, relajarse o trabajar. Bajos cálidos, texturas etéreas y beats orgánicos sin interrupciones.',
+    streamUrl: 'https://ice5.somafm.com/groovesalad-128-mp3',
+    icon: 'fa-mug-hot',
+    bitrate: '128 kbps MP3',
+    color: '#06b6d4'
+  },
+  {
+    id: 'cyberpunk-defcon',
+    title: 'DEF CON Cyberpunk Radio',
+    genre: 'Dark Synth • Industrial • Hacker Beats',
+    desc: 'Música de la conferencia hacker más grande del mundo. Sintetizadores modulares oscuros, ritmos industriales y cyberpunk.',
+    streamUrl: 'https://ice5.somafm.com/defcon-128-mp3',
+    icon: 'fa-terminal',
+    bitrate: '128 kbps MP3',
+    color: '#6366f1'
+  },
+  {
+    id: 'vaporwave-dream',
+    title: 'Vaporwaves Nostalgia',
+    genre: 'Vaporwave • Synthwave • Retro 80s',
+    desc: 'Paisajes sonoros nostálgicos de los 80s y 90s, cajas de ritmo reverberadas y texturas futuristas de ensueño.',
+    streamUrl: 'https://ice5.somafm.com/vaporwaves-128-mp3',
+    icon: 'fa-mountain-sun',
+    bitrate: '128 kbps MP3',
+    color: '#ec4899'
+  },
+  {
+    id: 'beat-blender',
+    title: 'Deep Beat Blender',
+    genre: 'Deep-House • Chillhop • Nu-Disco',
+    desc: 'Fusión electrónica de deep house elegante y chillout bailable. Ritmos continuos perfectos para sesiones largas.',
+    streamUrl: 'https://ice5.somafm.com/beatblender-128-mp3',
+    icon: 'fa-compact-disc',
+    bitrate: '128 kbps MP3',
+    color: '#10b981'
+  },
+  {
+    id: 'secret-agent',
+    title: 'Secret Agent Lounge',
+    genre: 'Spy Lounge • Surf • Retro Cool',
+    desc: 'Bandas sonoras de espías estilo años 60, groove de contrabajo cinematográfico y atmósfera vintage chic.',
+    streamUrl: 'https://ice5.somafm.com/secretagent-128-mp3',
+    icon: 'fa-glasses',
+    bitrate: '128 kbps MP3',
+    color: '#f59e0b'
+  },
+  {
+    id: 'synphaera-space',
+    title: 'Synphaera Space Ambient',
+    genre: 'Space Ambient • Drone Cósmico',
+    desc: 'Viaje interestelar de meditación profunda y atmósferas espaciales creadas por artistas de música electrónica ambiental.',
+    streamUrl: 'https://ice5.somafm.com/synphaera-128-mp3',
+    icon: 'fa-satellite',
+    bitrate: '128 kbps MP3',
+    color: '#38bdf8'
+  }
+];
+
+function renderRadioStations() {
+  const grid = document.getElementById('radio-station-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  radioStations.forEach((station) => {
+    const isStationActive = activeRadioStation && activeRadioStation.id === station.id && isPlaying;
+    const card = document.createElement('div');
+    card.className = `radio-station-card ${isStationActive ? 'active-station' : ''}`;
+    card.dataset.stationId = station.id;
+
+    card.innerHTML = `
+      <div class="radio-card-top">
+        <div class="radio-icon-box" style="border-color:${station.color}55; background:linear-gradient(135deg, ${station.color}33, rgba(25,28,40,0.8));">
+          <i class="fa-solid ${station.icon}" style="color:${station.color};"></i>
+        </div>
+        <div>
+          <h4 class="radio-station-title">${station.title}</h4>
+          <span class="radio-station-genre">${station.genre}</span>
+        </div>
+        <span class="radio-live-badge"><span class="pulse-dot"></span> EN VIVO</span>
+      </div>
+      <p class="radio-station-desc">${station.desc}</p>
+      <div class="radio-card-footer">
+        <span class="radio-bitrate"><i class="fa-solid fa-signal" style="margin-right:0.3rem;"></i> ${station.bitrate}</span>
+        <button class="btn-action-pill btn-play-radio" style="font-size:0.75rem; padding:0.35rem 0.75rem; border-color:${station.color}; color:${station.color};">
+          <i class="fa-solid ${isStationActive ? 'fa-pause' : 'fa-play'}"></i> <span>${isStationActive ? 'Pausar' : 'Sintonizar'}</span>
+        </button>
+      </div>
+    `;
+
+    card.addEventListener('click', () => {
+      if (activeRadioStation && activeRadioStation.id === station.id) {
+        if (isPlaying) {
+          audio.pause();
+          isPlaying = false;
+          updatePlayPauseUI();
+          renderRadioStations();
+        } else {
+          audio.play().then(() => {
+            isPlaying = true;
+            updatePlayPauseUI();
+            renderRadioStations();
+          });
+        }
+      } else {
+        playRadioStation(station);
+      }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+function playRadioStation(station) {
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  activeRadioStation = station;
+  audio.src = station.streamUrl;
+  audio.playbackRate = isSlowedReverb ? 0.85 : 1.0;
+
+  audio.play().then(() => {
+    isPlaying = true;
+    updatePlayPauseUI();
+    showToast(`📻 Sintonizando: ${station.title}`, 'info', 'fa-radio');
+  }).catch(err => {
+    console.error('Radio play error:', err);
+    showToast('Error al conectar con la estación de radio.', 'warning', 'fa-triangle-exclamation');
+  });
+
+  playerTitle.innerText = station.title;
+  playerArtist.innerText = `${station.genre} • Radio 24/7`;
+  currentTimeEl.innerText = '🔴 EN VIVO';
+  totalTimeEl.innerText = 'RADIO';
+  progressFill.style.width = '100%';
+
+  playerArt.src = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23191c28'/><circle cx='50' cy='50' r='32' fill='${encodeURIComponent(station.color)}'/><polygon points='44,38 64,50 44,62' fill='%23ffffff'/></svg>`;
+  applyDynamicArtworkPalette(null);
+  artGlow.style.opacity = '1';
+
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: station.title,
+      artist: station.genre,
+      album: 'DaVE Radio 24/7 En Vivo',
+      artwork: [{ src: playerArt.src, sizes: '96x96', type: 'image/svg+xml' }]
+    });
+  }
+
+  renderRadioStations();
+  renderTrackList();
+  renderPhoneTracksList();
+}
+
+// ==========================================
+// 34. VISUALIZADOR 3D ESPECTRO NEÓN HI-FI (v4.0.0)
+// ==========================================
+const btnVisualizer3D = document.getElementById('btn-visualizer-3d');
+const modalViz3D = document.getElementById('modal-visualizer3d');
+const btnCloseViz3D = document.getElementById('btn-close-viz3d');
+const btnViz3DMode = document.getElementById('btn-viz3d-mode');
+const viz3DModeLabel = document.getElementById('viz3d-mode-label');
+const btnViz3DFullscreen = document.getElementById('btn-viz3d-fullscreen');
+const viz3DCanvas = document.getElementById('viz3d-canvas');
+const viz3DTrackTitle = document.getElementById('viz3d-track-title');
+
+let viz3DCtx = viz3DCanvas ? viz3DCanvas.getContext('2d') : null;
+let viz3DStars = [];
+let viz3DRotation = 0;
+
+function init3DStars() {
+  viz3DStars = [];
+  for (let i = 0; i < 300; i++) {
+    viz3DStars.push({
+      x: (Math.random() - 0.5) * 2000,
+      y: (Math.random() - 0.5) * 2000,
+      z: Math.random() * 2000,
+      pz: Math.random() * 2000
+    });
+  }
+}
+
+function resize3DCanvas() {
+  if (!viz3DCanvas) return;
+  viz3DCanvas.width = window.innerWidth;
+  viz3DCanvas.height = window.innerHeight;
+}
+
+function open3DVisualizer() {
+  if (!modalViz3D) return;
+  modalViz3D.classList.remove('hidden');
+  resize3DCanvas();
+  init3DStars();
+
+  if (viz3DTrackTitle) {
+    if (activeRadioStation) {
+      viz3DTrackTitle.innerText = `📻 ${activeRadioStation.title}`;
+    } else if (currentIndex >= 0 && playlist[currentIndex]) {
+      viz3DTrackTitle.innerText = `🎵 ${playlist[currentIndex].title} — ${playlist[currentIndex].artist}`;
+    } else {
+      viz3DTrackTitle.innerText = 'DaVE Player Studio';
+    }
+  }
+
+  if (animFrame3D) cancelAnimationFrame(animFrame3D);
+  loop3DVisualizer();
+}
+
+function close3DVisualizer() {
+  if (!modalViz3D) return;
+  modalViz3D.classList.add('hidden');
+  if (animFrame3D) {
+    cancelAnimationFrame(animFrame3D);
+    animFrame3D = null;
+  }
+}
+
+function loop3DVisualizer() {
+  if (!modalViz3D || modalViz3D.classList.contains('hidden') || !viz3DCtx) return;
+  animFrame3D = requestAnimationFrame(loop3DVisualizer);
+
+  const w = viz3DCanvas.width;
+  const h = viz3DCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  // Analyser audio data
+  const freqData = new Uint8Array(analyserNode ? analyserNode.frequencyBinCount : 128);
+  if (analyserNode && isPlaying) {
+    analyserNode.getByteFrequencyData(freqData);
+  }
+
+  let bassSum = 0;
+  for (let i = 0; i < 8; i++) bassSum += freqData[i];
+  const bassNorm = (bassSum / 8) / 255;
+
+  let trebleSum = 0;
+  for (let i = 40; i < 70; i++) trebleSum += freqData[i];
+  const trebleNorm = (trebleSum / 30) / 255;
+
+  // Background clear with cinematic trail
+  viz3DCtx.fillStyle = 'rgba(3, 4, 8, 0.28)';
+  viz3DCtx.fillRect(0, 0, w, h);
+
+  viz3DRotation += 0.008 + bassNorm * 0.025;
+
+  if (viz3dMode === 'tunnel') {
+    // 1. STARFIELD PARTICLES ZOOMING IN 3D
+    const speed = 12 + bassNorm * 38;
+    for (let i = 0; i < viz3DStars.length; i++) {
+      const s = viz3DStars[i];
+      s.z -= speed;
+      if (s.z <= 10) {
+        s.z = 2000;
+        s.x = (Math.random() - 0.5) * 2000;
+        s.y = (Math.random() - 0.5) * 2000;
+      }
+      const k = 450 / s.z;
+      const px = cx + s.x * k;
+      const py = cy + s.y * k;
+      const size = Math.max(0.8, (1 - s.z / 2000) * 3.5 * (1 + trebleNorm));
+
+      if (px >= 0 && px < w && py >= 0 && py < h) {
+        const alpha = Math.min(1, Math.max(0.1, 1 - s.z / 2000));
+        viz3DCtx.fillStyle = `rgba(147, 197, 253, ${alpha})`;
+        viz3DCtx.beginPath();
+        viz3DCtx.arc(px, py, size, 0, Math.PI * 2);
+        viz3DCtx.fill();
+      }
+    }
+
+    // 2. 3D VORTEX RINGS
+    const ringCount = 14;
+    for (let r = 0; r < ringCount; r++) {
+      const ringZ = ((r * 140 - (Date.now() * 0.15) % 140) + 140) % (ringCount * 140) + 50;
+      const scale = 500 / ringZ;
+      const baseRadius = (160 + r * 15 + bassNorm * 120) * scale;
+
+      const points = 36;
+      viz3DCtx.beginPath();
+      for (let p = 0; p <= points; p++) {
+        const theta = (p / points) * Math.PI * 2 + viz3DRotation * (r % 2 === 0 ? 1 : -1);
+        const freqVal = freqData[(p * 2 + r * 3) % freqData.length] / 255;
+        const rad = baseRadius + freqVal * 60 * scale;
+        const rx = cx + Math.cos(theta) * rad;
+        const ry = cy + Math.sin(theta) * rad;
+
+        if (p === 0) viz3DCtx.moveTo(rx, ry);
+        else viz3DCtx.lineTo(rx, ry);
+      }
+      viz3DCtx.closePath();
+      const hue = (r * 22 + Date.now() * 0.05) % 360;
+      viz3DCtx.strokeStyle = `hsla(${hue}, 95%, 60%, ${Math.min(1, 1.2 - ringZ / 1500)})`;
+      viz3DCtx.lineWidth = Math.max(1.2, 3.5 * scale * (1 + bassNorm));
+      viz3DCtx.shadowBlur = 12 * scale;
+      viz3DCtx.shadowColor = `hsl(${hue}, 100%, 65%)`;
+      viz3DCtx.stroke();
+    }
+  } else {
+    // 2. CYBER QUANTUM SPHERE 3D
+    const sphereRadius = Math.min(cx, cy) * (0.45 + bassNorm * 0.22);
+    const rows = 18;
+    const cols = 28;
+
+    for (let i = 0; i < rows; i++) {
+      const lat = (i / (rows - 1)) * Math.PI - Math.PI / 2;
+      for (let j = 0; j < cols; j++) {
+        const lon = (j / cols) * Math.PI * 2 + viz3DRotation;
+        const freqIdx = (i * cols + j) % freqData.length;
+        const amp = (freqData[freqIdx] / 255) * 70;
+        const currentR = sphereRadius + amp;
+
+        // Spherical to Cartesian
+        let x = currentR * Math.cos(lat) * Math.cos(lon);
+        let y = currentR * Math.sin(lat);
+        let z = currentR * Math.cos(lat) * Math.sin(lon);
+
+        // Tilt sphere
+        const tilt = 0.45;
+        const yTilted = y * Math.cos(tilt) - z * Math.sin(tilt);
+        const zTilted = y * Math.sin(tilt) + z * Math.cos(tilt);
+
+        const persp = 600 / (zTilted + 650);
+        const sx = cx + x * persp;
+        const sy = cy + yTilted * persp;
+        const dotSize = Math.max(1, 3.2 * persp * (1 + amp / 40));
+
+        const hue = (lat * 60 + lon * 40 + Date.now() * 0.04) % 360;
+        viz3DCtx.fillStyle = `hsl(${hue}, 100%, 65%)`;
+        viz3DCtx.beginPath();
+        viz3DCtx.arc(sx, sy, dotSize, 0, Math.PI * 2);
+        viz3DCtx.fill();
+      }
+    }
+  }
+}
+
+btnVisualizer3D?.addEventListener('click', open3DVisualizer);
+btnCloseViz3D?.addEventListener('click', close3DVisualizer);
+
+btnViz3DMode?.addEventListener('click', () => {
+  viz3dMode = viz3dMode === 'tunnel' ? 'sphere' : 'tunnel';
+  if (viz3DModeLabel) {
+    viz3DModeLabel.innerText = viz3dMode === 'tunnel' ? 'Túnel Neón' : 'Esfera Cuántica';
+  }
+  showToast(`Modo 3D: ${viz3dMode === 'tunnel' ? 'Túnel Neón 3D' : 'Esfera Cuántica 3D'}`, 'info', 'fa-cube');
+});
+
+btnViz3DFullscreen?.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    modalViz3D?.requestFullscreen().catch(e => console.log(e));
+  } else {
+    document.exitFullscreen().catch(e => console.log(e));
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (modalViz3D && !modalViz3D.classList.contains('hidden')) {
+    resize3DCanvas();
+  }
+});
+
+// ==========================================
+// 35. DAVE DJ AUTOMIX ENGINE (v4.0.0)
+// ==========================================
+const btnToggleDJ = document.getElementById('btn-toggle-dj');
+
+function toggleDJAutomix() {
+  isDJAutomix = !isDJAutomix;
+  localStorage.setItem('dave_dj_automix', isDJAutomix);
+  btnToggleDJ?.classList.toggle('dj-active', isDJAutomix);
+  showToast(
+    isDJAutomix ? '🎧 DaVE DJ Automix Activado: Mezcla continua sin silencios' : '🎧 DaVE DJ Automix Desactivado',
+    isDJAutomix ? 'success' : 'info',
+    'fa-compact-disc'
+  );
+}
+
+function triggerDJCrossfade() {
+  if (isDJTransitioning || playlist.length <= 1) return;
+  isDJTransitioning = true;
+
+  showToast('🎧 DaVE DJ: Mezclando con la siguiente canción...', 'info', 'fa-compact-disc');
+
+  if (masterGain && audioCtx && audioCtx.state === 'running') {
+    try {
+      masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      masterGain.gain.setValueAtTime(masterGain.gain.value, audioCtx.currentTime);
+      masterGain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 3.8);
+    } catch (e) {}
+  }
+
+  setTimeout(() => {
+    if (isShuffle) {
+      const nextIdx = Math.floor(Math.random() * playlist.length);
+      playTrack(nextIdx);
+    } else {
+      const nextIdx = (currentIndex + 1) % playlist.length;
+      playTrack(nextIdx);
+    }
+  }, 3600);
+}
+
+btnToggleDJ?.addEventListener('click', toggleDJAutomix);
+
+// ==========================================
+// 36. STARTUP INITIALIZATION (v4.0.0 MASTERPIECE)
 // ==========================================
 function initApp() {
   // 1. Render EQ Sliders immediately
@@ -3638,8 +4218,14 @@ function initApp() {
   const btnNormalizer = document.getElementById('btn-toggle-normalizer');
   if (btnNormalizer) btnNormalizer.classList.toggle('active', isNormalizerActive);
 
+  // DJ Automix button state
+  btnToggleDJ?.classList.toggle('dj-active', isDJAutomix);
+
+  // Populate Radio Stations
+  renderRadioStations();
+
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '3.9.0';
+  const CATALOG_VERSION = '4.0.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
