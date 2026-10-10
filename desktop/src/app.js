@@ -42,6 +42,22 @@ let bassExciterFilter = null;
 let currentTubeMode = 'off';
 let activeRingtoneAudio = null;
 
+// Stereo Widener DSP State (Haas 3D Soundstage)
+let stereoWidenerMode = 'normal'; // 'normal', 'wide', 'superwide'
+let widenerInput = null;
+let widenerSplitter = null;
+let widenerMerger = null;
+let widenerDirectL = null;
+let widenerDirectR = null;
+let widenerCrossDelayL = null;
+let widenerCrossDelayR = null;
+let widenerCrossGainL = null;
+let widenerCrossGainR = null;
+let widenerOutput = null;
+
+// Pitch Shifter / Karaoke Transpose State
+let currentPitchSemitones = 0;
+
 let isSlowedReverb = false;
 
 let totalSecondsListened = parseInt(localStorage.getItem('dave_total_seconds') || '0', 10);
@@ -319,8 +335,39 @@ function initAudioEngine() {
     reverbWetGain.connect(tubeSaturationNode);
   }
 
+  // 6c. 3D Stereo Widener (Haas Effect Soundstage Expander)
+  widenerInput = audioCtx.createGain();
+  widenerSplitter = audioCtx.createChannelSplitter(2);
+  widenerMerger = audioCtx.createChannelMerger(2);
+  widenerDirectL = audioCtx.createGain();
+  widenerDirectR = audioCtx.createGain();
+  widenerCrossDelayL = audioCtx.createDelay(0.05);
+  widenerCrossDelayR = audioCtx.createDelay(0.05);
+  widenerCrossGainL = audioCtx.createGain();
+  widenerCrossGainR = audioCtx.createGain();
+  widenerOutput = audioCtx.createGain();
+
+  widenerInput.connect(widenerSplitter);
+  // Direct paths
+  widenerSplitter.connect(widenerDirectL, 0);
+  widenerDirectL.connect(widenerMerger, 0, 0);
+  widenerSplitter.connect(widenerDirectR, 1);
+  widenerDirectR.connect(widenerMerger, 0, 1);
+  // Cross widening paths
+  widenerSplitter.connect(widenerCrossDelayL, 0);
+  widenerCrossDelayL.connect(widenerCrossGainL);
+  widenerCrossGainL.connect(widenerMerger, 0, 1);
+  widenerSplitter.connect(widenerCrossDelayR, 1);
+  widenerCrossDelayR.connect(widenerCrossGainR);
+  widenerCrossGainR.connect(widenerMerger, 0, 0);
+
+  widenerMerger.connect(widenerOutput);
+  widenerCrossGainL.gain.value = 0;
+  widenerCrossGainR.gain.value = 0;
+
   tubeSaturationNode.connect(bassExciterFilter);
-  bassExciterFilter.connect(masterGain);
+  bassExciterFilter.connect(widenerInput);
+  widenerOutput.connect(masterGain);
 
   masterGain.connect(audioCtx.destination);
 
@@ -765,7 +812,7 @@ function playTrack(index) {
     updatePlayPauseUI();
     showToast(`Reproduciendo: ${track.title}`, 'info', 'fa-play');
 
-    audio.playbackRate = isSlowedReverb ? 0.85 : currentPlaybackSpeed;
+    applyPlaybackRateAndPitch();
 
     // Track playback statistics
     const trackKey = `${track.title} — ${track.artist}`;
@@ -1297,6 +1344,12 @@ function applyCurrentFilter() {
     list = playlist.filter(t => /lady gaga|rihanna|ace of base|bôa|pop|dance/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'cyber') {
     list = playlist.filter(t => /cyberpunk|dawid|edgerunners|topic|phantom|ziraki|sound/i.test(`${t.title} ${t.artist} ${t.album}`));
+  } else if (currentFilter === 'workout') {
+    list = playlist.filter(t => /bad bunny|trap|topic|breaking|cyberpunk|electronic|rock|beast|remix/i.test(`${t.title} ${t.artist} ${t.album}`));
+  } else if (currentFilter === 'chill') {
+    list = playlist.filter(t => /lo-fi|ambient|bôa|relax|chill|slow|acoustic|night/i.test(`${t.title} ${t.artist} ${t.album}`));
+  } else if (currentFilter === 'party') {
+    list = playlist.filter(t => /remix|blessd|dance|club|pop|party|westcol|edgerunners|daddy/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'favs') {
     list = playlist.filter(t => favorites.has(t.title + t.artist));
   }
@@ -2520,40 +2573,45 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'Space') {
     e.preventDefault();
     playBtn.click();
+    showHUD(isPlaying ? 'fa-pause' : 'fa-play', isPlaying ? 'Pausa' : 'Reproduciendo', playlist[currentIndex]?.title || '');
   } else if (e.code === 'ArrowRight') {
     if (e.shiftKey) nextBtn.click();
     else if (audio.duration) {
       audio.currentTime = Math.min(audio.duration, audio.currentTime + 5);
-      showToast(`+5s (${formatTime(audio.currentTime)})`, 'info', 'fa-forward');
+      showHUD('fa-forward', '+5s', formatTime(audio.currentTime));
     }
   } else if (e.code === 'ArrowLeft') {
     if (e.shiftKey) prevBtn.click();
     else {
       audio.currentTime = Math.max(0, audio.currentTime - 5);
-      showToast(`-5s (${formatTime(audio.currentTime)})`, 'info', 'fa-backward');
+      showHUD('fa-backward', '-5s', formatTime(audio.currentTime));
     }
   } else if (e.code === 'ArrowUp') {
     e.preventDefault();
     volumeSlider.value = Math.min(100, parseInt(volumeSlider.value) + 5);
     volumeSlider.dispatchEvent(new Event('input'));
+    showHUD('fa-volume-high', 'Volumen', `${volumeSlider.value}%`);
   } else if (e.code === 'ArrowDown') {
     e.preventDefault();
     volumeSlider.value = Math.max(0, parseInt(volumeSlider.value) - 5);
     volumeSlider.dispatchEvent(new Event('input'));
+    showHUD('fa-volume-high', 'Volumen', `${volumeSlider.value}%`);
   } else if (e.code === 'KeyM') {
     muteBtn.click();
+    showHUD(isMuted ? 'fa-volume-xmark' : 'fa-volume-high', isMuted ? 'Silenciado' : 'Sonido Activo', `${volumeSlider.value}%`);
   } else if (e.code === 'KeyL') {
     switchTab('lyrics');
-    showToast('Modo Karaoke & Letras', 'info', 'fa-microphone-lines');
+    showHUD('fa-microphone-lines', 'Karaoke', 'Letras Sincronizadas');
   } else if (e.code === 'KeyS') {
     shuffleBtn?.click();
-    showToast(isShuffle ? 'Modo Aleatorio activado' : 'Modo Aleatorio desactivado', 'info', 'fa-shuffle');
+    showHUD('fa-shuffle', isShuffle ? 'Aleatorio Activado' : 'Aleatorio Desactivado', '');
   } else if (e.code === 'KeyR') {
     repeatBtn?.click();
-    const modes = ['Repetir desactivado', 'Repetir lista completa', 'Repetir canción actual'];
-    showToast(modes[repeatMode] || 'Repetir', 'info', 'fa-repeat');
+    const modes = ['Repetir Desactivado', 'Repetir Lista', 'Repetir Canción'];
+    showHUD('fa-repeat', modes[repeatMode] || 'Repetir', '');
   } else if (e.code === 'KeyF') {
     document.getElementById('btn-party-fullscreen')?.click();
+    showHUD('fa-expand', 'Pantalla Completa', 'Modo Visualizador');
   }
 });
 
@@ -5243,7 +5301,160 @@ inputRestore?.addEventListener('change', (e) => {
 });
 
 // ==========================================
-// 46. STARTUP INITIALIZATION (v4.2.0 APEX)
+// 47. EXPANSOR ESTÉREO 3D & HAAS SOUNDSTAGE (v4.3.0 INFINITY)
+// ==========================================
+function setStereoWidener(mode = 'normal') {
+  stereoWidenerMode = mode;
+  const btn = document.getElementById('btn-toggle-widener');
+
+  if (!widenerCrossGainL || !widenerCrossGainR) return;
+
+  if (mode === 'normal') {
+    widenerCrossGainL.gain.value = 0;
+    widenerCrossGainR.gain.value = 0;
+    btn?.classList.remove('widener-active');
+    btn?.setAttribute('title', 'Expansor Estéreo: Normal (100%)');
+    showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', 'Bypass (Normal 100%)');
+  } else if (mode === 'wide') {
+    widenerCrossDelayL.delayTime.value = 0.014;
+    widenerCrossDelayR.delayTime.value = 0.014;
+    widenerCrossGainL.gain.value = -0.35;
+    widenerCrossGainR.gain.value = -0.35;
+    btn?.classList.add('widener-active');
+    btn?.setAttribute('title', 'Expansor Estéreo: Amplio (150%)');
+    showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', 'Escenario Amplio (150%)');
+  } else if (mode === 'superwide') {
+    widenerCrossDelayL.delayTime.value = 0.024;
+    widenerCrossDelayR.delayTime.value = 0.024;
+    widenerCrossGainL.gain.value = -0.55;
+    widenerCrossGainR.gain.value = -0.55;
+    btn?.classList.add('widener-active');
+    btn?.setAttribute('title', 'Expansor Estéreo: 3D Holográfico (200%)');
+    showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', '¡Inmersión 3D Total (200%)!');
+  }
+}
+
+document.getElementById('btn-toggle-widener')?.addEventListener('click', () => {
+  initAudioEngine();
+  const nextMode = stereoWidenerMode === 'normal' ? 'wide' : (stereoWidenerMode === 'wide' ? 'superwide' : 'normal');
+  setStereoWidener(nextMode);
+});
+
+// ==========================================
+// 48. TRANSPOSITOR DE TONO / KARAOKE KEY SHIFTER (v4.3.0 INFINITY)
+// ==========================================
+const modalPitch = document.getElementById('modal-pitch-shifter');
+const btnOpenPitch = document.getElementById('btn-pitch-shifter');
+const btnClosePitch = document.getElementById('btn-close-pitch');
+const btnPitchDown = document.getElementById('btn-pitch-down');
+const btnPitchUp = document.getElementById('btn-pitch-up');
+const btnPitchReset = document.getElementById('btn-pitch-reset');
+const pitchValDisplay = document.getElementById('pitch-val-display');
+const pitchSemitoneDesc = document.getElementById('pitch-semitone-desc');
+const pitchBadgeLabel = document.getElementById('pitch-label');
+
+function applyPlaybackRateAndPitch() {
+  const baseSpeed = isSlowedReverb ? 0.85 : currentPlaybackSpeed;
+  if (currentPitchSemitones === 0) {
+    audio.playbackRate = baseSpeed;
+    if ('preservesPitch' in audio) audio.preservesPitch = true;
+    if ('mozPreservesPitch' in audio) audio.mozPreservesPitch = true;
+  } else {
+    if ('preservesPitch' in audio) audio.preservesPitch = false;
+    if ('mozPreservesPitch' in audio) audio.mozPreservesPitch = false;
+    const pitchFactor = Math.pow(2, currentPitchSemitones / 12);
+    audio.playbackRate = baseSpeed * pitchFactor;
+  }
+}
+
+function setPitchSemitones(semitones) {
+  currentPitchSemitones = Math.max(-6, Math.min(6, semitones));
+
+  if (pitchBadgeLabel) {
+    pitchBadgeLabel.innerText = currentPitchSemitones > 0 ? `+${currentPitchSemitones}` : `${currentPitchSemitones}`;
+  }
+  if (pitchValDisplay) {
+    pitchValDisplay.innerText = currentPitchSemitones > 0 ? `+${currentPitchSemitones}` : `${currentPitchSemitones}`;
+  }
+  if (pitchSemitoneDesc) {
+    if (currentPitchSemitones === 0) {
+      pitchSemitoneDesc.innerText = 'Tonalidad Original';
+    } else if (currentPitchSemitones < 0) {
+      pitchSemitoneDesc.innerText = `${currentPitchSemitones} Semitonos (Grave / Bajo)`;
+    } else {
+      pitchSemitoneDesc.innerText = `+${currentPitchSemitones} Semitonos (Agudo / Alto)`;
+    }
+  }
+
+  document.querySelectorAll('.pitch-preset-chip').forEach(chip => {
+    chip.classList.toggle('active', parseInt(chip.dataset.pitch, 10) === currentPitchSemitones);
+  });
+
+  applyPlaybackRateAndPitch();
+
+  const sub = currentPitchSemitones === 0 ? 'Original (0)' : (currentPitchSemitones > 0 ? `+${currentPitchSemitones} Semitonos` : `${currentPitchSemitones} Semitonos`);
+  showHUD('fa-music', 'Tonalidad Karaoke', sub);
+}
+
+btnOpenPitch?.addEventListener('click', () => {
+  modalPitch?.classList.remove('hidden');
+});
+btnClosePitch?.addEventListener('click', () => {
+  modalPitch?.classList.add('hidden');
+});
+btnPitchDown?.addEventListener('click', () => {
+  setPitchSemitones(currentPitchSemitones - 1);
+});
+btnPitchUp?.addEventListener('click', () => {
+  setPitchSemitones(currentPitchSemitones + 1);
+});
+btnPitchReset?.addEventListener('click', () => {
+  setPitchSemitones(0);
+});
+
+document.querySelectorAll('.pitch-preset-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const val = parseInt(chip.dataset.pitch, 10);
+    setPitchSemitones(isNaN(val) ? 0 : val);
+  });
+});
+
+// ==========================================
+// 49. ON-SCREEN DISPLAY (CYBERPUNK HUD OVERLAY) (v4.3.0 INFINITY)
+// ==========================================
+let hudTimeout = null;
+function showHUD(icon, title, sub = '') {
+  const hud = document.getElementById('player-hud');
+  const hudIcon = document.getElementById('hud-icon');
+  const hudTitle = document.getElementById('hud-title');
+  const hudSub = document.getElementById('hud-sub');
+  if (!hud) return;
+
+  if (hudIcon) hudIcon.className = `fa-solid ${icon}`;
+  if (hudTitle) hudTitle.innerText = title;
+  if (hudSub) {
+    hudSub.innerText = sub;
+    hudSub.style.display = sub ? 'block' : 'none';
+  }
+
+  hud.classList.remove('hidden');
+  hud.style.display = 'flex';
+  hud.style.opacity = '1';
+  hud.style.transform = 'translate(-50%, -50%) scale(1)';
+
+  if (hudTimeout) clearTimeout(hudTimeout);
+  hudTimeout = setTimeout(() => {
+    hud.style.opacity = '0';
+    hud.style.transform = 'translate(-50%, -50%) scale(0.92)';
+    setTimeout(() => {
+      hud.classList.add('hidden');
+      hud.style.display = 'none';
+    }, 260);
+  }, 1100);
+}
+
+// ==========================================
+// 50. STARTUP INITIALIZATION (v4.3.0 INFINITY)
 // ==========================================
 function initApp() {
   // 1. Render EQ Sliders immediately
@@ -5277,7 +5488,7 @@ function initApp() {
   renderRadioStations();
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '4.2.0';
+  const CATALOG_VERSION = '4.3.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
