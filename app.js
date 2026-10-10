@@ -1299,9 +1299,19 @@ function escapeHtml(text) {
 
 const searchEmptyState = document.getElementById('search-empty-state');
 const searchEmptyText = document.getElementById('search-empty-text');
+const categoryEmptyState = document.getElementById('category-empty-state');
+const categoryEmptyDesc = document.getElementById('category-empty-desc');
+const btnCategoryAllAction = document.getElementById('btn-category-all-action');
+
+if (btnCategoryAllAction) {
+  btnCategoryAllAction.addEventListener('click', () => {
+    const allChip = document.querySelector('.filter-chip[data-filter="all"]');
+    if (allChip) allChip.click();
+  });
+}
 
 function renderTrackList(filtered = null, searchQuery = '') {
-  const list = filtered || playlist;
+  const list = filtered !== null ? filtered : playlist;
   if (songsCount) songsCount.innerText = list.length;
   const filterAllCount = document.getElementById('filter-all-count');
   if (filterAllCount) filterAllCount.innerText = playlist.length;
@@ -1312,19 +1322,34 @@ function renderTrackList(filtered = null, searchQuery = '') {
     trackTable?.classList.add('hidden');
     if (searchQuery) {
       emptyState?.classList.add('hidden');
+      categoryEmptyState?.classList.add('hidden');
       if (searchEmptyState) {
         searchEmptyState.classList.remove('hidden');
         if (searchEmptyText) {
           searchEmptyText.innerHTML = `No se encontraron canciones que coincidan con "<strong>${escapeHtml(searchQuery)}</strong>".`;
         }
       }
+    } else if (currentFilter !== 'all' && playlist.length > 0) {
+      // Filtrado por categoría específica o favoritos vacíos: mostrar aviso amigable sin romper la vista
+      searchEmptyState?.classList.add('hidden');
+      emptyState?.classList.add('hidden');
+      if (categoryEmptyState) {
+        categoryEmptyState.classList.remove('hidden');
+        if (categoryEmptyDesc) {
+          categoryEmptyDesc.innerText = currentFilter === 'favs'
+            ? 'No tienes canciones favoritas aún. Toca el corazón ❤️ en cualquier canción para guardarla aquí.'
+            : 'No hay canciones en esta categoría por ahora.';
+        }
+      }
     } else {
+      categoryEmptyState?.classList.add('hidden');
       searchEmptyState?.classList.add('hidden');
       emptyState?.classList.remove('hidden');
     }
     return;
   }
 
+  categoryEmptyState?.classList.add('hidden');
   searchEmptyState?.classList.add('hidden');
   emptyState?.classList.add('hidden');
   trackTable?.classList.remove('hidden');
@@ -1366,17 +1391,17 @@ function applyCurrentFilter() {
   let list = playlist;
 
   if (currentFilter === 'urban') {
-    list = playlist.filter(t => /bad bunny|blessd|cris mj|westcol|beéle|daddy yankee|floyymenor|louki|urbano|trap|reggaeton/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /bad bunny|blessd|cris mj|westcol|beéle|daddy yankee|floyymenor|louki|urbano|trap|reggaeton|después de la una|qué lío|nadie sabe|dos mil 16|somos de calle|la plena/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'pop') {
-    list = playlist.filter(t => /lady gaga|rihanna|ace of base|bôa|boa|marta s[aá]nchez|pop|dance/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /lady gaga|rihanna|ace of base|bôa|boa|marta s[aá]nchez|pop|dance|breakin' dishes|happy nation|paparazzi|bad romance|just dance|abracadabra|bloody mary|duvet/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'cyber') {
-    list = playlist.filter(t => /cyberpunk|edgerunners|dawid|adamczyk|phantom|topic|gigi|ziraki|forssell|electro|synthwave|sound/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /cyberpunk|edgerunners|dawid|adamczyk|phantom|topic|gigi|ziraki|forssell|electro|synthwave|sound|let you down|color your night|a phantom pain|tanzen|l'amour|ssrhd/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'workout') {
-    list = playlist.filter(t => /bad bunny|blessd|cris mj|daddy yankee|rihanna|lady gaga|gaga|abracadabra|romance|paparazzi|dishes|pose|somos de calle|qu[eé] l[íi]o|phantom|l'amour|tanzen|remix|ziraki|edm|electro|dance|dubstep|focus|gym|workout/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /bad bunny|blessd|cris mj|daddy yankee|rihanna|lady gaga|gaga|abracadabra|romance|paparazzi|dishes|pose|somos de calle|qu[eé] l[íi]o|phantom|l'amour|tanzen|remix|ziraki|edm|electro|dance|dubstep|focus|gym|workout|energy|power|despu[eé]s de la una|la plena|bloody mary/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'chill') {
-    list = playlist.filter(t => /happy nation|ace of base|guardian|curly|let you down|dawid|duvet|bôa|boa|color your night|lotus juice|phantom pain|ludvig|dame fuerza|marta s[aá]nchez|synthwave|lo-fi|ambient|relax|chill|slow|calm/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /happy nation|ace of base|guardian|curly|let you down|dawid|duvet|bôa|boa|color your night|lotus juice|phantom pain|ludvig|dame fuerza|marta s[aá]nchez|synthwave|lo-fi|ambient|relax|chill|slow|calm|qora/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'party') {
-    list = playlist.filter(t => /cris mj|floyymenor|blessd|daddy yankee|gigi|tanzen|l'amour|just dance|bad romance|paparazzi|la plena|beéle|westcol|fiesta|club|party|perreo|remix/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /cris mj|floyymenor|blessd|daddy yankee|gigi|tanzen|l'amour|just dance|bad romance|paparazzi|la plena|beéle|westcol|fiesta|club|party|perreo|remix|pose|dos mil 16/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'favs') {
     list = playlist.filter(t => favorites.has(t.title + t.artist));
   }
@@ -1414,6 +1439,11 @@ function setupFilterChips() {
       container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       currentFilter = chip.dataset.filter;
+      // Limpiar búsqueda de texto para respetar el filtro seleccionado
+      if (searchInput && searchInput.value) {
+        searchInput.value = '';
+        if (searchClearBtn) searchClearBtn.style.display = 'none';
+      }
       // Abrir inmediatamente la pestaña de canciones para mostrar el filtro
       switchTab('songs');
       applyCurrentFilter();
@@ -2751,6 +2781,12 @@ function loadTrackMeta(index) {
     applyDynamicArtworkPalette(null);
   }
   setupMediaSession(track);
+  if (totalTimeEl && track.duration) {
+    totalTimeEl.innerText = formatTime(track.duration);
+  }
+  if (currentTimeEl) {
+    currentTimeEl.innerText = '0:00';
+  }
   const lyrTitle = document.getElementById('lyrics-song-title');
   const lyrArtist = document.getElementById('lyrics-song-artist');
   if (lyrTitle) lyrTitle.innerText = track.title;
