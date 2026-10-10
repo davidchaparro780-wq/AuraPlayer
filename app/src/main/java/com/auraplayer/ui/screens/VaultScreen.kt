@@ -141,52 +141,64 @@ fun VaultScreen(
         }
     }
 
-    var pendingVaultItemToDelete by remember { mutableStateOf<Pair<File, Uri?>?>(null) }
+    var pendingVaultItemsToDelete by remember { mutableStateOf<List<Pair<File, Uri?>>>(emptyList()) }
     val vaultDeleteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
-        val pending = pendingVaultItemToDelete
-        pendingVaultItemToDelete = null
+        val pendingList = pendingVaultItemsToDelete
+        pendingVaultItemsToDelete = emptyList()
         if (result.resultCode == android.app.Activity.RESULT_OK) {
-            Toast.makeText(context, "🔒 Archivo ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
+            val count = pendingList.size
+            val msg = if (count == 1) "🔒 Archivo ocultado de la galería y protegido en Bóveda" else "🔒 $count archivos ocultados de la galería y protegidos en Bóveda"
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             refreshItems()
         } else {
-            pending?.second?.let { uri ->
-                val realPath = vaultManager.resolveRealPathFromUri(uri)
-                if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+            pendingList.forEach { pending ->
+                pending.second?.let { uri ->
+                    val realPath = vaultManager.resolveRealPathFromUri(uri)
+                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+                }
+                vaultManager.cleanVaultFile(pending.first)
             }
-            vaultManager.cleanVaultFile(pending?.first)
-            Toast.makeText(context, "Cancelado: el archivo permanece en tu galería", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Cancelado: los archivos permanecen en tu galería", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Media Pickers to hide directly from Vault screen
+    // Media Pickers to hide directly from Vault screen (Supports Single or Multiple Selection)
     val videoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
             scope.launch {
                 isLoading = true
-                val realPath = vaultManager.resolveRealPathFromUri(uri)
-                if (realPath != null) {
-                    vaultManager.markPathAsHidden(realPath)
+                var successCount = 0
+                val pendingDeleteList = mutableListOf<Pair<File, Uri?>>()
+                val pendingDeleteItems = mutableListOf<Pair<Uri?, String?>>()
+
+                for (uri in uris) {
+                    val realPath = vaultManager.resolveRealPathFromUri(uri)
+                    if (realPath != null) {
+                        vaultManager.markPathAsHidden(realPath)
+                    }
+                    val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = true)
+                    if (copiedVaultFile != null) {
+                        val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = true)
+                        if (deleted) {
+                            successCount++
+                        } else {
+                            pendingDeleteList.add(Pair(copiedVaultFile, uri))
+                            pendingDeleteItems.add(Pair(uri, realPath))
+                        }
+                    } else {
+                        if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+                    }
                 }
-                val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = true)
-                if (copiedVaultFile == null) {
-                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
-                    isLoading = false
-                    Toast.makeText(context, "Error al copiar archivo a la Bóveda", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = true)
+
                 isLoading = false
-                if (deleted) {
-                    Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
-                    refreshItems()
-                } else {
-                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = realPath, isVideo = true)
+                if (pendingDeleteList.isNotEmpty()) {
+                    val pendingIntent = vaultManager.getMultipleDeleteRequestPendingIntent(context, pendingDeleteItems, isVideo = true)
                     if (pendingIntent != null) {
-                        pendingVaultItemToDelete = Pair(copiedVaultFile, uri)
+                        pendingVaultItemsToDelete = pendingDeleteList
                         vaultDeleteLauncher.launch(
                             androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
@@ -195,37 +207,49 @@ fun VaultScreen(
                         vaultManager.openAllFilesAccessSettings(context)
                         refreshItems()
                     }
+                } else if (successCount > 0) {
+                    val msg = if (successCount == 1) "🔒 Video ocultado de la galería y protegido en Bóveda" else "🔒 $successCount videos ocultados y protegidos en Bóveda"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    refreshItems()
                 }
             }
         }
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
             scope.launch {
                 isLoading = true
-                val realPath = vaultManager.resolveRealPathFromUri(uri)
-                if (realPath != null) {
-                    vaultManager.markPathAsHidden(realPath)
+                var successCount = 0
+                val pendingDeleteList = mutableListOf<Pair<File, Uri?>>()
+                val pendingDeleteItems = mutableListOf<Pair<Uri?, String?>>()
+
+                for (uri in uris) {
+                    val realPath = vaultManager.resolveRealPathFromUri(uri)
+                    if (realPath != null) {
+                        vaultManager.markPathAsHidden(realPath)
+                    }
+                    val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = false)
+                    if (copiedVaultFile != null) {
+                        val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = false)
+                        if (deleted) {
+                            successCount++
+                        } else {
+                            pendingDeleteList.add(Pair(copiedVaultFile, uri))
+                            pendingDeleteItems.add(Pair(uri, realPath))
+                        }
+                    } else {
+                        if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+                    }
                 }
-                val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = false)
-                if (copiedVaultFile == null) {
-                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
-                    isLoading = false
-                    Toast.makeText(context, "Error al copiar foto a la Bóveda", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = false)
+
                 isLoading = false
-                if (deleted) {
-                    Toast.makeText(context, "🔒 Foto ocultada de la galería y protegida en Bóveda", Toast.LENGTH_SHORT).show()
-                    refreshItems()
-                } else {
-                    val pendingIntent = vaultManager.getDeleteRequestPendingIntent(context, uri = uri, filePath = realPath, isVideo = false)
+                if (pendingDeleteList.isNotEmpty()) {
+                    val pendingIntent = vaultManager.getMultipleDeleteRequestPendingIntent(context, pendingDeleteItems, isVideo = false)
                     if (pendingIntent != null) {
-                        pendingVaultItemToDelete = Pair(copiedVaultFile, uri)
+                        pendingVaultItemsToDelete = pendingDeleteList
                         vaultDeleteLauncher.launch(
                             androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
@@ -234,6 +258,10 @@ fun VaultScreen(
                         vaultManager.openAllFilesAccessSettings(context)
                         refreshItems()
                     }
+                } else if (successCount > 0) {
+                    val msg = if (successCount == 1) "🔒 Foto ocultada de la galería y protegida en Bóveda" else "🔒 $successCount fotos ocultadas y protegidas en Bóveda"
+                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    refreshItems()
                 }
             }
         }
@@ -543,7 +571,7 @@ fun VaultScreen(
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (selectedTab == 0) "+ Ocultar Video" else "+ Ocultar Foto",
+                            text = if (selectedTab == 0) "+ Ocultar Videos" else "+ Ocultar Fotos",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )

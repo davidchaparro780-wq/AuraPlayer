@@ -477,6 +477,25 @@ class VaultManager(private val context: Context) {
         return null
     }
 
+    fun getMultipleDeleteRequestPendingIntent(
+        ctx: Context,
+        items: List<Pair<Uri?, String?>>,
+        isVideo: Boolean
+    ): PendingIntent? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val canonicalUris = items.mapNotNull { resolveCanonicalMediaStoreUri(ctx, it.first, it.second, isVideo) }
+            if (canonicalUris.isNotEmpty()) {
+                return try {
+                    MediaStore.createDeleteRequest(ctx.contentResolver, canonicalUris)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+            }
+        }
+        return null
+    }
+
     suspend fun hideMediaFromUri(uri: Uri, isVideo: Boolean, customName: String? = null): Boolean = withContext(Dispatchers.IO) {
         val vaultFile = copyMediaToVault(sourceUri = uri, isVideo = isVideo, customName = customName)
             ?: return@withContext false

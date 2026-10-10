@@ -1,7 +1,7 @@
 {
-  "versionCode": 70,
-  "versionName": "3.7.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v3.7.0 (Build 70):\n• 🖼️ Selector de Carátula Personalizada desde Galería: Toca la carátula en el Editor de Etiquetas y asigna cualquier foto en HD desde tu celular.\n• 🔁 Bucle de Repetición A-B (A-B Looper): Marca punto [A] y punto [B] para repetir fragmentos en bucle infinito (ideal para estudio, baile o karaoke).\n• ⏱️ Indicador Dinámico de Rango A-B en la línea de tiempo del reproductor.\n• 🎛️ Barra de Controles FX y Looper con desplazamiento horizontal táctil mejorado.",
+  "versionCode": 71,
+  "versionName": "3.7.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.1/app-debug.apk",
+  "changelog": "🔒 DaVE Player v3.7.1 (Build 71):\n• 🎬 Selección Múltiple de Videos y Fotos en la Bóveda: Ahora puedes seleccionar varios videos o fotos al mismo tiempo desde tu galería para ocultarlos y protegerlos en la Bóveda en un solo paso.\n• ⚡ Procesamiento por lotes y blindaje de permisos de borrado de galería en Android 13/14.",
   "fileSizeMb": 24.1
 }
