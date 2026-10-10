@@ -1,7 +1,7 @@
 {
-  "versionCode": 65,
-  "versionName": "3.3.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk",
-  "changelog": "✨ DaVE Player v3.3.0 — The Master Pro Suite (AI Stem Mixer, Club Strobe & Stealth Camouflage):\n• 🎛️ Live AI Stem Mixer Studio: Mezclador de 4 pistas en tiempo real para aislar/mutear Vocales (Karaoke/Acapella), Batería, Bajo y Melodía con faders independientes y VU meters.\n• 🔦 Modo Club & Linterna Estroboscópica: Disparo sincronizado del flash LED de la cámara y borde RGB al ritmo de los drops de la canción.\n• 🕵️ Modo Camuflaje 'Calculadora Secreta': Disfraz instantáneo en una calculadora funcional con desbloqueo por PIN secreto (1234=).\n• ⚡ Mega Suite de Animaciones Futuristas: Chispas táctiles interactivas, corona de plasma 360°, supernova shockwave, aurora boreal y túnel hiperespacial.",
-  "fileSizeMb": 25.0
+  "versionCode": 66,
+  "versionName": "3.4.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.4.0/app-debug.apk",
+  "changelog": "✨ DaVE Player v3.4.0 (Build 66):\n• ⚡ Auto-escaneo inmediato de canciones descargadas (Snaptube, Chrome, Telegram, WhatsApp) al volver a la app.\n• 📥 Nuevo orden 'Recién Descargadas' por defecto (tus canciones nuevas siempre al principio).\n• ✨ Insignia verde 'NUEVA' en canciones descargadas recientemente.\n• 🔀 Botón 'Mezclar Todo' (Smart Shuffle) con algoritmo Fisher-Yates en cabecera.\n• 🔄 Botón de refresco instantáneo de biblioteca.\n• 🔍 Buscador con resaltado neón de texto en tiempo real.\n• 📂 Filtro rápido 'Descargas'.",
+  "fileSizeMb": 23.9
 }
