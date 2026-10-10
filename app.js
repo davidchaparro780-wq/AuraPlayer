@@ -1186,7 +1186,17 @@ document.querySelector('.favorites-card')?.addEventListener('click', () => {
 // ==========================================
 // 9. UNIFIED TRACK ROW BUILDER & CATEGORIES
 // ==========================================
-function createTrackRow(track, displayIndex, isPhoneTab = false) {
+function highlightMatch(text, query) {
+  if (!text) return '';
+  const str = String(text);
+  if (!query || !query.trim()) return escapeHtml(str);
+  const cleanQ = query.trim();
+  const escapedQ = cleanQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escapedQ})`, 'gi');
+  return escapeHtml(str).replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+function createTrackRow(track, displayIndex, isPhoneTab = false, searchQuery = '') {
   const tr = document.createElement('tr');
   const isThisPlaying = (currentIndex !== -1 && playlist[currentIndex] === track);
   tr.className = `track-row ${isThisPlaying ? 'playing' : ''}`;
@@ -1208,12 +1218,12 @@ function createTrackRow(track, displayIndex, isPhoneTab = false) {
     <td class="track-title-cell">
       <img src="${cover}" class="track-cover-mini" style="width:44px; height:44px; min-width:44px; max-width:44px; border-radius:8px; object-fit:cover; flex-shrink:0;" alt="Cover" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80'">
       <div class="track-meta-col" style="display:flex; flex-direction:column; overflow:hidden; min-width:0;">
-        <span class="track-title-text" style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:0.9rem; color:#fff;">${track.title}</span>
-        <span class="track-artist-sub mobile-sub-artist" style="font-size:0.75rem; color:var(--text-dim); white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.artist}</span>
+        <span class="track-title-text" style="font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; font-size:0.9rem; color:#fff;">${highlightMatch(track.title, searchQuery)}</span>
+        <span class="track-artist-sub mobile-sub-artist" style="font-size:0.75rem; color:var(--text-dim); white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${highlightMatch(track.artist, searchQuery)}</span>
       </div>
     </td>
-    <td class="track-artist-col" style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.artist}</td>
-    <td class="track-album-col" style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${track.album || 'Infinix HOT 40i'}</td>
+    <td class="track-artist-col" style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${highlightMatch(track.artist, searchQuery)}</td>
+    <td class="track-album-col" style="white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${highlightMatch(track.album || 'Infinix HOT 40i', searchQuery)}</td>
     <td class="track-duration-col" style="text-align:right; font-variant-numeric:tabular-nums;">${track.duration ? formatTime(track.duration) : '--:--'}</td>
     <td>
       <div class="row-actions-cell">
@@ -1357,8 +1367,42 @@ function renderTrackList(filtered = null, searchQuery = '') {
   trackList.innerHTML = '';
 
   list.forEach((track, i) => {
-    const tr = createTrackRow(track, i);
+    const tr = createTrackRow(track, i, false, searchQuery);
     trackList.appendChild(tr);
+  });
+}
+
+let currentSortColumn = null; // 'index' | 'title' | 'artist' | 'album' | 'duration'
+let currentSortDirection = 'asc'; // 'asc' | 'desc'
+
+function updateSortHeaderUI() {
+  document.querySelectorAll('#track-table th.th-sortable').forEach(th => {
+    const col = th.dataset.sort;
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    if (col === currentSortColumn) {
+      th.classList.add(currentSortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    }
+  });
+}
+
+function setupTableSorting() {
+  document.querySelectorAll('#track-table th.th-sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (currentSortColumn === col) {
+        if (currentSortDirection === 'asc') {
+          currentSortDirection = 'desc';
+        } else {
+          currentSortColumn = null;
+          currentSortDirection = 'asc';
+        }
+      } else {
+        currentSortColumn = col;
+        currentSortDirection = 'asc';
+      }
+      updateSortHeaderUI();
+      applyCurrentFilter();
+    });
   });
 }
 
@@ -1415,6 +1459,20 @@ function applyCurrentFilter() {
     });
   }
 
+  // Ordenación por columnas
+  if (currentSortColumn) {
+    list = [...list];
+    if (currentSortColumn === 'title') {
+      list.sort((a, b) => currentSortDirection === 'asc' ? (a.title || '').localeCompare(b.title || '') : (b.title || '').localeCompare(a.title || ''));
+    } else if (currentSortColumn === 'artist') {
+      list.sort((a, b) => currentSortDirection === 'asc' ? (a.artist || '').localeCompare(b.artist || '') : (b.artist || '').localeCompare(a.artist || ''));
+    } else if (currentSortColumn === 'album') {
+      list.sort((a, b) => currentSortDirection === 'asc' ? (a.album || '').localeCompare(b.album || '') : (b.album || '').localeCompare(a.album || ''));
+    } else if (currentSortColumn === 'duration') {
+      list.sort((a, b) => currentSortDirection === 'asc' ? (a.duration || 0) - (b.duration || 0) : (b.duration || 0) - (a.duration || 0));
+    }
+  }
+
   renderTrackList(list, rawQ);
 
   // Filtrar sincronizadamente las canciones del celular en su pestaña
@@ -1434,9 +1492,9 @@ function setupFilterChips() {
   const container = document.getElementById('category-chips');
   if (!container) return;
 
-  container.querySelectorAll('.filter-chip').forEach(chip => {
+  container.querySelectorAll('.filter-chip:not(.chip-shuffle)').forEach(chip => {
     chip.onclick = () => {
-      container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      container.querySelectorAll('.filter-chip:not(.chip-shuffle)').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       currentFilter = chip.dataset.filter;
       // Limpiar búsqueda de texto para respetar el filtro seleccionado
@@ -1449,6 +1507,27 @@ function setupFilterChips() {
       applyCurrentFilter();
     };
   });
+
+  const btnShuffleAll = document.getElementById('btn-shuffle-all');
+  if (btnShuffleAll) {
+    btnShuffleAll.onclick = () => {
+      if (playlist.length === 0) {
+        showToast('No hay canciones para mezclar', 'warning', 'fa-circle-exclamation');
+        return;
+      }
+      isShuffle = true;
+      document.getElementById('btn-shuffle')?.classList.add('active');
+      for (let i = playlist.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [playlist[i], playlist[j]] = [playlist[j], playlist[i]];
+      }
+      switchTab('songs');
+      renderTrackList();
+      renderQueueDrawer();
+      playTrack(0);
+      showToast(`🎲 Mezclando toda la biblioteca (${playlist.length} canciones)`, 'success', 'fa-shuffle');
+    };
+  }
 }
 
 // Dropdown "Herramientas" en Topbar
@@ -5793,6 +5872,92 @@ function initApp() {
   if (savedConnectedIp && hasActiveSession) {
     startPhoneHeartbeat(savedConnectedIp);
   }
+
+  // 6. Inicializar ordenación de columnas, scroll de volumen y atajos de teclado
+  setupTableSorting();
+  setupVolumeScrollAndBadge();
+  setupKeyboardShortcuts();
+}
+
+function setupVolumeScrollAndBadge() {
+  const volumeCluster = document.querySelector('.volume-cluster');
+  const volumeSlider = document.getElementById('volume-slider');
+  if (!volumeCluster || !volumeSlider) return;
+
+  let volTooltip = document.getElementById('volume-tooltip-badge');
+  if (!volTooltip) {
+    volTooltip = document.createElement('div');
+    volTooltip.id = 'volume-tooltip-badge';
+    volTooltip.className = 'volume-tooltip-badge';
+    volumeCluster.appendChild(volTooltip);
+  }
+
+  let hideTimeout = null;
+  const showVolBadge = (val, isMute = false) => {
+    volTooltip.innerText = isMute ? 'MUTE' : `${Math.round(val)}%`;
+    volTooltip.classList.add('visible');
+    clearTimeout(hideTimeout);
+    hideTimeout = setTimeout(() => {
+      volTooltip.classList.remove('visible');
+    }, 1200);
+  };
+
+  volumeCluster.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const step = e.deltaY < 0 ? 5 : -5;
+    let newVol = parseInt(volumeSlider.value, 10) + step;
+    newVol = Math.max(0, Math.min(100, newVol));
+    volumeSlider.value = newVol;
+    setVolume(newVol / 100);
+    showVolBadge(newVol, newVol === 0 || isMuted);
+  }, { passive: false });
+
+  volumeSlider.addEventListener('input', () => {
+    const val = parseInt(volumeSlider.value, 10);
+    showVolBadge(val, val === 0 || isMuted);
+  });
+}
+
+function setupKeyboardShortcuts() {
+  document.getElementById('btn-quick-pip')?.addEventListener('click', () => {
+    if (typeof togglePictureInPicture === 'function') togglePictureInPicture();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    // Si el usuario escribe en un campo de texto, solo procesar Escape
+    if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+      if (e.key === 'Escape' && document.activeElement === searchInput) {
+        clearGlobalSearch();
+        searchInput.blur();
+      }
+      return;
+    }
+
+    if (e.key === '/') {
+      e.preventDefault();
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
+    } else if (e.code === 'Space') {
+      e.preventDefault();
+      togglePlay();
+    } else if (e.key === 'ArrowRight' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      playNext();
+    } else if (e.key === 'ArrowLeft' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      playPrev();
+    } else if (e.key === 'm' || e.key === 'M') {
+      toggleMute();
+    } else if (e.key === 'f' || e.key === 'F') {
+      if (currentIndex !== -1 && playlist[currentIndex]) {
+        toggleFavorite(playlist[currentIndex]);
+      }
+    } else if (e.key === 'l' || e.key === 'L') {
+      document.getElementById('btn-fullscreen-lyrics')?.click();
+    }
+  });
 }
 
 initApp();

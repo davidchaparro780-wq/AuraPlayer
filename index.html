@@ -2954,12 +2954,12 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v4.3.5</span>
+        <span class="brand-badge">PRO v4.3.6</span>
       </div>
 
       <div class="search-wrapper">
         <i class="fa-solid fa-magnifying-glass search-icon"></i>
-        <input type="text" id="search-input" class="search-input" placeholder="Buscar canciones, artistas, géneros...">
+        <input type="text" id="search-input" class="search-input" placeholder="Buscar canciones, artistas, géneros... (Presiona '/')">
         <button id="search-clear-btn" class="search-clear-btn" title="Limpiar búsqueda"><i class="fa-solid fa-xmark"></i></button>
       </div>
 
@@ -3119,6 +3119,7 @@
             <!-- Filter Chips Bar -->
             <div class="filter-chips-bar" id="category-chips">
               <button class="filter-chip active" data-filter="all"><i class="fa-solid fa-layer-group"></i> Todas (<span id="filter-all-count">30</span>)</button>
+              <button class="filter-chip chip-shuffle" id="btn-shuffle-all" title="Mezclar y reproducir aleatoriamente"><i class="fa-solid fa-shuffle"></i> Mezclar Todo</button>
               <button class="filter-chip" data-filter="urban"><i class="fa-solid fa-fire" style="color: #f97316;"></i> Urbano & Trap</button>
               <button class="filter-chip" data-filter="pop"><i class="fa-solid fa-star" style="color: #eab308;"></i> Pop & Dance</button>
               <button class="filter-chip" data-filter="cyber"><i class="fa-solid fa-bolt" style="color: var(--accent-cyan);"></i> Cyberpunk & Electro</button>
@@ -3159,11 +3160,11 @@
             <table id="track-table" class="song-table hidden">
               <thead>
                 <tr>
-                  <th style="width: 48px; text-align: center;">#</th>
-                  <th style="width: 38%;">Título</th>
-                  <th style="width: 24%;">Artista</th>
-                  <th style="width: 22%;">Álbum</th>
-                  <th style="width: 65px; text-align: right;"><i class="fa-regular fa-clock"></i></th>
+                  <th style="width: 48px; text-align: center;" class="th-sortable" data-sort="index" title="Restaurar orden original"># <span class="sort-icon"></span></th>
+                  <th style="width: 38%;" class="th-sortable" data-sort="title" title="Ordenar por título A-Z / Z-A">Título <span class="sort-icon"></span></th>
+                  <th style="width: 24%;" class="th-sortable" data-sort="artist" title="Ordenar por artista A-Z / Z-A">Artista <span class="sort-icon"></span></th>
+                  <th style="width: 22%;" class="th-sortable" data-sort="album" title="Ordenar por álbum A-Z / Z-A">Álbum <span class="sort-icon"></span></th>
+                  <th style="width: 65px; text-align: right;" class="th-sortable" data-sort="duration" title="Ordenar por duración"><i class="fa-regular fa-clock"></i> <span class="sort-icon"></span></th>
                   <th style="width: 85px; text-align: right;">Acciones</th>
                 </tr>
               </thead>
@@ -3629,6 +3630,7 @@
           <span id="active-fx-badge" class="fx-active-badge hidden">0</span>
         </button>
 
+        <button id="btn-quick-pip" class="btn-icon-round" title="Mini-Player Flotante en Pantalla (PiP)"><i class="fa-solid fa-clone"></i></button>
         <button id="btn-toggle-queue" class="btn-icon-round" title="Cola de Reproducción"><i class="fa-solid fa-list-ul"></i></button>
         
         <div class="volume-cluster">

@@ -305,6 +305,95 @@
   font-weight: 700;
 }
 
+.filter-chip.chip-shuffle {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #c7d2fe;
+}
+
+.filter-chip.chip-shuffle:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(6, 182, 212, 0.4));
+  color: #fff;
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+}
+
+/* Sortable Column Headers */
+.song-table th.th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.song-table th.th-sortable:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.song-table th.th-sortable .sort-icon {
+  display: inline-block;
+  font-size: 0.62rem;
+  margin-left: 3px;
+  color: var(--accent-cyan);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.song-table th.th-sortable.sorted-asc .sort-icon {
+  opacity: 1;
+}
+.song-table th.th-sortable.sorted-asc .sort-icon::after {
+  content: ' ▲';
+}
+
+.song-table th.th-sortable.sorted-desc .sort-icon {
+  opacity: 1;
+}
+.song-table th.th-sortable.sorted-desc .sort-icon::after {
+  content: ' ▼';
+}
+
+/* Search Highlight */
+mark.search-highlight {
+  background: rgba(6, 182, 212, 0.25);
+  color: #38bdf8;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0 2px;
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+}
+
+/* Volume Tooltip Badge */
+.volume-cluster {
+  position: relative;
+}
+
+.volume-tooltip-badge {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(13, 17, 26, 0.96);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--accent-cyan);
+  color: var(--accent-cyan);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 12px rgba(6, 182, 212, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  white-space: nowrap;
+  z-index: 100;
+}
+
+.volume-tooltip-badge.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ==========================================================================
    5. SCRUBBER PROGRESS BAR TOOLTIP & HOVER FX
    ========================================================================== */
