@@ -57,10 +57,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayArrow
 import com.auraplayer.ui.components.AudioCutterDialog
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
@@ -248,14 +253,34 @@ fun MusicScreen(
 
     // Custom Playlist view / create state
     var selectedPlaylistForView by remember { mutableStateOf<Playlist?>(null) }
+    var selectedFolderForView by remember { mutableStateOf<String?>(null) }
+    var selectedArtistForView by remember { mutableStateOf<String?>(null) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
     var playlistSubCategory by remember { mutableIntStateOf(0) } // 0: Mis Playlists, 1: Top Escuchadas, 2: Historial
 
-    // BackHandler to handle playlist view, search query, or sub-tab navigation
-    BackHandler(enabled = selectedPlaylistForView != null || searchQuery.isNotBlank() || selectedTab != 0 || selectedFilterIndex != 0) {
+    val voiceLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val spokenMatches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spoken = spokenMatches?.firstOrNull()?.trim()
+            if (!spoken.isNullOrBlank()) {
+                searchQuery = spoken
+                AuraHaptic.click(view)
+                Toast.makeText(context, "🎙️ \"$spoken\"", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // BackHandler to handle playlist view, folder view, artist view, search query, or sub-tab navigation
+    BackHandler(enabled = selectedPlaylistForView != null || selectedFolderForView != null || selectedArtistForView != null || searchQuery.isNotBlank() || selectedTab != 0 || selectedFilterIndex != 0) {
         if (selectedPlaylistForView != null) {
             selectedPlaylistForView = null
+        } else if (selectedFolderForView != null) {
+            selectedFolderForView = null
+        } else if (selectedArtistForView != null) {
+            selectedArtistForView = null
         } else if (searchQuery.isNotBlank()) {
             searchQuery = ""
         } else if (selectedFilterIndex != 0) {
@@ -286,11 +311,19 @@ fun MusicScreen(
         val baseSongs = if (shieldFiltered.isEmpty() && songs.isNotEmpty()) songs else shieldFiltered
 
         var list = if (searchQuery.isBlank()) baseSongs
-        else baseSongs.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-            it.artist.contains(searchQuery, ignoreCase = true) ||
-            it.album.contains(searchQuery, ignoreCase = true) ||
-            lyricsManager.hasCachedLyricsMatching(it.id, searchQuery)
+        else {
+            val normQuery = normalizeSearchText(searchQuery.trim())
+            baseSongs.filter {
+                val normTitle = normalizeSearchText(it.title)
+                val normArtist = normalizeSearchText(it.artist)
+                val normAlbum = normalizeSearchText(it.album)
+                normTitle.contains(normQuery) ||
+                normArtist.contains(normQuery) ||
+                normAlbum.contains(normQuery) ||
+                it.title.contains(searchQuery, ignoreCase = true) ||
+                it.artist.contains(searchQuery, ignoreCase = true) ||
+                lyricsManager.hasCachedLyricsMatching(it.id, searchQuery)
+            }
         }
 
         // Apply quick filter
@@ -786,6 +819,29 @@ fun MusicScreen(
                             contentDescription = "Limpiar",
                             tint = Color(0xFF94A3B8),
                             modifier = Modifier.size(18.dp)
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            AuraHaptic.click(view)
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_PROMPT, "Di el nombre de una canción o artista...")
+                            }
+                            try {
+                                voiceLauncher.launch(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Reconocimiento de voz no disponible", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "Búsqueda por voz",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1406,42 +1462,159 @@ fun MusicScreen(
                     val folderGroups = remember(songs) {
                         songs.groupBy { it.folderName.ifEmpty { "Música" } }
                     }
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(folderGroups.keys.toList()) { folderName ->
-                            val folderSongs = folderGroups[folderName] ?: emptyList()
+                    val currentFolder = selectedFolderForView
+                    if (currentFolder != null) {
+                        val folderSongs = folderGroups[currentFolder] ?: emptyList()
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // Sub-header with Back Button and Quick Play / Shuffle
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { folderSongs.firstOrNull()?.let { onSongClick(it) } }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Folder,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(28.dp)
-                                    )
+                                    IconButton(
+                                        onClick = { selectedFolderForView = null },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowBack,
+                                            contentDescription = "Volver",
+                                            tint = Color.White
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = currentFolder,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "${folderSongs.size} canciones",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF38BDF8)
+                                        )
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(
-                                        text = folderName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "${folderSongs.size} canciones",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Play All
+                                    Button(
+                                        onClick = { folderSongs.firstOrNull()?.let { onSongClick(it) } },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Reproducir", fontSize = 12.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    // Shuffle Folder
+                                    IconButton(
+                                        onClick = { onShuffleAll(folderSongs) },
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Shuffle,
+                                            contentDescription = "Mezclar carpeta",
+                                            tint = Color(0xFFA78BFA),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (folderSongs.isEmpty()) {
+                                EmptyListMessage("No hay canciones en esta carpeta.")
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(folderSongs, key = { it.id }, contentType = { "song" }) { song ->
+                                        SongListItem(
+                                            song = song,
+                                            isSelected = currentMedia?.id == song.id,
+                                            isFavorite = favoritesManager.isFavorite(song.id),
+                                            onClick = { onSongClick(song) },
+                                            onLongClick = { selectedSongForMenu = song },
+                                            onOptionsClick = { selectedSongForMenu = song }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(folderGroups.keys.toList()) { folderName ->
+                                val folderSongs = folderGroups[folderName] ?: emptyList()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            AuraHaptic.click(view)
+                                            selectedFolderForView = folderName
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Folder,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = folderName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "${folderSongs.size} canciones",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            AuraHaptic.click(view)
+                                            onShuffleAll(folderSongs)
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Shuffle,
+                                            contentDescription = "Mezclar carpeta",
+                                            tint = Color(0xFF38BDF8).copy(alpha = 0.8f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1449,44 +1622,158 @@ fun MusicScreen(
                 }
                 4 -> { // Artistas
                     val artistGroups = remember(songs) {
-                        songs.groupBy { it.artist }
+                        songs.groupBy { it.artist.ifEmpty { "Artista desconocido" } }
                     }
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(artistGroups.keys.toList()) { artistName ->
-                            val artistSongs = artistGroups[artistName] ?: emptyList()
+                    val currentArtist = selectedArtistForView
+                    if (currentArtist != null) {
+                        val artistSongs = artistGroups[currentArtist] ?: emptyList()
+                        Column(modifier = Modifier.fillMaxSize()) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { artistSongs.firstOrNull()?.let { onSongClick(it) } }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(28.dp)
-                                    )
+                                    IconButton(
+                                        onClick = { selectedArtistForView = null },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowBack,
+                                            contentDescription = "Volver",
+                                            tint = Color.White
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = currentArtist,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "${artistSongs.size} canciones",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFFA78BFA)
+                                        )
+                                    }
                                 }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(
-                                        text = artistName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "${artistSongs.size} canciones",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Button(
+                                        onClick = { artistSongs.firstOrNull()?.let { onSongClick(it) } },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                        modifier = Modifier.height(34.dp)
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Reproducir", fontSize = 12.sp)
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    IconButton(
+                                        onClick = { onShuffleAll(artistSongs) },
+                                        modifier = Modifier
+                                            .size(34.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF8B5CF6).copy(alpha = 0.2f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Shuffle,
+                                            contentDescription = "Mezclar artista",
+                                            tint = Color(0xFFA78BFA),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (artistSongs.isEmpty()) {
+                                EmptyListMessage("No hay canciones para este artista.")
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(artistSongs, key = { it.id }, contentType = { "song" }) { song ->
+                                        SongListItem(
+                                            song = song,
+                                            isSelected = currentMedia?.id == song.id,
+                                            isFavorite = favoritesManager.isFavorite(song.id),
+                                            onClick = { onSongClick(song) },
+                                            onLongClick = { selectedSongForMenu = song },
+                                            onOptionsClick = { selectedSongForMenu = song }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(artistGroups.keys.toList()) { artistName ->
+                                val artistSongs = artistGroups[artistName] ?: emptyList()
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            AuraHaptic.click(view)
+                                            selectedArtistForView = artistName
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        modifier = Modifier.weight(1f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Person,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.secondary,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Column {
+                                            Text(
+                                                text = artistName,
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = "${artistSongs.size} canciones",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            AuraHaptic.click(view)
+                                            onShuffleAll(artistSongs)
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Shuffle,
+                                            contentDescription = "Mezclar artista",
+                                            tint = Color(0xFFA78BFA).copy(alpha = 0.8f),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1973,6 +2260,12 @@ fun LiveEqualizerIndicator(
     }
 }
 
+private fun normalizeSearchText(text: String): String {
+    return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+        .lowercase()
+}
+
 @Composable
 fun HighlightedText(
     text: String,
@@ -1985,7 +2278,27 @@ fun HighlightedText(
     overflow: TextOverflow = TextOverflow.Ellipsis,
     modifier: Modifier = Modifier
 ) {
-    if (query.isBlank() || !text.contains(query, ignoreCase = true)) {
+    if (query.isBlank()) {
+        Text(
+            text = text,
+            style = style,
+            color = color,
+            maxLines = maxLines,
+            overflow = overflow,
+            modifier = modifier
+        )
+        return
+    }
+
+    val lowerText = text.lowercase()
+    val lowerQuery = query.lowercase()
+    val normText = normalizeSearchText(text)
+    val normQuery = normalizeSearchText(query)
+
+    val hasDirect = lowerText.contains(lowerQuery)
+    val hasNorm = normText.contains(normQuery)
+
+    if (!hasDirect && !hasNorm) {
         Text(
             text = text,
             style = style,
@@ -1999,30 +2312,51 @@ fun HighlightedText(
 
     val annotated = remember(text, query, color, highlightColor, highlightBg) {
         buildAnnotatedString {
-            var currentIndex = 0
-            val lowerText = text.lowercase()
-            val lowerQuery = query.lowercase()
-
-            while (currentIndex < text.length) {
-                val matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
-                if (matchIndex < 0) {
-                    append(text.substring(currentIndex))
-                    break
+            if (hasDirect) {
+                var currentIndex = 0
+                while (currentIndex < text.length) {
+                    val matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
+                    if (matchIndex < 0) {
+                        append(text.substring(currentIndex))
+                        break
+                    }
+                    if (matchIndex > currentIndex) {
+                        append(text.substring(currentIndex, matchIndex))
+                    }
+                    val matchEnd = matchIndex + lowerQuery.length
+                    withStyle(
+                        SpanStyle(
+                            color = highlightColor,
+                            background = highlightBg,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) {
+                        append(text.substring(matchIndex, matchEnd))
+                    }
+                    currentIndex = matchEnd
                 }
-                if (matchIndex > currentIndex) {
-                    append(text.substring(currentIndex, matchIndex))
+            } else {
+                val matchIndex = normText.indexOf(normQuery)
+                if (matchIndex >= 0 && matchIndex < text.length) {
+                    val matchEnd = (matchIndex + query.length).coerceAtMost(text.length)
+                    if (matchIndex > 0) {
+                        append(text.substring(0, matchIndex))
+                    }
+                    withStyle(
+                        SpanStyle(
+                            color = highlightColor,
+                            background = highlightBg,
+                            fontWeight = FontWeight.Bold
+                        )
+                    ) {
+                        append(text.substring(matchIndex, matchEnd))
+                    }
+                    if (matchEnd < text.length) {
+                        append(text.substring(matchEnd))
+                    }
+                } else {
+                    append(text)
                 }
-                val matchEnd = matchIndex + lowerQuery.length
-                withStyle(
-                    SpanStyle(
-                        color = highlightColor,
-                        background = highlightBg,
-                        fontWeight = FontWeight.Bold
-                    )
-                ) {
-                    append(text.substring(matchIndex, matchEnd))
-                }
-                currentIndex = matchEnd
             }
         }
     }

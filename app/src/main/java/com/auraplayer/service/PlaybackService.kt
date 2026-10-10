@@ -87,11 +87,23 @@ class PlaybackService : MediaSessionService() {
                 EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
                 com.auraplayer.audio.VibeModeManager.setVibe(com.auraplayer.audio.VibeModeManager.currentVibe, player)
             }
+
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                if (audioSessionId != androidx.media3.common.C.AUDIO_SESSION_ID_UNSET && audioSessionId > 0) {
+                    EqualizerManager.instance.attachToAudioSession(audioSessionId)
+                    com.auraplayer.audio.RealtimeVisualizerManager.instance.attachToAudioSession(audioSessionId)
+                }
+            }
         })
 
-        // DJ Crossfade & 8D Spatial Audio Real-time Volume Engine
+        // DJ Crossfade & 8D Spatial Audio Real-time Volume Engine with Battery Saver
         serviceScope.launch {
             while (isActive) {
+                if (!player.isPlaying) {
+                    // Battery Saver: When player is paused, rest for 1000ms instead of polling CPU
+                    delay(1000)
+                    continue
+                }
                 val crossfadeSec = playlistManager.getCrossfadeSeconds()
                 val is8D = EqualizerManager.instance.isSpatial8DEnabled
                 val spatialFactor = if (is8D && player.isPlaying) {
@@ -100,7 +112,7 @@ class PlaybackService : MediaSessionService() {
                 val sleepFade = SleepTimerManager.globalFadeFactor
                 val effectiveFactor = (spatialFactor * sleepFade).coerceIn(0.0f, 1.0f)
 
-                if (crossfadeSec > 0 && player.isPlaying && player.duration > 0L) {
+                if (crossfadeSec > 0 && player.duration > 0L) {
                     val fadeWindowMs = crossfadeSec * 1000L
                     val pos = player.currentPosition
                     val dur = player.duration

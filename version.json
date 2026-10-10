@@ -1,7 +1,7 @@
 {
-  "versionCode": 67,
-  "versionName": "3.4.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.4.1/app-debug.apk",
-  "changelog": "⚡ DaVE Player v3.4.1 (Build 67):\n• 🎵 FIX CRÍTICO: Corrección inmediata en el motor de consulta MediaStore de Android. Ahora todas tus canciones y descargas aparecen al 100% sin importar el formato o modelo de teléfono.\n• 🛡️ Doble estrategia de escaneo de música con fallback automático.\n• 📥 Orden 'Recién Descargadas' mejorado y blindado contra filtros accidentales.",
+  "versionCode": 68,
+  "versionName": "3.5.0",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.5.0/app-debug.apk",
+  "changelog": "🚀 DaVE Player v3.5.0 (Build 68):\n• 🎙️ Búsqueda por Voz: Toca el icono de micrófono en la barra neón y busca tus canciones hablando.\n• 🔤 Búsqueda insensible a tildes: Encuentra 'Corazón' buscando 'corazon' y resaltado inteligente de coincidencias.\n• 🔋 Modo Ultra Ahorro de Batería: Optimización del motor de audio en segundo plano al estar en pausa.\n• 🎚️ Auto-reconexión del Ecualizador y Visualizador al cambiar de pista y formato (MP3 a FLAC/M4A).\n• 📁 Carpetas & Artistas Mejorados: Explora las canciones de cualquier carpeta o artista con vista dedicada y botones de reproducir/mezclar todo.",
   "fileSizeMb": 23.9
 }
