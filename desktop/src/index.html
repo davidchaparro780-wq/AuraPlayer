@@ -2399,6 +2399,114 @@
       box-shadow: 0 0 14px rgba(6, 182, 212, 0.4);
     }
 
+    /* Tube Warmth Neon Flame */
+    .btn-icon-round.tube-active {
+      background: rgba(249, 115, 22, 0.22) !important;
+      border-color: #f97316 !important;
+      box-shadow: 0 0 14px rgba(249, 115, 22, 0.45) !important;
+    }
+    .btn-icon-round.tube-active i {
+      color: #f97316 !important;
+      filter: drop-shadow(0 0 4px #f97316);
+    }
+
+    /* Fullscreen Apple Music Style Lyrics Overlay */
+    .fullscreen-lyrics-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #05060b;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .fs-lyrics-backdrop {
+      position: absolute;
+      top: -20%;
+      left: -20%;
+      width: 140%;
+      height: 140%;
+      background-size: cover;
+      background-position: center;
+      filter: blur(75px) brightness(0.35) saturate(2.2);
+      transform: scale(1.15);
+      z-index: 1;
+      opacity: 0.92;
+      transition: background-image 0.8s ease;
+    }
+    .fs-lyrics-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 2.2rem 3.5rem;
+      max-width: 960px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .fs-lyrics-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 3.5rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+      scroll-behavior: smooth;
+    }
+    .fs-lyrics-list::-webkit-scrollbar {
+      display: none;
+    }
+    .fs-lyric-line {
+      font-size: 1.65rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      line-height: 1.4;
+      user-select: none;
+    }
+    .fs-lyric-line:hover {
+      color: rgba(255, 255, 255, 0.75);
+    }
+    .fs-lyric-line.active {
+      font-size: 2.35rem;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 0 25px rgba(255, 255, 255, 0.65), 0 0 45px var(--accent-cyan);
+      transform: scale(1.03);
+      transform-origin: left center;
+    }
+
+    /* VU Peak & Phase Rack in Equalizer */
+    .vu-meter-rack {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 1.2rem;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .vu-channel-bar-bg {
+      height: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 0.35rem;
+    }
+    .vu-channel-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #10b981 0%, #eab308 75%, #ef4444 100%);
+      transition: width 0.04s ease;
+      border-radius: 999px;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -2415,7 +2523,7 @@
       <div class="login-brand">
         <i class="fa-solid fa-compact-disc login-brand-icon"></i>
         <h1>DaVE <strong>Player</strong></h1>
-        <span class="brand-badge">PRO v4.1.0 TITANIUM</span>
+        <span class="brand-badge">PRO v4.2.0 APEX</span>
       </div>
 
       <div id="full-login-status-box" class="full-login-status-box">
@@ -2470,7 +2578,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v4.1.0</span>
+        <span class="brand-badge">PRO v4.2.0</span>
       </div>
 
       <div class="search-wrapper">
@@ -2490,6 +2598,14 @@
 
         <button id="btn-open-ambience" class="btn-action-pill" title="Generador de Sonidos Ambientales (Lluvia, Olas, Fuego)">
           <i class="fa-solid fa-cloud-rain" style="color:#38bdf8;"></i> <span>Ambiente</span>
+        </button>
+
+        <button id="btn-open-ringtone" class="btn-action-pill" title="Crear Tono / Ringtone para Celular">
+          <i class="fa-solid fa-scissors" style="color:var(--accent-pink);"></i> <span>Ringtone</span>
+        </button>
+
+        <button id="btn-open-backup" class="btn-action-pill" title="Copia de Seguridad & Restaurar">
+          <i class="fa-solid fa-database" style="color:#a855f7;"></i> <span>Backup</span>
         </button>
 
         <button id="btn-theme-selector" class="btn-action-pill" title="Cambiar Tema Neón">
@@ -2512,7 +2628,7 @@
           <i class="fa-brands fa-android"></i> <span>Descargar APK</span>
         </a>
 
-        <button id="btn-login-modal" class="btn-action-pill btn-user-auth">
+        <button id="btn-login-modal" class="btn-user-auth btn-action-pill">
           <i class="fa-solid fa-user"></i> <span id="user-display-name">Iniciar Sesión</span>
         </button>
 
@@ -2880,8 +2996,15 @@
         <!-- TAB 5: KARAOKE & LYRICS -->
         <section id="tab-lyrics" class="tab-pane">
           <div class="lyrics-view">
-            <h3 id="lyrics-song-title" style="font-size:1.3rem; margin-bottom:0.2rem;">Letras Sincronizadas</h3>
-            <p id="lyrics-song-artist" style="font-size:0.85rem; color:var(--text-muted); margin-bottom:1.5rem;">Modo Karaoke interactivo</p>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem; margin-bottom:1rem;">
+              <div>
+                <h3 id="lyrics-song-title" style="font-size:1.3rem; margin:0 0 0.2rem 0;">Letras Sincronizadas</h3>
+                <p id="lyrics-song-artist" style="font-size:0.85rem; color:var(--text-muted); margin:0;">Modo Karaoke interactivo</p>
+              </div>
+              <button id="btn-fullscreen-lyrics" class="btn-glow-primary" style="padding:0.45rem 1rem; font-size:0.85rem; display:flex; align-items:center; gap:0.5rem;">
+                <i class="fa-solid fa-expand"></i> <span>Pantalla Completa Cinematográfica</span>
+              </button>
+            </div>
             <div class="lyrics-scroll-box" id="lyrics-box"></div>
           </div>
         </section>
@@ -2939,6 +3062,32 @@
                   <i class="fa-solid fa-church"></i>
                   <strong>Catedral</strong>
                   <span>Eco celestial profundo</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Medidores VU de Estudio (Stereo Peak & True Level) -->
+            <div class="vu-meter-rack">
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.8rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:0.4rem;">
+                    <i class="fa-solid fa-chart-column" style="color:var(--accent-green);"></i> CANAL IZQUIERDO (L)
+                  </span>
+                  <span id="vu-peak-l" style="font-family:monospace; font-size:0.75rem; color:var(--accent-cyan);">-inf dB</span>
+                </div>
+                <div class="vu-channel-bar-bg">
+                  <div class="vu-channel-bar-fill" id="vu-bar-l"></div>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.8rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:0.4rem;">
+                    <i class="fa-solid fa-chart-column" style="color:var(--accent-cyan);"></i> CANAL DERECHO (R)
+                  </span>
+                  <span id="vu-peak-r" style="font-family:monospace; font-size:0.75rem; color:var(--accent-cyan);">-inf dB</span>
+                </div>
+                <div class="vu-channel-bar-bg">
+                  <div class="vu-channel-bar-fill" id="vu-bar-r"></div>
                 </div>
               </div>
             </div>
@@ -3044,6 +3193,7 @@
         <button id="btn-ab-loop" class="btn-icon-round" title="Bucle A-B (Repetir segmento)"><span id="ab-loop-label" style="font-size:0.72rem; font-weight:800;">A-B</span></button>
         <button id="btn-toggle-8d" class="btn-icon-round" title="Audio 8D Órbita 360° (Usa Audífonos)"><i class="fa-solid fa-headphones"></i></button>
         <button id="btn-slowed-reverb" class="btn-icon-round" title="Modo Slowed + Reverb (0.85x + Catedral)"><i class="fa-solid fa-hourglass-start"></i></button>
+        <button id="btn-toggle-tubewarmth" class="btn-icon-round" title="Calor a Tubos Vintage & Bass Exciter (Saturación Analógica)"><i class="fa-solid fa-fire-flame-curved"></i></button>
         <button id="btn-record-audio" class="btn-icon-round" title="Grabar Audio Procesado con Efectos (WebM/WAV)" style="position:relative;">
           <i class="fa-solid fa-circle-dot"></i>
           <span id="record-timer-badge" class="timer-badge hidden" style="background:#ef4444;">0:00</span>
@@ -3555,6 +3705,151 @@
     </div>
   </div>
 
+  <!-- Modal: Calor a Tubos Vintage & Bass Exciter -->
+  <div id="modal-tubewarmth" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 460px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-fire-flame-curved" style="color:var(--accent-orange, #f97316);"></i> Calor a Tubos & Bass Exciter</h3>
+        <button class="btn-close-x" id="btn-close-tubewarmth"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin:0 0 1rem 0;">
+          Modela la saturación armónica cálida de amplificadores a válvulas clásicos y añade presencia sub-grave a 55Hz:
+        </p>
+        <div class="speed-chip-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <button class="speed-chip tube-chip active" data-tube="off">
+            <i class="fa-solid fa-ban"></i> Apagado (Bypass)
+          </button>
+          <button class="speed-chip tube-chip" data-tube="warm">
+            <i class="fa-solid fa-mug-hot"></i> Cálido Vinilo (+2dB Sat)
+          </button>
+          <button class="speed-chip tube-chip" data-tube="punch">
+            <i class="fa-solid fa-bolt"></i> Punch Analógico (+5dB Sat)
+          </button>
+          <button class="speed-chip tube-chip" data-tube="beast">
+            <i class="fa-solid fa-fire"></i> Bestia a Válvulas (+9dB Sat)
+          </button>
+        </div>
+        <div style="margin-top:1.2rem; background:rgba(255,255,255,0.03); border-radius:12px; padding:0.9rem; border:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.82rem; color:#fff; font-weight:700;">Sub-Bass Exciter (55Hz Peaking)</span>
+            <span id="tube-exciter-status" style="font-size:0.82rem; color:var(--accent-orange, #f97316); font-weight:700;">Inactivo</span>
+          </div>
+          <p style="font-size:0.75rem; color:var(--text-dim); margin:0.3rem 0 0 0;">Genera presencia subacuática y resonancia de graves para parlantes y audífonos de alta gama.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Creador de Ringtones & Recortador -->
+  <div id="modal-ringtone-maker" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 520px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-scissors" style="color:var(--accent-pink);"></i> Recortador & Creador de Ringtones</h3>
+        <button class="btn-close-x" id="btn-close-ringtone"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin:0 0 1rem 0;">
+          Selecciona un fragmento de la canción actual para crear tu tono de llamada o alarma para celular:
+        </p>
+        <div style="background:rgba(255,255,255,0.04); border-radius:12px; padding:1rem; border:1px solid rgba(255,255,255,0.08); margin-bottom:1rem;">
+          <div style="font-weight:700; color:#fff; font-size:0.9rem; margin-bottom:0.2rem;" id="rt-song-title">Canción</div>
+          <div style="font-size:0.8rem; color:var(--text-muted);" id="rt-song-artist">Artista</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.8rem; margin-bottom:1rem;">
+          <div>
+            <label style="font-size:0.78rem; color:var(--text-dim); display:block; margin-bottom:0.3rem;">Inicio (Segundos):</label>
+            <input type="number" id="rt-start-sec" min="0" step="1" value="30" class="input-base" style="width:100%; padding:0.5rem; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff;">
+          </div>
+          <div>
+            <label style="font-size:0.78rem; color:var(--text-dim); display:block; margin-bottom:0.3rem;">Duración:</label>
+            <select id="rt-duration-sel" class="input-base" style="width:100%; padding:0.5rem; background:rgba(0,0,0,0.4); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff;">
+              <option value="15">15 Segundos (Notificación)</option>
+              <option value="25" selected>25 Segundos (Llamada Estándar)</option>
+              <option value="30">30 Segundos (Alarma Completa)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.6rem; margin-top:1.2rem;">
+          <button id="btn-rt-current" class="btn-outline-secondary" style="font-size:0.8rem; padding:0.5rem 0.8rem;">
+            <i class="fa-solid fa-clock"></i> Usar Tiempo Actual
+          </button>
+          <div style="display:flex; gap:0.6rem;">
+            <button id="btn-rt-preview" class="btn-outline-secondary" style="font-size:0.84rem; padding:0.5rem 1rem;">
+              <i class="fa-solid fa-play"></i> Escuchar Tono
+            </button>
+            <button id="btn-rt-download" class="btn-glow-primary" style="font-size:0.84rem; padding:0.5rem 1.2rem;">
+              <i class="fa-solid fa-download"></i> Descargar Ringtone
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Apple Music Style Lyrics Overlay -->
+  <div id="overlay-fullscreen-lyrics" class="fullscreen-lyrics-overlay hidden">
+    <div class="fs-lyrics-backdrop" id="fs-lyrics-bg"></div>
+    <div class="fs-lyrics-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+        <div style="display:flex; align-items:center; gap:1rem;">
+          <img id="fs-lyrics-art" src="" alt="Album Art" style="width:54px; height:54px; border-radius:10px; object-fit:cover; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+          <div>
+            <h2 id="fs-lyrics-title" style="font-size:1.3rem; margin:0; color:#fff; font-weight:800;">Canción</h2>
+            <p id="fs-lyrics-artist" style="font-size:0.88rem; color:rgba(255,255,255,0.7); margin:0.2rem 0 0 0;">Artista</p>
+          </div>
+        </div>
+        <button id="btn-close-fs-lyrics" class="btn-icon-round" style="width:44px; height:44px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; font-size:1.1rem; border-radius:50%; cursor:pointer;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="fs-lyrics-list" id="fs-lyrics-container"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Copia de Seguridad & Restaurar -->
+  <div id="modal-backup" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-database" style="color:#a855f7;"></i> Respaldo & Restauración DaVE</h3>
+        <button class="btn-close-x" id="btn-close-backup"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin:0 0 1.2rem 0;">
+          Exporta o importa todas tus playlists creadas, favoritos, estadísticas de reproducción, temas personalizados y configuraciones de sonido en un archivo JSON portátil:
+        </p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1.5rem;">
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1.2rem; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <i class="fa-solid fa-file-export" style="font-size:2rem; color:var(--accent-cyan); margin-bottom:0.6rem;"></i>
+              <h4 style="margin:0 0 0.3rem 0; color:#fff;">Exportar Backup</h4>
+              <p style="font-size:0.75rem; color:var(--text-dim); margin:0;">Guarda tus listas y favoritos a tu PC o cel.</p>
+            </div>
+            <button id="btn-do-export-backup" class="btn-glow-primary" style="margin-top:1rem; font-size:0.82rem; padding:0.5rem 0.8rem;">
+              <i class="fa-solid fa-download"></i> Descargar JSON
+            </button>
+          </div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:1.2rem; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <i class="fa-solid fa-file-import" style="font-size:2rem; color:var(--accent-pink); margin-bottom:0.6rem;"></i>
+              <h4 style="margin:0 0 0.3rem 0; color:#fff;">Restaurar Backup</h4>
+              <p style="font-size:0.75rem; color:var(--text-dim); margin:0;">Recupera tus listas desde un archivo .json.</p>
+            </div>
+            <label class="btn-outline-secondary" style="margin-top:1rem; font-size:0.82rem; padding:0.5rem 0.8rem; cursor:pointer; display:inline-block;">
+              <i class="fa-solid fa-upload"></i> Subir JSON
+              <input type="file" id="input-restore-backup" accept=".json" style="display:none;">
+            </label>
+          </div>
+        </div>
+        <div id="backup-status-msg" style="font-size:0.8rem; text-align:center; color:var(--text-muted);">
+          Totalmente seguro y compatible con cualquier navegador o celular.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Glassmorphic Mini-Player Widget -->
   <div id="floating-mini-player" class="floating-mini-player hidden">
     <img id="fmini-art" class="floating-mini-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23191c28'/></svg>" alt="Art">
@@ -3578,6 +3873,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=4.1.0"></script>
+  <script src="app.js?v=4.2.0"></script>
 </body>
 </html>
