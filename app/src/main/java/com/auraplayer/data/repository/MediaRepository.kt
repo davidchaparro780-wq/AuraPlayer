@@ -33,58 +33,54 @@ class MediaRepository(private val context: Context) {
             MediaStore.Audio.Media.DATE_ADDED
         )
 
-        // Broaden selection: include music, audio files by extension (.mp3, .m4a, .flac, .wav, .aac, .ogg, .opus)
-        // This ensures newly downloaded songs in /Download or /snaptube are not filtered out if IS_MUSIC is 0
-        val selection = "(${MediaStore.Audio.Media.IS_MUSIC} != 0 OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.mp3' OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.m4a' OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.flac' OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.wav' OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.aac' OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.opus' OR " +
-                "${MediaStore.Audio.Media.DATA} LIKE '%.ogg') AND " +
-                "(${MediaStore.Audio.Media.DURATION} >= 3000 OR ${MediaStore.Audio.Media.DURATION} == 0L)"
         val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
 
-        try {
-            context.contentResolver.query(collection, projection, selection, null, sortOrder)?.use { cursor ->
-                val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-                val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-                val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-                val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
-                val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-                val dataCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
-                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-                val dateAddedCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+        val parseCursor: (android.database.Cursor) -> Unit = { cursor ->
+            val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
+            val titleCol = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+            val durationCol = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+            val dataCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+            val sizeCol = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
+            val dateAddedCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
 
-                while (cursor.moveToNext()) {
-                    val id = cursor.getLong(idCol)
-                    val rawTitle = cursor.getString(titleCol) ?: "Unknown Title"
-                    val rawArtist = cursor.getString(artistCol) ?: "Unknown Artist"
-                    val rawAlbum = cursor.getString(albumCol) ?: "Unknown Album"
-                    val duration = cursor.getLong(durationCol)
-                    val data = cursor.getString(dataCol) ?: ""
-                    val size = cursor.getLong(sizeCol)
-                    val rawDateAdded = try { cursor.getLong(dateAddedCol) } catch (_: Exception) { 0L }
-                    val dateAdded = if (rawDateAdded > 0L) rawDateAdded else {
-                        try {
-                            if (data.isNotBlank()) File(data).lastModified() / 1000L else 0L
-                        } catch (_: Exception) { 0L }
-                    }
+            while (cursor.moveToNext()) {
+                val id = if (idCol >= 0) cursor.getLong(idCol) else 0L
+                if (id == 0L) continue
 
-                    // Clean artist & title if MediaStore indexed file as "Artist - Title" with unknown artist
-                    var finalArtist = if (rawArtist.equals("<unknown>", ignoreCase = true) || rawArtist.equals("Unknown Artist", ignoreCase = true) || rawArtist.isBlank()) {
-                        "Artista desconocido"
-                    } else rawArtist
+                val rawTitle = if (titleCol >= 0) cursor.getString(titleCol) ?: "Unknown Title" else "Unknown Title"
+                val rawArtist = if (artistCol >= 0) cursor.getString(artistCol) ?: "Unknown Artist" else "Unknown Artist"
+                val rawAlbum = if (albumCol >= 0) cursor.getString(albumCol) ?: "Unknown Album" else "Unknown Album"
+                val duration = if (durationCol >= 0) cursor.getLong(durationCol) else 0L
+                val data = if (dataCol >= 0) cursor.getString(dataCol) ?: "" else ""
+                val size = if (sizeCol >= 0) cursor.getLong(sizeCol) else 0L
+                val rawDateAdded = if (dateAddedCol >= 0) {
+                    try { cursor.getLong(dateAddedCol) } catch (_: Exception) { 0L }
+                } else 0L
+                val dateAdded = if (rawDateAdded > 0L) rawDateAdded else {
+                    try {
+                        if (data.isNotBlank()) File(data).lastModified() / 1000L else 0L
+                    } catch (_: Exception) { 0L }
+                }
 
-                    var finalTitle = rawTitle
-                    if ((finalArtist == "Artista desconocido" || finalArtist.startsWith("Unknown")) && rawTitle.contains(" - ")) {
-                        finalArtist = rawTitle.substringBefore(" - ").trim()
-                        finalTitle = rawTitle.substringAfter(" - ").trim()
-                    }
+                // Filter out tiny sound effects or UI clicks (< 2s) if duration is known
+                if (duration in 1..2000L) continue
 
-                    // Also check if filename has "Artist - Title" (common for downloaded songs)
-                    if (data.isNotBlank()) {
+                // Clean artist & title if MediaStore indexed file as "Artist - Title" with unknown artist
+                var finalArtist = if (rawArtist.equals("<unknown>", ignoreCase = true) || rawArtist.equals("Unknown Artist", ignoreCase = true) || rawArtist.isBlank()) {
+                    "Artista desconocido"
+                } else rawArtist
+
+                var finalTitle = rawTitle
+                if ((finalArtist == "Artista desconocido" || finalArtist.startsWith("Unknown")) && rawTitle.contains(" - ")) {
+                    finalArtist = rawTitle.substringBefore(" - ").trim()
+                    finalTitle = rawTitle.substringAfter(" - ").trim()
+                }
+
+                // Also check if filename has "Artist - Title" (common for downloaded songs)
+                if (data.isNotBlank()) {
+                    try {
                         val file = File(data)
                         val fileNameNoExt = file.nameWithoutExtension
                         if ((finalArtist == "Artista desconocido" || finalArtist.isBlank()) && fileNameNoExt.contains(" - ")) {
@@ -93,44 +89,63 @@ class MediaRepository(private val context: Context) {
                                 finalTitle = fileNameNoExt.substringAfter(" - ").replace("_", " ").trim()
                             }
                         }
-                    }
-
-                    val album = if (rawAlbum.equals("<unknown>", ignoreCase = true) || rawAlbum.equals("Unknown Album", ignoreCase = true) || rawAlbum.isBlank()) {
-                        "Álbum desconocido"
-                    } else rawAlbum
-
-                    val contentUri = ContentUris.withAppendedId(collection, id)
-                    
-                    // Check local saved persistent cover art first (by ID, parsed artist/title, raw title, path, etc.)
-                    val localCoverUri = coverArtManager.getLocalCoverUri(id, finalArtist, finalTitle, data)
-                        ?: coverArtManager.getLocalCoverUri(id, rawArtist, rawTitle, data)
-
-                    val folderName = try {
-                        File(data).parentFile?.name ?: "Música"
-                    } catch (e: Exception) {
-                        "Música"
-                    }
-
-                    val mediaModel = MediaModel(
-                        id = id,
-                        title = finalTitle,
-                        artist = finalArtist,
-                        album = album,
-                        duration = duration,
-                        uri = contentUri,
-                        artworkUri = localCoverUri,
-                        isVideo = false,
-                        folderName = folderName,
-                        path = data,
-                        size = size,
-                        dateAdded = dateAdded
-                    )
-
-                    audioList.add(mediaModel)
+                    } catch (_: Exception) {}
                 }
+
+                val album = if (rawAlbum.equals("<unknown>", ignoreCase = true) || rawAlbum.equals("Unknown Album", ignoreCase = true) || rawAlbum.isBlank()) {
+                    "Álbum desconocido"
+                } else rawAlbum
+
+                val contentUri = ContentUris.withAppendedId(collection, id)
+                
+                // Check local saved persistent cover art first (by ID, parsed artist/title, raw title, path, etc.)
+                val localCoverUri = coverArtManager.getLocalCoverUri(id, finalArtist, finalTitle, data)
+                    ?: coverArtManager.getLocalCoverUri(id, rawArtist, rawTitle, data)
+
+                val folderName = try {
+                    if (data.isNotBlank()) File(data).parentFile?.name ?: "Música" else "Música"
+                } catch (e: Exception) {
+                    "Música"
+                }
+
+                val mediaModel = MediaModel(
+                    id = id,
+                    title = finalTitle,
+                    artist = finalArtist,
+                    album = album,
+                    duration = duration,
+                    uri = contentUri,
+                    artworkUri = localCoverUri,
+                    isVideo = false,
+                    folderName = folderName,
+                    path = data,
+                    size = size,
+                    dateAdded = dateAdded
+                )
+
+                audioList.add(mediaModel)
+            }
+        }
+
+        // Strategy 1: Standard broad query for Android MediaStore
+        val primarySelection = "(${MediaStore.Audio.Media.IS_MUSIC} != 0 OR ${MediaStore.Audio.Media.DURATION} >= 2000 OR ${MediaStore.Audio.Media.DURATION} IS NULL)"
+        try {
+            context.contentResolver.query(collection, projection, primarySelection, null, sortOrder)?.use { cursor ->
+                parseCursor(cursor)
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+
+        // Strategy 2 (Fallback): If query returned 0 items (OEM ROM restriction or provider issue), query without selection
+        if (audioList.isEmpty()) {
+            try {
+                context.contentResolver.query(collection, projection, null, null, null)?.use { cursor ->
+                    parseCursor(cursor)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         audioList

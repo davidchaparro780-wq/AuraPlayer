@@ -282,7 +282,8 @@ fun MusicScreen(
         folderShield.isTelegramFilterEnabled,
         folderShield.isRingtonesFilterEnabled
     ) {
-        val baseSongs = folderShield.filterSongs(songs)
+        val shieldFiltered = folderShield.filterSongs(songs)
+        val baseSongs = if (shieldFiltered.isEmpty() && songs.isNotEmpty()) songs else shieldFiltered
 
         var list = if (searchQuery.isBlank()) baseSongs
         else baseSongs.filter {
@@ -322,12 +323,12 @@ fun MusicScreen(
             list
         } else {
             when (selectedSortMode) {
-                0 -> list.sortedByDescending { it.dateAdded } // Recién Descargadas / Más nuevas
+                0 -> list.sortedWith(compareByDescending<MediaModel> { it.dateAdded }.thenBy { it.title.lowercase() }) // Recién Descargadas / Más nuevas
                 1 -> list.sortedBy { it.title.lowercase() }
                 2 -> list.sortedBy { it.artist.lowercase() }
                 3 -> list.sortedByDescending { it.duration }
                 4 -> list.sortedByDescending { playlistManager.getPlayCount(it.id) }
-                else -> list.sortedByDescending { it.dateAdded }
+                else -> list.sortedWith(compareByDescending<MediaModel> { it.dateAdded }.thenBy { it.title.lowercase() })
             }
         }
     }
