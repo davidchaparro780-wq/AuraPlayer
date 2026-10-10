@@ -276,6 +276,19 @@ fun PlayerScreen(
     var seekBadgeIsForward by remember { mutableStateOf(true) }
     var showHeartBurst by remember { mutableStateOf(false) }
 
+    // A-B Looper (Segment repeat studio)
+    var abLoopA by remember { mutableStateOf<Long?>(null) }
+    var abLoopB by remember { mutableStateOf<Long?>(null) }
+    var isAbLoopActive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentPositionMs, isAbLoopActive, abLoopA, abLoopB, isPlaying) {
+        if (isAbLoopActive && abLoopA != null && abLoopB != null && isPlaying) {
+            if (currentPositionMs >= abLoopB!!) {
+                onSeek(abLoopA!!)
+            }
+        }
+    }
+
     LaunchedEffect(showSeekBadge) {
         if (showSeekBadge) {
             delay(850)
@@ -1418,13 +1431,29 @@ fun PlayerScreen(
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = formatTime(currentPositionMs),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (isAbLoopActive && abLoopA != null && abLoopB != null) {
+                            Text(
+                                text = "🔂 ${formatTime(abLoopA!!)} ➔ ${formatTime(abLoopB!!)}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF10B981)
+                            )
+                        } else if (abLoopA != null) {
+                            Text(
+                                text = "🅰️ ${formatTime(abLoopA!!)} ➔ [B?]",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFF59E0B)
+                            )
+                        }
                         val remainingMs = (effectiveDurationMs - currentPositionMs).coerceAtLeast(0L)
                         Text(
                             text = if (effectiveDurationMs > 0L) "-${formatTime(remainingMs)}" else "--:--",
@@ -1434,12 +1463,13 @@ fun PlayerScreen(
                     }
                 }
 
-                // FX Studio & Seek Jump Controls Row
+                // FX Studio, A-B Looper & Audio Processing Controls Row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Audio FX Studio pill
@@ -1476,6 +1506,69 @@ fun PlayerScreen(
                                 fontSize = 11.sp
                             )
                         }
+                    }
+
+                    // A-B Looper Pill
+                    val isAbLoopSet = isAbLoopActive && abLoopA != null && abLoopB != null
+                    val isASetOnly = abLoopA != null && abLoopB == null
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                when {
+                                    isAbLoopSet -> Color(0xFF10B981).copy(alpha = 0.28f)
+                                    isASetOnly -> Color(0xFFF59E0B).copy(alpha = 0.28f)
+                                    else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                }
+                            )
+                            .border(
+                                1.dp,
+                                when {
+                                    isAbLoopSet -> Color(0xFF10B981)
+                                    isASetOnly -> Color(0xFFF59E0B)
+                                    else -> Color.Transparent
+                                },
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                AuraHaptic.click(view)
+                                if (abLoopA == null) {
+                                    abLoopA = currentPositionMs
+                                    abLoopB = null
+                                    isAbLoopActive = false
+                                    Toast.makeText(context, "Punto [A] marcado en ${formatTime(abLoopA!!)}. Toca de nuevo para marcar [B]", Toast.LENGTH_SHORT).show()
+                                } else if (abLoopB == null) {
+                                    var targetB = currentPositionMs
+                                    if (targetB <= abLoopA!! + 1500L) {
+                                        targetB = (abLoopA!! + 3000L).coerceAtMost(effectiveDurationMs)
+                                    }
+                                    abLoopB = targetB
+                                    isAbLoopActive = true
+                                    Toast.makeText(context, "🔁 Bucle A-B activado: ${formatTime(abLoopA!!)} ➔ ${formatTime(abLoopB!!)}", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    abLoopA = null
+                                    abLoopB = null
+                                    isAbLoopActive = false
+                                    Toast.makeText(context, "Bucle A-B desactivado", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = when {
+                                isAbLoopSet -> "🔂 A-B [${formatTime(abLoopA!!)}-${formatTime(abLoopB!!)}]"
+                                isASetOnly -> "🅰️ [${formatTime(abLoopA!!)}] ➔ [B?]"
+                                else -> "🔁 BUCLE A-B"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = when {
+                                isAbLoopSet -> Color(0xFF10B981)
+                                isASetOnly -> Color(0xFFF59E0B)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            fontSize = 11.sp
+                        )
                     }
 
                     // Tube Amp Analog Warmth Pill

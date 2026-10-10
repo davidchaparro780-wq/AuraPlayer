@@ -1975,16 +1975,23 @@ fun AuraApp(
                             Toast.makeText(context, "'${song.title}' añadida a la cola", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    onSaveTags = { song, newTitle, newArtist, newAlbum ->
+                    onSaveTags = { song, newTitle, newArtist, newAlbum, newCoverUri ->
                         playlistManager.saveTagOverride(song.id, newTitle, newArtist, newAlbum)
+                        var finalCoverUri = song.artworkUri
+                        if (newCoverUri != null) {
+                            val savedUri = mediaRepository.coverArtManager.saveCustomCoverFromUri(song.id, newCoverUri)
+                            if (savedUri != null) {
+                                finalCoverUri = savedUri
+                            }
+                        }
                         songs = songs.map {
-                            if (it.id == song.id) it.copy(title = newTitle, artist = newArtist, album = newAlbum)
+                            if (it.id == song.id) it.copy(title = newTitle, artist = newArtist, album = newAlbum, artworkUri = finalCoverUri)
                             else it
                         }
                         if (currentMedia?.id == song.id) {
-                            currentMedia = currentMedia?.copy(title = newTitle, artist = newArtist, album = newAlbum)
+                            currentMedia = currentMedia?.copy(title = newTitle, artist = newArtist, album = newAlbum, artworkUri = finalCoverUri)
                         }
-                        Toast.makeText(context, "Etiquetas guardadas", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Etiquetas y carátula actualizadas", Toast.LENGTH_SHORT).show()
                     },
                     onDeleteSong = { song ->
                         handleDeleteSong(song)

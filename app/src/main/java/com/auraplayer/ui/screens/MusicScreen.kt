@@ -167,7 +167,7 @@ fun MusicScreen(
     onSongClick: (MediaModel) -> Unit,
     onPlayNext: (MediaModel) -> Unit,
     onAddToQueue: (MediaModel) -> Unit,
-    onSaveTags: (song: MediaModel, title: String, artist: String, album: String) -> Unit,
+    onSaveTags: (song: MediaModel, title: String, artist: String, album: String, coverUri: android.net.Uri?) -> Unit,
     onDeleteSong: (MediaModel) -> Unit,
     onFetchCover: (MediaModel) -> Unit,
     onOpenSleepTimer: () -> Unit,
@@ -1878,8 +1878,8 @@ fun MusicScreen(
         TagEditorDialog(
             song = selectedSongForTagEdit!!,
             onDismiss = { selectedSongForTagEdit = null },
-            onSave = { newTitle, newArtist, newAlbum ->
-                onSaveTags(selectedSongForTagEdit!!, newTitle, newArtist, newAlbum)
+            onSave = { newTitle, newArtist, newAlbum, newCoverUri ->
+                onSaveTags(selectedSongForTagEdit!!, newTitle, newArtist, newAlbum, newCoverUri)
                 selectedSongForTagEdit = null
             }
         )

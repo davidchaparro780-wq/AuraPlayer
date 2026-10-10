@@ -235,6 +235,26 @@ class CoverArtManager(private val context: Context) {
         }
     }
 
+    /**
+     * Saves a custom user-selected image from gallery persistently for this song ID.
+     */
+    fun saveCustomCoverFromUri(id: Long, sourceUri: Uri): Uri? {
+        try {
+            val targetFile = File(coversDir, "$id.jpg")
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                FileOutputStream(targetFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            if (targetFile.exists() && targetFile.length() > 0) {
+                return Uri.fromFile(targetFile)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
+    }
+
     private fun downloadImageToFile(imageUrl: String, targetFile: File) {
         try {
             val conn = URL(imageUrl).openConnection() as HttpURLConnection

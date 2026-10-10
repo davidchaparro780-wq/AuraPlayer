@@ -1,10 +1,16 @@
 package com.auraplayer.ui.components
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -12,8 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,19 +41,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.auraplayer.data.model.MediaModel
 
 @Composable
 fun TagEditorDialog(
     song: MediaModel,
     onDismiss: () -> Unit,
-    onSave: (newTitle: String, newArtist: String, newAlbum: String) -> Unit
+    onSave: (newTitle: String, newArtist: String, newAlbum: String, newCoverUri: Uri?) -> Unit
 ) {
     var title by remember { mutableStateOf(song.title) }
     var artist by remember { mutableStateOf(song.artist) }
     var album by remember { mutableStateOf(song.album) }
+    var customCoverUri by remember { mutableStateOf<Uri?>(null) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            customCoverUri = uri
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -89,6 +108,77 @@ fun TagEditorDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
+
+                // Cover Artwork Picker Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF1E2438))
+                            .clickable { photoPickerLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val displayModel: Any? = customCoverUri ?: song.artworkUri
+                        if (displayModel != null) {
+                            AsyncImage(
+                                model = displayModel,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.MusicNote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        // Overlay badge
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.35f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.AddPhotoAlternate,
+                                contentDescription = "Cambiar",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(14.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (customCoverUri != null) "✨ Nueva carátula lista" else "Carátula del álbum",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (customCoverUri != null) Color(0xFF10B981) else Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        TextButton(
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(
+                                text = "Elegir de Galería 🖼️",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
 
                 // Title Input
                 OutlinedTextField(
@@ -146,7 +236,7 @@ fun TagEditorDialog(
                     val cleanTitle = title.trim().ifEmpty { song.title }
                     val cleanArtist = artist.trim().ifEmpty { song.artist }
                     val cleanAlbum = album.trim().ifEmpty { song.album }
-                    onSave(cleanTitle, cleanArtist, cleanAlbum)
+                    onSave(cleanTitle, cleanArtist, cleanAlbum, customCoverUri)
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
