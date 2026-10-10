@@ -32,8 +32,18 @@ class MediaRepository(private val context: Context) {
             MediaStore.Audio.Media.SIZE
         )
 
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 10000"
-        val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
+        // Broaden selection: include music, audio files by extension (.mp3, .m4a, .flac, .wav, .aac, .ogg, .opus)
+        // This ensures newly downloaded songs in /Download or /snaptube are not filtered out if IS_MUSIC is 0
+        val selection = "(${MediaStore.Audio.Media.IS_MUSIC} != 0 OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.mp3' OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.m4a' OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.flac' OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.wav' OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.aac' OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.opus' OR " +
+                "${MediaStore.Audio.Media.DATA} LIKE '%.ogg') AND " +
+                "(${MediaStore.Audio.Media.DURATION} >= 3000 OR ${MediaStore.Audio.Media.DURATION} == 0L)"
+        val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
 
         try {
             context.contentResolver.query(collection, projection, selection, null, sortOrder)?.use { cursor ->

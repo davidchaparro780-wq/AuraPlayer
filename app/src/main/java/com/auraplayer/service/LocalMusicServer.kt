@@ -80,6 +80,11 @@ class LocalMusicServer {
         }
     }
 
+    fun updateSongList(newSongs: List<MediaModel>) {
+        songList = newSongs
+        Log.d("LocalMusicServer", "Song list updated with ${newSongs.size} tracks")
+    }
+
     fun stop() {
         isRunning = false
         try { serverSocket?.close() } catch (_: Exception) {}

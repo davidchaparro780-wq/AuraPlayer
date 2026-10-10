@@ -3184,6 +3184,29 @@
               </div>
             </div>
 
+            <!-- Banner de Sincronización y Nuevas Descargas del Celular -->
+            <div class="phone-sync-banner" style="background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(99,102,241,0.08)); border: 1px dashed rgba(6,182,212,0.4); border-radius: 12px; padding: 0.9rem 1.25rem; margin: 1rem 1.2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem;">
+              <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(6,182,212,0.15); display: flex; align-items: center; justify-content: center; color: var(--accent-cyan); font-size: 1.2rem;">
+                  <i class="fa-solid fa-cloud-arrow-down"></i>
+                </div>
+                <div>
+                  <strong style="color: #fff; font-size: 0.92rem; display: block;">¿Descargaste música nueva en tu celular?</strong>
+                  <span style="font-size: 0.78rem; color: var(--text-muted);">
+                    Arrastra aquí los archivos descargados desde la carpeta de tu celular, o pulsa el botón para agregarlos a tu PC.
+                  </span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button id="btn-phone-quick-add" class="btn-glow-primary" style="padding: 0.42rem 0.85rem; font-size: 0.8rem;">
+                  <i class="fa-solid fa-plus"></i> Añadir Canciones Nuevas
+                </button>
+                <button id="btn-phone-help-guide" class="btn-outline-secondary" style="padding: 0.42rem 0.85rem; font-size: 0.8rem; border-color: rgba(255,255,255,0.2);">
+                  <i class="fa-solid fa-circle-question"></i> ¿Por qué no aparecen solas?
+                </button>
+              </div>
+            </div>
+
             <div id="phone-empty-state" class="empty-shelf" style="max-width: 660px; padding: 2rem 1.5rem;">
               <i class="fa-solid fa-mobile-screen-button" style="font-size: 2.8rem; color: var(--accent-cyan); margin-bottom: 0.8rem;"></i>
               <h3 style="font-size: 1.3rem;">¿Cómo escuchar las canciones de tu celular aquí?</h3>
@@ -3793,6 +3816,46 @@
         </div>
 
         <div id="sync-feedback" class="sync-feedback-badge hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Guía: Por qué no aparecen las canciones del cel por cable USB -->
+  <div id="modal-phone-sync-help" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 540px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-circle-info" style="color: var(--accent-cyan);"></i> Sincronizar Canciones Nuevas del Celular</h3>
+        <button class="btn-close-x" id="btn-close-phone-help"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content" style="font-size: 0.85rem; line-height: 1.5; color: var(--text-main);">
+        <div style="background: rgba(234, 179, 8, 0.1); border-left: 3px solid #eab308; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem;">
+          <strong style="color: #fde047;">¿Por qué no aparecen solas al conectar el cable?</strong>
+          <p style="margin-top: 0.25rem; font-size: 0.8rem; color: #cbd5e1;">
+            Por seguridad de Android y de Windows, al conectar tu celular por USB, el teléfono entra en modo <strong>"Sólo carga"</strong>. Además, los navegadores no tienen permiso de escanear tu teléfono sin que selecciones o arrastres los archivos.
+          </p>
+        </div>
+
+        <h4 style="color: var(--accent-cyan); margin-bottom: 0.4rem;"><i class="fa-brands fa-usb"></i> Opción 1: Cable USB (Directo)</h4>
+        <ol style="padding-left: 1.2rem; margin-bottom: 1rem; color: var(--text-muted); font-size: 0.82rem;">
+          <li>Conecta tu celular a la compu con el cable USB.</li>
+          <li>En la pantalla de tu celular, baja la barra de notificaciones, toca <strong>"Cargando este dispositivo por USB"</strong> y cámbialo a <strong>"Transferencia de archivos" (MTP)</strong>.</li>
+          <li>En tu compu abre: <code style="color:#38bdf8;">Este equipo &gt; Infinix HOT 40i &gt; Almacenamiento interno &gt; Download</code>.</li>
+          <li><strong>Arrastra las canciones nuevas</strong> y suéltalas en DaVE Player, ¡o pulsa el botón <strong>"Añadir Canciones Nuevas"</strong>!</li>
+        </ol>
+
+        <h4 style="color: #10b981; margin-bottom: 0.4rem;"><i class="fa-solid fa-bolt"></i> Sincronización Automática con 1 Clic (Script PC)</h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+          En la carpeta principal del reproductor en tu computadora tienes el archivo <strong>Sincronizar_Musica_Celular.bat</strong>. Con tu celular en modo transferencia, solo dale doble clic y copiará todas las canciones nuevas a la compu.
+        </p>
+
+        <h4 style="color: var(--accent-pink); margin-bottom: 0.4rem;"><i class="fa-solid fa-wifi"></i> Opción 2: Inalámbrico por WiFi</h4>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Abre <strong>DaVE Player</strong> en tu celular, toca <strong>🌐 Control Remoto PC</strong> arriba a la derecha, y en la compu pulsa <strong>"Conectar WiFi"</strong>.
+        </p>
+
+        <button id="btn-phone-help-got-it" class="btn-glow-primary" style="width: 100%; justify-content: center; padding: 0.6rem; margin-top: 0.5rem;">
+          ¡Entendido!
+        </button>
       </div>
     </div>
   </div>

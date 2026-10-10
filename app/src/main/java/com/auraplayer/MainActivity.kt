@@ -1960,6 +1960,7 @@ fun AuraApp(
                     onOpenAlarm = { showAlarmDialog = true },
                     onToggleWifiServer = {
                         if (isWifiServerRunning) {
+                            wifiServer.updateSongList(songs)
                             showWifiServerDialog = true
                         } else {
                             val serverCtrl = com.auraplayer.service.ServerController(

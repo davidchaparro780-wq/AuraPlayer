@@ -2442,18 +2442,47 @@ function handlePhoneBrowserFiles(files) {
   }
   
   const newTracks = audioFiles.map(file => {
-    const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    let nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+    let artist = 'Mi Celular';
+    let title = nameWithoutExt;
+
+    // Detectar si el archivo tiene formato "Artista - Título"
+    if (nameWithoutExt.includes(' - ')) {
+      const parts = nameWithoutExt.split(' - ');
+      artist = parts[0].replace(/_/g, ' ').trim();
+      title = parts.slice(1).join(' - ').replace(/_/g, ' ').trim();
+    }
+    // Limpiar coletillas comunes de descargas (YouTube, Snaptube, etc.)
+    title = title.replace(/\s*[\(\[](official\s*(music\s*)?video|audio|lyric(s)?|visualizer|m4a_\d+k|video|hd|hq|sub\.\s*español)[\)\]]/gi, '').trim();
+
     return {
-      title: nameWithoutExt,
-      artist: 'Mi Celular',
-      album: 'Almacenamiento Móvil',
+      title: title || nameWithoutExt,
+      artist: artist,
+      album: 'Descargas de Celular',
       duration: 0,
       fileObj: file,
-      coverUrl: null
+      streamUrl: URL.createObjectURL(file),
+      coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80'
     };
   });
 
-  phoneTracks = [...newTracks, ...phoneTracks];
+  // Integrar canciones evitando duplicados
+  newTracks.forEach(nt => {
+    const existingIdx = phoneTracks.findIndex(pt => pt.title.toLowerCase() === nt.title.toLowerCase() && pt.artist.toLowerCase() === nt.artist.toLowerCase());
+    if (existingIdx !== -1) {
+      phoneTracks[existingIdx] = nt;
+    } else {
+      phoneTracks.unshift(nt);
+    }
+
+    const plIdx = playlist.findIndex(pt => pt.title.toLowerCase() === nt.title.toLowerCase() && pt.artist.toLowerCase() === nt.artist.toLowerCase());
+    if (plIdx !== -1) {
+      playlist[plIdx] = nt;
+    } else {
+      playlist.unshift(nt);
+    }
+  });
+
   localStorage.setItem('dave_phone_tracks', JSON.stringify(phoneTracks.map(t => ({
     title: t.title,
     artist: t.artist,
@@ -2463,18 +2492,13 @@ function handlePhoneBrowserFiles(files) {
   }))));
 
   renderPhoneTracksList();
+  renderTrackList();
   updateUserUI();
 
-  // Also integrate with main playlist so player can seamlessly play them
-  newTracks.forEach(t => {
-    if (!playlist.some(p => p.title === t.title && p.artist === t.artist)) {
-      playlist.push(t);
-    }
-  });
-  renderTrackList();
+  showToast(`✅ ¡${newTracks.length} canción(es) nueva(s) sincronizadas desde tu celular!`, 'success', 'fa-mobile-screen-button');
 
-  // Play the first song right away
-  if (newTracks.length > 0) {
+  // Reproducir inmediatamente la primera si no había música sonando
+  if (!isPlaying && newTracks.length > 0) {
     const idx = playlist.indexOf(newTracks[0]);
     if (idx !== -1) playTrack(idx);
   }
@@ -2485,12 +2509,27 @@ phoneFolderInput?.addEventListener('change', (e) => handlePhoneBrowserFiles(Arra
 
 document.getElementById('btn-phone-upload-files')?.addEventListener('click', () => phoneFileInput?.click());
 document.getElementById('btn-phone-upload-folder')?.addEventListener('click', () => phoneFolderInput?.click());
+document.getElementById('btn-phone-quick-add')?.addEventListener('click', () => phoneFileInput?.click());
 document.getElementById('btn-empty-phone-files')?.addEventListener('click', () => phoneFileInput?.click());
 document.getElementById('btn-empty-phone-folder')?.addEventListener('click', () => phoneFolderInput?.click());
 document.getElementById('btn-modal-upload-phone')?.addEventListener('click', () => {
   modalSync?.classList.add('hidden');
   phoneFolderInput?.click();
 });
+
+// Modal de Ayuda: Sincronización Celular USB & WiFi
+const modalPhoneSyncHelp = document.getElementById('modal-phone-sync-help');
+const btnPhoneHelpGuide = document.getElementById('btn-phone-help-guide');
+const btnClosePhoneHelp = document.getElementById('btn-close-phone-help');
+const btnPhoneHelpGotIt = document.getElementById('btn-phone-help-got-it');
+
+btnPhoneHelpGuide?.addEventListener('click', () => modalPhoneSyncHelp?.classList.remove('hidden'));
+btnClosePhoneHelp?.addEventListener('click', () => modalPhoneSyncHelp?.classList.add('hidden'));
+btnPhoneHelpGotIt?.addEventListener('click', () => modalPhoneSyncHelp?.classList.add('hidden'));
+modalPhoneSyncHelp?.addEventListener('click', (e) => {
+  if (e.target === modalPhoneSyncHelp) modalPhoneSyncHelp.classList.add('hidden');
+});
+
 document.getElementById('btn-empty-phone-cloud')?.addEventListener('click', () => {
   syncCloudPhoneLibrary();
   showSyncFeedback('¡Canciones Cloud cargadas!', 'success');
