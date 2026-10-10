@@ -225,5 +225,16 @@
     - *Verificación AST y Balance de Etiquetas:*
       - Parser JS: 0 discrepancias de llaves, corchetes y paréntesis (`pDepth: 0`, `bDepth: 0`, `bracketDepth: 0`).
       - Parser HTML: 338 etiquetas `<div>` abiertas / 338 cerradas; 158 `<button>` abiertos / 158 cerrados.
-    - *Despliegue:* Versión `v4.3.3` subida a la rama `main`, desplegada en vivo en GitHub Pages (`https://davidchaparro780-wq.github.io/AuraPlayer/`) y espejada en Google Drive (`G:\` y `H:\`).
-
+29. **📱 Sincronizador Automático USB de Celular & Detección de Nuevas Descargas (v4.3.4):**
+    - *Situación:* El usuario descarga canciones nuevas en su celular (Infinix HOT 40i), pero al conectar el teléfono a la computadora con el cable USB o WiFi, las canciones nuevas no aparecían en el reproductor.
+    - *Causas Raíz Detectadas:*
+      1. **Modo de Conexión USB en Android:** Al conectar el cable, Android se coloca por defecto en modo *"Sólo carga"*, bloqueando el acceso de Windows a las carpetas `Download` y `Music`.
+      2. **Restricción de Seguridad del Navegador:** Los navegadores web (Chrome, Edge) no tienen permitido por la política de sandbox escanear en silencio dispositivos MTP USB en segundo plano sin interacción del usuario.
+      3. **Filtro Estricto de MediaStore en la App Android:** `MediaRepository.kt` requería `IS_MUSIC != 0`, descartando canciones descargadas en `Download` y `snaptube` que Android clasifica como descargas genéricas.
+      4. **Falta de URL de Reproducción en Archivos Importados:** `handlePhoneBrowserFiles()` no creaba un `URL.createObjectURL(file)`, por lo que archivos añadidos no podían ser cargados por el motor de audio.
+    - *Solución Integral:*
+      - **Script USB 1-Clic (`Sincronizar_Musica_Celular.bat` y `sincronizar_celular.ps1`):** Creado en la raíz del proyecto. Con el celular conectado en modo *Transferencia de archivos*, el usuario solo hace doble clic y el script explora automáticamente `Download`, `Download/snaptube`, `Music`, detecta cualquier archivo de audio nuevo y lo copia a `desktop/src/music/`.
+      - **Ampliación del Escáner de Audio en Android:** `MediaRepository.kt` ahora incluye todas las extensiones de música (`.mp3`, `.m4a`, `.flac`, `.wav`, `.aac`, `.opus`, `.ogg`), permitiendo que cualquier descarga en el cel sea indexada y servida por WiFi.
+      - **Actualización Dinámica de Servidor WiFi:** `LocalMusicServer.kt` y `MainActivity.kt` añadieron `updateSongList()`, refrescando la lista de canciones en vivo cada vez que se interactúa con el servidor.
+      - **Banner Interactivo y Modal de Ayuda en DaVE Player PC:** La pestaña *Mi Celular* cuenta con un banner destacado para añadir canciones nuevas con 1 clic (`#btn-phone-quick-add`), un modal explicativo (`#modal-phone-sync-help`) y soporte de *Drag & Drop* con limpieza automática de metadatos y generación de URLs reproducibles (`URL.createObjectURL`).
+    - *Despliegue:* Versión `v4.3.4` subida a la rama `main`, desplegada en vivo en GitHub Pages (`https://davidchaparro780-wq.github.io/AuraPlayer/`) y espejada en Google Drive (`G:\` y `H:\`).
