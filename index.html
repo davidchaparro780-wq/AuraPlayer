@@ -2080,6 +2080,157 @@
       color: var(--accent-cyan);
     }
 
+    /* Radio Stations UI */
+    .radio-station-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 1.2rem;
+      margin-top: 1.2rem;
+    }
+    .radio-station-card {
+      background: rgba(25, 28, 40, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(12px);
+    }
+    .radio-station-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 10px 25px rgba(6, 182, 212, 0.2);
+    }
+    .radio-station-card.active-station {
+      border-color: var(--accent-pink);
+      background: rgba(236, 72, 153, 0.1);
+      box-shadow: 0 0 22px rgba(236, 72, 153, 0.3);
+    }
+    .radio-card-top {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      margin-bottom: 0.8rem;
+    }
+    .radio-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(6, 182, 212, 0.25));
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      color: #fff;
+    }
+    .radio-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #f87171;
+      margin-left: auto;
+    }
+    .radio-live-badge .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: liveBlink 1.2s infinite ease-in-out;
+    }
+    @keyframes liveBlink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.3; transform: scale(0.7); }
+    }
+    .radio-station-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+    }
+    .radio-station-genre {
+      font-size: 0.76rem;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      margin-top: 0.15rem;
+    }
+    .radio-station-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-top: 0.5rem;
+      flex: 1;
+    }
+    .radio-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .radio-bitrate {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+
+    /* 3D Visualizer Overlay */
+    .visualizer-3d-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at center, #0a0d18 0%, #030408 100%);
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+    }
+    .visualizer-3d-topbar {
+      position: absolute;
+      top: 1.2rem;
+      left: 1.5rem;
+      right: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      pointer-events: auto;
+    }
+    .visualizer-3d-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Recording Badge & Pulse */
+    @keyframes recPulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px #ef4444); }
+      50% { transform: scale(1.22); filter: drop-shadow(0 0 10px #ef4444); }
+    }
+    .recording-active i {
+      color: #ef4444 !important;
+      animation: recPulse 1.2s infinite ease-in-out;
+    }
+
+    /* DJ Automix Active Pill */
+    .btn-icon-round.dj-active {
+      background: rgba(236, 72, 153, 0.25) !important;
+      border-color: var(--accent-pink) !important;
+      color: var(--accent-pink) !important;
+      box-shadow: 0 0 12px rgba(236, 72, 153, 0.4) !important;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -2096,7 +2247,7 @@
       <div class="login-brand">
         <i class="fa-solid fa-compact-disc login-brand-icon"></i>
         <h1>DaVE <strong>Player</strong></h1>
-        <span class="brand-badge">PRO v3.9.0 CLOUD</span>
+        <span class="brand-badge">PRO v4.0.0 MASTERPIECE</span>
       </div>
 
       <div id="full-login-status-box" class="full-login-status-box">
@@ -2151,7 +2302,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.9.0</span>
+        <span class="brand-badge">PRO v4.0.0</span>
       </div>
 
       <div class="search-wrapper">
@@ -2216,6 +2367,10 @@
           <button class="nav-btn favorites-card" data-tab="playlists">
             <i class="fa-solid fa-list-check" style="color: var(--accent-cyan);"></i> <span>Playlists & Favoritas</span>
             <span class="badge-pill" id="playlists-count">1</span>
+          </button>
+          <button class="nav-btn" data-tab="radio">
+            <i class="fa-solid fa-radio" style="color: var(--accent-pink);"></i> <span>Radio Lo-Fi & Beats</span>
+            <span class="pill-neon" style="background:rgba(236,72,153,0.2); color:#ec4899; border-color:rgba(236,72,153,0.4);">LIVE</span>
           </button>
         </div>
 
@@ -2635,6 +2790,29 @@
           </div>
         </section>
 
+        <!-- TAB 8: RADIO LO-FI & CYBERPUNK 24/7 -->
+        <section id="tab-radio" class="tab-pane">
+          <div class="songs-view" style="max-width: 1200px; margin: 0 auto;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:1rem; margin-bottom: 0.5rem;">
+              <div>
+                <h3 style="font-size:1.45rem; color:#fff; display:flex; align-items:center; gap:0.6rem; margin:0 0 0.4rem 0;">
+                  <i class="fa-solid fa-radio" style="color:var(--accent-pink);"></i> Radio Lo-Fi & Beats 24/7
+                </h3>
+                <p style="font-size:0.86rem; color:var(--text-muted); margin:0;">
+                  Estaciones de streaming global continuo sin anuncios. Todos los efectos Web Audio (Audio 8D, Reverb, EQ) funcionan en tiempo real sobre la radio.
+                </p>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.6rem;">
+                <span class="radio-live-badge"><span class="pulse-dot"></span> EN VIVO</span>
+              </div>
+            </div>
+
+            <div class="radio-station-grid" id="radio-station-grid">
+              <!-- Dynamically populated from app.js -->
+            </div>
+          </div>
+        </section>
+
       </main>
     </div>
 
@@ -2687,6 +2865,12 @@
         </button>
         <button id="btn-toggle-8d" class="btn-icon-round" title="Audio 8D Órbita 360° (Usa Audífonos)"><i class="fa-solid fa-headphones"></i></button>
         <button id="btn-slowed-reverb" class="btn-icon-round" title="Modo Slowed + Reverb (0.85x + Catedral)"><i class="fa-solid fa-hourglass-start"></i></button>
+        <button id="btn-record-audio" class="btn-icon-round" title="Grabar Audio Procesado con Efectos (WebM/WAV)" style="position:relative;">
+          <i class="fa-solid fa-circle-dot"></i>
+          <span id="record-timer-badge" class="timer-badge hidden" style="background:#ef4444;">0:00</span>
+        </button>
+        <button id="btn-toggle-dj" class="btn-icon-round" title="DaVE DJ Automix (Crossfade de Discoteca Continuo)"><i class="fa-solid fa-compact-disc"></i></button>
+        <button id="btn-visualizer-3d" class="btn-icon-round" title="Visualizador 3D Espectro Neón Hi-Fi"><i class="fa-solid fa-cube"></i></button>
         <button id="btn-pip-player" class="btn-icon-round" title="Mini-Player Flotante (Picture-in-Picture)"><i class="fa-solid fa-clone"></i></button>
         <button id="btn-toggle-normalizer" class="btn-icon-round" title="Normalizador de Volumen Inteligente (Nivelación Automática)"><i class="fa-solid fa-compress"></i></button>
         <button id="btn-quick-stem" class="btn-icon-round" title="AI Stem Mixer"><i class="fa-solid fa-sliders"></i></button>
@@ -3052,6 +3236,28 @@
     </div>
   </div>
 
+  <!-- Modal / Overlay: Visualizador 3D Espectro Neón Hi-Fi -->
+  <div id="modal-visualizer3d" class="visualizer-3d-overlay hidden">
+    <div class="visualizer-3d-topbar">
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <span style="font-size:1.05rem; font-weight:800; color:#fff; display:flex; align-items:center; gap:0.5rem;">
+          <i class="fa-solid fa-cube" style="color:var(--accent-cyan);"></i> Visualizador 3D Hi-Fi
+        </span>
+        <span class="badge-pill" id="viz3d-track-title" style="max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:rgba(255,255,255,0.08);">Reproduciendo</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:0.8rem;">
+        <button id="btn-viz3d-mode" class="btn-action-pill" title="Cambiar Geometría 3D">
+          <i class="fa-solid fa-arrows-rotate"></i> <span id="viz3d-mode-label">Túnel Neón</span>
+        </button>
+        <button id="btn-viz3d-fullscreen" class="btn-action-pill" title="Pantalla Completa">
+          <i class="fa-solid fa-expand"></i> <span>Pantalla Completa</span>
+        </button>
+        <button id="btn-close-viz3d" class="btn-close-x" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+    </div>
+    <canvas id="viz3d-canvas" class="visualizer-3d-canvas"></canvas>
+  </div>
+
   <!-- Floating Glassmorphic Mini-Player Widget -->
   <div id="floating-mini-player" class="floating-mini-player hidden">
     <img id="fmini-art" class="floating-mini-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23191c28'/></svg>" alt="Art">
@@ -3075,6 +3281,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.9.0"></script>
+  <script src="app.js?v=4.0.0"></script>
 </body>
 </html>
