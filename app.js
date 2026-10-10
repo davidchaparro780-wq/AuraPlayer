@@ -70,6 +70,20 @@ let isDJTransitioning = false;
 let viz3dMode = 'tunnel';
 let animFrame3D = null;
 
+// A-B Looper State
+let abLoopA = null;
+let abLoopB = null;
+let isABLooping = false;
+
+// Speed Multi-Gear State
+let currentPlaybackSpeed = 1.0;
+
+// Ambience Soundscapes State
+let ambienceNodes = [];
+let ambienceGainNode = null;
+let activeAmbienceSound = null;
+let ambienceVolume = 0.35;
+
 let eqFilters = [];
 const eqFrequencies = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
 
@@ -670,7 +684,7 @@ function playTrack(index) {
     updatePlayPauseUI();
     showToast(`Reproduciendo: ${track.title}`, 'info', 'fa-play');
 
-    audio.playbackRate = isSlowedReverb ? 0.85 : 1.0;
+    audio.playbackRate = isSlowedReverb ? 0.85 : currentPlaybackSpeed;
 
     // Track playback statistics
     const trackKey = `${track.title} — ${track.artist}`;
@@ -817,6 +831,13 @@ audio.addEventListener('timeupdate', () => {
   }
 
   if (!audio.duration || !isFinite(audio.duration)) return;
+
+  // A-B Looper Jump
+  if (isABLooping && abLoopA !== null && abLoopB !== null && audio.currentTime >= abLoopB) {
+    audio.currentTime = abLoopA;
+    return;
+  }
+
   const ratio = audio.currentTime / audio.duration;
   progressFill.style.width = `${ratio * 100}%`;
   currentTimeEl.innerText = formatTime(audio.currentTime);
@@ -4191,7 +4212,548 @@ function triggerDJCrossfade() {
 btnToggleDJ?.addEventListener('click', toggleDJAutomix);
 
 // ==========================================
-// 36. STARTUP INITIALIZATION (v4.0.0 MASTERPIECE)
+// 37. A-B LOOPER (REPETIDOR DE SEGMENTOS v4.1.0)
+// ==========================================
+const btnABLoop = document.getElementById('btn-ab-loop');
+const abLoopLabel = document.getElementById('ab-loop-label');
+const scrubberABFill = document.getElementById('scrubber-ab-fill');
+
+function toggleABLoop() {
+  if (!isPlaying && !audio.src) {
+    showToast('Reproduce una canción para activar el bucle A-B.', 'warning', 'fa-play');
+    return;
+  }
+
+  if (abLoopA === null) {
+    // Stage 1: Set Point A
+    abLoopA = audio.currentTime;
+    abLoopB = null;
+    isABLooping = false;
+    btnABLoop?.classList.add('ab-active');
+    if (abLoopLabel) abLoopLabel.innerText = 'A->?';
+    if (scrubberABFill) scrubberABFill.classList.add('hidden');
+    showToast(`Punto [A] fijado en ${formatTime(abLoopA)}. Haz clic de nuevo para fijar [B].`, 'info', 'fa-repeat');
+  } else if (abLoopB === null) {
+    // Stage 2: Set Point B & Activate Loop
+    let targetB = audio.currentTime;
+    if (targetB <= abLoopA + 1.5) {
+      targetB = abLoopA + 3; // mínimo 3 segundos de bucle
+    }
+    abLoopB = targetB;
+    isABLooping = true;
+    if (abLoopLabel) abLoopLabel.innerText = 'A-B 🔁';
+
+    // Position highlight fill on scrubber
+    if (scrubberABFill && audio.duration && isFinite(audio.duration)) {
+      const leftPercent = (abLoopA / audio.duration) * 100;
+      const widthPercent = ((abLoopB - abLoopA) / audio.duration) * 100;
+      scrubberABFill.style.left = `${leftPercent}%`;
+      scrubberABFill.style.width = `${widthPercent}%`;
+      scrubberABFill.classList.remove('hidden');
+    }
+
+    showToast(`Bucle A-B activado: ${formatTime(abLoopA)} ➔ ${formatTime(abLoopB)}`, 'success', 'fa-repeat');
+  } else {
+    // Stage 3: Clear Loop
+    clearABLoop();
+    showToast('Bucle A-B desactivado.', 'info', 'fa-xmark');
+  }
+}
+
+function clearABLoop() {
+  abLoopA = null;
+  abLoopB = null;
+  isABLooping = false;
+  btnABLoop?.classList.remove('ab-active');
+  if (abLoopLabel) abLoopLabel.innerText = 'A-B';
+  if (scrubberABFill) scrubberABFill.classList.add('hidden');
+}
+
+btnABLoop?.addEventListener('click', toggleABLoop);
+
+// ==========================================
+// 38. SPEED & PITCH MULTI-GEAR SELECTOR (v4.1.0)
+// ==========================================
+const btnSpeedSelector = document.getElementById('btn-speed-selector');
+const modalSpeed = document.getElementById('modal-speed');
+const btnCloseSpeed = document.getElementById('btn-close-speed');
+const speedLabel = document.getElementById('speed-label');
+const speedCustomSlider = document.getElementById('speed-custom-slider');
+const speedCustomVal = document.getElementById('speed-custom-val');
+const btnSpeedReset = document.getElementById('btn-speed-reset');
+
+function setPlaybackSpeed(speed) {
+  currentPlaybackSpeed = parseFloat(speed);
+  audio.playbackRate = currentPlaybackSpeed;
+
+  if (speedLabel) speedLabel.innerText = `${currentPlaybackSpeed}x`;
+  if (speedCustomSlider) speedCustomSlider.value = currentPlaybackSpeed;
+  if (speedCustomVal) speedCustomVal.innerText = `${currentPlaybackSpeed.toFixed(2)}x`;
+
+  document.querySelectorAll('.speed-chip').forEach(chip => {
+    chip.classList.toggle('active', parseFloat(chip.dataset.speed) === currentPlaybackSpeed);
+  });
+
+  let modeName = `${currentPlaybackSpeed}x`;
+  if (currentPlaybackSpeed === 0.85) modeName = '0.85x (Slowed)';
+  else if (currentPlaybackSpeed === 1.25) modeName = '1.25x (Nightcore)';
+  else if (currentPlaybackSpeed === 1.5) modeName = '1.5x (Speed Up)';
+  showToast(`Velocidad ajustada: ${modeName}`, 'info', 'fa-gauge-high');
+}
+
+btnSpeedSelector?.addEventListener('click', () => {
+  modalSpeed?.classList.remove('hidden');
+});
+btnCloseSpeed?.addEventListener('click', () => {
+  modalSpeed?.classList.add('hidden');
+});
+
+document.querySelectorAll('.speed-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    setPlaybackSpeed(chip.dataset.speed);
+  });
+});
+
+speedCustomSlider?.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  if (speedCustomVal) speedCustomVal.innerText = `${val.toFixed(2)}x`;
+  setPlaybackSpeed(val);
+});
+
+btnSpeedReset?.addEventListener('click', () => {
+  setPlaybackSpeed(1.0);
+});
+
+// ==========================================
+// 39. PROCEDURAL AMBIENCE SOUNDSCAPES (v4.1.0)
+// ==========================================
+const btnOpenAmbience = document.getElementById('btn-open-ambience');
+const modalAmbience = document.getElementById('modal-ambience');
+const btnCloseAmbience = document.getElementById('btn-close-ambience');
+const ambienceVolumeSlider = document.getElementById('ambience-volume-slider');
+const ambienceVolumeVal = document.getElementById('ambience-volume-val');
+const btnAmbienceStop = document.getElementById('btn-ambience-stop');
+
+function stopAmbienceSoundscapes() {
+  ambienceNodes.forEach(node => {
+    try {
+      if (node.stop) node.stop();
+      if (node.disconnect) node.disconnect();
+    } catch (e) {}
+  });
+  ambienceNodes = [];
+  activeAmbienceSound = null;
+  document.querySelectorAll('.ambience-card').forEach(c => c.classList.remove('active'));
+}
+
+function startAmbienceSoundscape(type) {
+  initAudioEngine();
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  stopAmbienceSoundscapes();
+  activeAmbienceSound = type;
+
+  // Setup Ambience Gain Node
+  if (!ambienceGainNode) {
+    ambienceGainNode = audioCtx.createGain();
+    ambienceGainNode.connect(audioCtx.destination);
+    if (audioRecorderDestination) {
+      ambienceGainNode.connect(audioRecorderDestination);
+    }
+  }
+  ambienceGainNode.gain.value = ambienceVolume;
+
+  const sampleRate = audioCtx.sampleRate;
+  const bufferSize = sampleRate * 5;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+
+  // Generate pink / rain noise
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + white * 0.0555179;
+    b1 = 0.99332 * b1 + white * 0.0750759;
+    b2 = 0.96900 * b2 + white * 0.1538520;
+    b3 = 0.86650 * b3 + white * 0.3104856;
+    b4 = 0.55000 * b4 + white * 0.5329522;
+    b5 = -0.7616 * b5 - white * 0.0168980;
+    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+    b6 = white * 0.115926;
+  }
+
+  const whiteNoiseSource = audioCtx.createBufferSource();
+  whiteNoiseSource.buffer = noiseBuffer;
+  whiteNoiseSource.loop = true;
+
+  if (type === 'rain') {
+    // Rain: Lowpass + Highpass
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1400;
+
+    const hp = audioCtx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 350;
+
+    whiteNoiseSource.connect(lp);
+    lp.connect(hp);
+    hp.connect(ambienceGainNode);
+
+    ambienceNodes.push(whiteNoiseSource, lp, hp);
+    whiteNoiseSource.start();
+    showToast('🌧️ Atmósfera de Lluvia Suave activada', 'info', 'fa-cloud-rain');
+  } else if (type === 'waves') {
+    // Ocean Waves: Deep lowpass + 0.09Hz sine wave swelling LFO
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 650;
+
+    const waveGain = audioCtx.createGain();
+    waveGain.gain.value = 0.5;
+
+    const lfo = audioCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.09;
+
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 0.45;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(waveGain.gain);
+
+    whiteNoiseSource.connect(lp);
+    lp.connect(waveGain);
+    waveGain.connect(ambienceGainNode);
+
+    ambienceNodes.push(whiteNoiseSource, lp, waveGain, lfo, lfoGain);
+    lfo.start();
+    whiteNoiseSource.start();
+    showToast('🌊 Atmósfera de Marea Marina activada', 'info', 'fa-water');
+  } else if (type === 'fire') {
+    // Campfire: Low warm rumble
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 450;
+
+    const fireGain = audioCtx.createGain();
+    fireGain.gain.value = 0.7;
+
+    whiteNoiseSource.connect(lp);
+    lp.connect(fireGain);
+    fireGain.connect(ambienceGainNode);
+
+    ambienceNodes.push(whiteNoiseSource, lp, fireGain);
+    whiteNoiseSource.start();
+    showToast('🪵 Atmósfera de Hoguera Cálida activada', 'info', 'fa-fire');
+  } else if (type === 'coffee') {
+    // Coffee shop ambience: Bandpass filter
+    const bp = audioCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 900;
+    bp.Q.value = 0.8;
+
+    whiteNoiseSource.connect(bp);
+    bp.connect(ambienceGainNode);
+
+    ambienceNodes.push(whiteNoiseSource, bp);
+    whiteNoiseSource.start();
+    showToast('☕ Atmósfera de Cafetería Lo-Fi activada', 'info', 'fa-mug-saucer');
+  }
+
+  document.querySelectorAll('.ambience-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.sound === type);
+  });
+}
+
+btnOpenAmbience?.addEventListener('click', () => modalAmbience?.classList.remove('hidden'));
+btnCloseAmbience?.addEventListener('click', () => modalAmbience?.classList.add('hidden'));
+
+document.querySelectorAll('.ambience-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const sound = card.dataset.sound;
+    if (activeAmbienceSound === sound) {
+      stopAmbienceSoundscapes();
+      showToast('Atmósfera pausada.', 'info', 'fa-pause');
+    } else {
+      startAmbienceSoundscape(sound);
+    }
+  });
+});
+
+ambienceVolumeSlider?.addEventListener('input', (e) => {
+  const val = parseInt(e.target.value, 10);
+  ambienceVolume = val / 100;
+  if (ambienceGainNode) {
+    ambienceGainNode.gain.value = ambienceVolume;
+  }
+  if (ambienceVolumeVal) ambienceVolumeVal.innerText = `${val}%`;
+});
+
+btnAmbienceStop?.addEventListener('click', () => {
+  stopAmbienceSoundscapes();
+  showToast('Atmósfera de sonido detenida.', 'info', 'fa-stop');
+});
+
+// ==========================================
+// 40. SPOTLIGHT COMMAND PALETTE (CTRL+K v4.1.0)
+// ==========================================
+const btnOpenPalette = document.getElementById('btn-open-palette');
+const modalPalette = document.getElementById('modal-command-palette');
+const btnClosePalette = document.getElementById('btn-close-palette');
+const paletteSearchInput = document.getElementById('palette-search-input');
+const paletteResultsList = document.getElementById('palette-results-list');
+
+let paletteActiveIndex = 0;
+let paletteItems = [];
+
+const quickPaletteActions = [
+  {
+    type: 'action',
+    title: '🎧 Audio 8D Órbita 360°',
+    desc: 'Activar o desactivar paneo binaural envolvente',
+    icon: 'fa-headphones',
+    action: () => toggle8DAudio()
+  },
+  {
+    type: 'action',
+    title: '🌌 Modo Slowed + Reverb',
+    desc: 'Bajar velocidad a 0.85x y aplicar acústica celestial',
+    icon: 'fa-hourglass-start',
+    action: () => toggleSlowedReverb()
+  },
+  {
+    type: 'action',
+    title: '🎙️ Grabar Audio Procesado',
+    desc: 'Iniciar o detener grabación con efectos aplicados en vivo',
+    icon: 'fa-circle-dot',
+    action: () => toggleAudioRecording()
+  },
+  {
+    type: 'action',
+    title: '🎛️ Abrir Ecualizador 10-Band',
+    desc: 'Ajustar bandas de frecuencia y presets de audio',
+    icon: 'fa-chart-simple',
+    action: () => switchTab('equalizer')
+  },
+  {
+    type: 'action',
+    title: '🎤 Karaoke & Letras Sincronizadas',
+    desc: 'Ver lyrics en vivo de la canción actual',
+    icon: 'fa-microphone-lines',
+    action: () => switchTab('lyrics')
+  },
+  {
+    type: 'action',
+    title: '🎚️ AI Stem Mixer Studio',
+    desc: 'Aislar voces, baterías, bajos o melodías en tiempo real',
+    icon: 'fa-sliders',
+    action: () => switchTab('stem-mixer')
+  },
+  {
+    type: 'action',
+    title: '📻 Abrir Radio Lo-Fi & Cyberpunk 24/7',
+    desc: 'Escuchar estaciones de streaming continuo en vivo',
+    icon: 'fa-radio',
+    action: () => switchTab('radio')
+  },
+  {
+    type: 'action',
+    title: '🧊 Visualizador 3D Espectro Neón',
+    desc: 'Abrir túnel 3D reactivo a pantalla completa',
+    icon: 'fa-cube',
+    action: () => open3DVisualizer()
+  },
+  {
+    type: 'action',
+    title: '🌙 Temporizador de Apagado (Sleep Timer)',
+    desc: 'Programar apagado automático de la música',
+    icon: 'fa-moon',
+    action: () => openSleepTimerModal()
+  },
+  {
+    type: 'action',
+    title: '🌧️ Activar Sonido de Lluvia Suave',
+    desc: 'Generar atmósfera relajante de lluvia de fondo',
+    icon: 'fa-cloud-rain',
+    action: () => startAmbienceSoundscape('rain')
+  },
+  {
+    type: 'action',
+    title: '🎨 Cambiar Tema Neón',
+    desc: 'Abrir paleta de temas visuales',
+    icon: 'fa-palette',
+    action: () => modalTheme?.classList.remove('hidden')
+  },
+  {
+    type: 'action',
+    title: '📊 Ver Mis Estadísticas de Música',
+    desc: 'Resumen personal de horas, reproducciones y top canciones',
+    icon: 'fa-chart-pie',
+    action: () => renderStatsModal()
+  }
+];
+
+function openCommandPalette() {
+  if (!modalPalette) return;
+  modalPalette.classList.remove('hidden');
+  if (paletteSearchInput) {
+    paletteSearchInput.value = '';
+    paletteSearchInput.focus();
+  }
+  renderPaletteResults('');
+}
+
+function closeCommandPalette() {
+  if (!modalPalette) return;
+  modalPalette.classList.add('hidden');
+}
+
+function renderPaletteResults(query) {
+  if (!paletteResultsList) return;
+  paletteResultsList.innerHTML = '';
+  paletteItems = [];
+  paletteActiveIndex = 0;
+
+  const q = query.trim().toLowerCase();
+
+  // 1. Matching Actions
+  const matchedActions = quickPaletteActions.filter(a =>
+    a.title.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q)
+  );
+
+  matchedActions.forEach(a => {
+    paletteItems.push({
+      title: a.title,
+      subtitle: a.desc,
+      icon: a.icon,
+      handler: a.action
+    });
+  });
+
+  // 2. Matching Cloud Tracks
+  const allTracks = playlist.length > 0 ? playlist : realPhoneTracks;
+  const matchedTracks = allTracks.filter(t =>
+    t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q)
+  ).slice(0, 8);
+
+  matchedTracks.forEach(t => {
+    paletteItems.push({
+      title: `🎵 ${t.title}`,
+      subtitle: `${t.artist} • ${t.album}`,
+      icon: 'fa-play',
+      handler: () => {
+        const idx = playlist.findIndex(p => p.title === t.title);
+        if (idx >= 0) playTrack(idx);
+        else {
+          playlist = [t, ...playlist];
+          renderTrackList();
+          playTrack(0);
+        }
+      }
+    });
+  });
+
+  // 3. Matching Radio Stations
+  const matchedRadios = radioStations.filter(r =>
+    r.title.toLowerCase().includes(q) || r.genre.toLowerCase().includes(q)
+  );
+  matchedRadios.forEach(r => {
+    paletteItems.push({
+      title: `📻 ${r.title}`,
+      subtitle: `${r.genre} • En Vivo`,
+      icon: 'fa-radio',
+      handler: () => playRadioStation(r)
+    });
+  });
+
+  if (paletteItems.length === 0) {
+    paletteResultsList.innerHTML = `
+      <div style="text-align:center; padding:1.5rem; color:var(--text-muted); font-size:0.85rem;">
+        No se encontraron canciones, radios o comandos para "<strong>${escapeHtml(query)}</strong>".
+      </div>
+    `;
+    return;
+  }
+
+  paletteItems.forEach((item, index) => {
+    const div = document.createElement('div');
+    div.className = `command-palette-item ${index === 0 ? 'active' : ''}`;
+    div.innerHTML = `
+      <i class="fa-solid ${item.icon}"></i>
+      <div style="flex:1; overflow:hidden;">
+        <strong>${item.title}</strong>
+        <span>${item.subtitle}</span>
+      </div>
+      <i class="fa-solid fa-arrow-turn-down" style="font-size:0.75rem; color:var(--text-dim); transform:rotate(90deg);"></i>
+    `;
+
+    div.addEventListener('click', () => {
+      closeCommandPalette();
+      item.handler();
+    });
+
+    paletteResultsList.appendChild(div);
+  });
+}
+
+function updatePaletteActiveItem() {
+  const domItems = paletteResultsList.querySelectorAll('.command-palette-item');
+  domItems.forEach((el, idx) => {
+    el.classList.toggle('active', idx === paletteActiveIndex);
+    if (idx === paletteActiveIndex) {
+      el.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+paletteSearchInput?.addEventListener('input', (e) => {
+  renderPaletteResults(e.target.value);
+});
+
+paletteSearchInput?.addEventListener('keydown', (e) => {
+  if (paletteItems.length === 0) return;
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    paletteActiveIndex = (paletteActiveIndex + 1) % paletteItems.length;
+    updatePaletteActiveItem();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    paletteActiveIndex = (paletteActiveIndex - 1 + paletteItems.length) % paletteItems.length;
+    updatePaletteActiveItem();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (paletteItems[paletteActiveIndex]) {
+      closeCommandPalette();
+      paletteItems[paletteActiveIndex].handler();
+    }
+  }
+});
+
+btnOpenPalette?.addEventListener('click', openCommandPalette);
+btnClosePalette?.addEventListener('click', closeCommandPalette);
+
+// Global Keyboard Shortcut: Ctrl + K or Cmd + K
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (modalPalette?.classList.contains('hidden')) {
+      openCommandPalette();
+    } else {
+      closeCommandPalette();
+    }
+  } else if (e.key === 'Escape') {
+    if (!modalPalette?.classList.contains('hidden')) {
+      closeCommandPalette();
+    }
+  }
+});
+
+// ==========================================
+// 41. STARTUP INITIALIZATION (v4.1.0 TITANIUM)
 // ==========================================
 function initApp() {
   // 1. Render EQ Sliders immediately
@@ -4225,7 +4787,7 @@ function initApp() {
   renderRadioStations();
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '4.0.0';
+  const CATALOG_VERSION = '4.1.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?

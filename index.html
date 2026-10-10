@@ -2231,6 +2231,174 @@
       box-shadow: 0 0 12px rgba(236, 72, 153, 0.4) !important;
     }
 
+    /* A-B Looper Highlight */
+    .scrubber-ab-fill {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      background: rgba(236, 72, 153, 0.45);
+      border-left: 2px solid var(--accent-pink);
+      border-right: 2px solid var(--accent-pink);
+      border-radius: 4px;
+      z-index: 1;
+      pointer-events: none;
+    }
+    .btn-icon-round.ab-active {
+      background: rgba(236, 72, 153, 0.25) !important;
+      border-color: var(--accent-pink) !important;
+      color: var(--accent-pink) !important;
+      box-shadow: 0 0 12px rgba(236, 72, 153, 0.4) !important;
+    }
+
+    /* Command Palette Modal */
+    .command-palette-box {
+      width: 92%;
+      max-width: 580px;
+      background: rgba(16, 18, 30, 0.95);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.75), 0 0 30px rgba(6, 182, 212, 0.2);
+      border-radius: 16px;
+      overflow: hidden;
+      backdrop-filter: blur(24px);
+      display: flex;
+      flex-direction: column;
+      animation: palettePop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes palettePop {
+      0% { opacity: 0; transform: scale(0.96) translateY(-10px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .command-palette-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 1.1rem 1.3rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .command-palette-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-size: 1.05rem;
+      color: #fff;
+    }
+    .command-palette-input::placeholder {
+      color: var(--text-dim);
+    }
+    .command-palette-list {
+      max-height: 380px;
+      overflow-y: auto;
+      padding: 0.6rem;
+    }
+    .command-palette-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      color: #fff;
+    }
+    .command-palette-item:hover, .command-palette-item.active {
+      background: rgba(6, 182, 212, 0.15);
+      border-left: 3px solid var(--accent-cyan);
+    }
+    .command-palette-item i {
+      font-size: 1.1rem;
+      width: 24px;
+      text-align: center;
+      color: var(--accent-cyan);
+    }
+    .command-palette-item strong {
+      font-size: 0.88rem;
+      display: block;
+    }
+    .command-palette-item span {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      display: block;
+    }
+    .command-palette-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1.2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    /* Ambience Soundscapes */
+    .ambience-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.9rem;
+      margin: 1rem 0;
+    }
+    .ambience-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      transition: all 0.2s ease;
+    }
+    .ambience-card:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.08);
+    }
+    .ambience-card.active {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.18);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+    }
+    .ambience-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+
+    /* Speed Selector Popover Chips */
+    .speed-chip-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+    .speed-chip {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 0.45rem 0.95rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .speed-chip:hover {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+    }
+    .speed-chip.active {
+      border-color: var(--accent-cyan);
+      background: var(--accent-cyan);
+      color: #030408;
+      box-shadow: 0 0 14px rgba(6, 182, 212, 0.4);
+    }
+
     .hidden {
       display: none !important;
     }
@@ -2247,7 +2415,7 @@
       <div class="login-brand">
         <i class="fa-solid fa-compact-disc login-brand-icon"></i>
         <h1>DaVE <strong>Player</strong></h1>
-        <span class="brand-badge">PRO v4.0.0 MASTERPIECE</span>
+        <span class="brand-badge">PRO v4.1.0 TITANIUM</span>
       </div>
 
       <div id="full-login-status-box" class="full-login-status-box">
@@ -2302,7 +2470,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v4.0.0</span>
+        <span class="brand-badge">PRO v4.1.0</span>
       </div>
 
       <div class="search-wrapper">
@@ -2314,6 +2482,14 @@
       <div class="top-actions">
         <button id="btn-install-pwa" class="btn-action-pill hidden" title="Instalar DaVE Player como App Nativa" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan);">
           <i class="fa-solid fa-download"></i> <span>Instalar App</span>
+        </button>
+
+        <button id="btn-open-palette" class="btn-action-pill" title="Búsqueda Rápida & Comandos (Ctrl+K)" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.1);">
+          <i class="fa-solid fa-bolt" style="color:var(--accent-cyan);"></i> <span>Comandos <kbd style="font-size:0.65rem; background:rgba(0,0,0,0.3); padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.2rem;">Ctrl+K</kbd></span>
+        </button>
+
+        <button id="btn-open-ambience" class="btn-action-pill" title="Generador de Sonidos Ambientales (Lluvia, Olas, Fuego)">
+          <i class="fa-solid fa-cloud-rain" style="color:#38bdf8;"></i> <span>Ambiente</span>
         </button>
 
         <button id="btn-theme-selector" class="btn-action-pill" title="Cambiar Tema Neón">
@@ -2849,6 +3025,7 @@
           <div class="scrubber-bar-wrap" id="progress-container">
             <div class="scrubber-tooltip" id="scrubber-tooltip">0:00</div>
             <div class="scrubber-bar-bg">
+              <div class="scrubber-ab-fill hidden" id="scrubber-ab-fill"></div>
               <div class="scrubber-bar-fill" id="progress-fill"></div>
             </div>
           </div>
@@ -2863,6 +3040,8 @@
           <i class="fa-solid fa-moon"></i>
           <span id="sleep-timer-badge" class="timer-badge hidden">0m</span>
         </button>
+        <button id="btn-speed-selector" class="btn-icon-round" title="Velocidad & Nightcore/Slowed"><span id="speed-label" style="font-size:0.72rem; font-weight:800;">1.0x</span></button>
+        <button id="btn-ab-loop" class="btn-icon-round" title="Bucle A-B (Repetir segmento)"><span id="ab-loop-label" style="font-size:0.72rem; font-weight:800;">A-B</span></button>
         <button id="btn-toggle-8d" class="btn-icon-round" title="Audio 8D Órbita 360° (Usa Audífonos)"><i class="fa-solid fa-headphones"></i></button>
         <button id="btn-slowed-reverb" class="btn-icon-round" title="Modo Slowed + Reverb (0.85x + Catedral)"><i class="fa-solid fa-hourglass-start"></i></button>
         <button id="btn-record-audio" class="btn-icon-round" title="Grabar Audio Procesado con Efectos (WebM/WAV)" style="position:relative;">
@@ -3258,6 +3437,124 @@
     <canvas id="viz3d-canvas" class="visualizer-3d-canvas"></canvas>
   </div>
 
+  <!-- Modal: Paleta de Comandos & Spotlight (Ctrl+K) -->
+  <div id="modal-command-palette" class="modal-overlay hidden" style="align-items: flex-start; padding-top: 10vh;">
+    <div class="command-palette-box">
+      <div class="command-palette-input-wrap">
+        <i class="fa-solid fa-magnifying-glass" style="color:var(--accent-cyan);"></i>
+        <input type="text" id="palette-search-input" class="command-palette-input" placeholder="Escribe para buscar canciones, radios o comandos...">
+        <button class="btn-close-x" id="btn-close-palette" style="font-size:1.1rem;"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="command-palette-list" id="palette-results-list">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="command-palette-footer">
+        <span><kbd>↑</kbd> <kbd>↓</kbd> Navegar &bull; <kbd>Enter</kbd> Ejecutar &bull; <kbd>Esc</kbd> Cerrar</span>
+        <span style="color:var(--accent-cyan); font-weight:700;">DaVE Spotlight</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Generador de Sonidos Ambientales (Soundscapes) -->
+  <div id="modal-ambience" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 490px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-cloud-rain" style="color:#38bdf8;"></i> Atmósfera & Sonidos Ambientales</h3>
+        <button class="btn-close-x" id="btn-close-ambience"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin:0 0 0.8rem 0;">
+          Genera capas de sonido relajantes de fondo que se mezclan armónicamente con tu música o radio:
+        </p>
+
+        <div class="ambience-grid">
+          <div class="ambience-card" data-sound="rain">
+            <div class="ambience-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;"><i class="fa-solid fa-cloud-showers-heavy"></i></div>
+            <div>
+              <strong style="font-size:0.86rem; color:#fff; display:block;">Lluvia Suave</strong>
+              <span style="font-size:0.72rem; color:var(--text-dim);">Gotas en la ventana</span>
+            </div>
+          </div>
+          <div class="ambience-card" data-sound="waves">
+            <div class="ambience-icon" style="background:rgba(6,182,212,0.15); color:#06b6d4;"><i class="fa-solid fa-water"></i></div>
+            <div>
+              <strong style="font-size:0.86rem; color:#fff; display:block;">Marea Marina</strong>
+              <span style="font-size:0.72rem; color:var(--text-dim);">Olas del océano nocturno</span>
+            </div>
+          </div>
+          <div class="ambience-card" data-sound="fire">
+            <div class="ambience-icon" style="background:rgba(249,115,22,0.15); color:#f97316;"><i class="fa-solid fa-fire"></i></div>
+            <div>
+              <strong style="font-size:0.86rem; color:#fff; display:block;">Hoguera Cálida</strong>
+              <span style="font-size:0.72rem; color:var(--text-dim);">Leña crepitante</span>
+            </div>
+          </div>
+          <div class="ambience-card" data-sound="coffee">
+            <div class="ambience-icon" style="background:rgba(234,179,8,0.15); color:#eab308;"><i class="fa-solid fa-mug-saucer"></i></div>
+            <div>
+              <strong style="font-size:0.86rem; color:#fff; display:block;">Cafetería Lo-Fi</strong>
+              <span style="font-size:0.72rem; color:var(--text-dim);">Murmullo acogedor</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:1.2rem; background:rgba(255,255,255,0.03); border-radius:12px; padding:0.9rem; border:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <span style="font-size:0.82rem; color:#fff; font-weight:700;"><i class="fa-solid fa-volume-low"></i> Volumen de la Atmósfera</span>
+            <span id="ambience-volume-val" style="font-size:0.8rem; color:var(--accent-cyan); font-weight:700;">35%</span>
+          </div>
+          <input type="range" id="ambience-volume-slider" min="0" max="100" value="35" style="width:100%; accent-color:var(--accent-cyan); cursor:pointer;">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem; margin-top:1.2rem;">
+          <button id="btn-ambience-stop" class="btn-outline-secondary" style="font-size:0.84rem; padding:0.5rem 1rem;">
+            <i class="fa-solid fa-stop"></i> Detener Atmósfera
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Selector de Velocidad & Pitch (Speed & Nightcore) -->
+  <div id="modal-speed" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-gauge-high" style="color:var(--accent-cyan);"></i> Velocidad & Pitch Multi-Gear</h3>
+        <button class="btn-close-x" id="btn-close-speed"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin:0 0 0.5rem 0;">
+          Ajusta la velocidad de reproducción y tono de cualquier canción o audio:
+        </p>
+
+        <div class="speed-chip-grid">
+          <button class="speed-chip" data-speed="0.5">0.5x Ultra Slow</button>
+          <button class="speed-chip" data-speed="0.75">0.75x Relajado</button>
+          <button class="speed-chip" data-speed="0.85">0.85x Slowed</button>
+          <button class="speed-chip active" data-speed="1.0">1.0x Normal</button>
+          <button class="speed-chip" data-speed="1.15">1.15x Nightcore Light</button>
+          <button class="speed-chip" data-speed="1.25">1.25x Nightcore</button>
+          <button class="speed-chip" data-speed="1.5">1.5x Speed Up</button>
+          <button class="speed-chip" data-speed="2.0">2.0x Hi-Speed</button>
+        </div>
+
+        <div style="margin-top:1.2rem; background:rgba(255,255,255,0.03); border-radius:12px; padding:0.9rem; border:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <span style="font-size:0.82rem; color:#fff; font-weight:700;">Ajuste Personalizado</span>
+            <span id="speed-custom-val" style="font-size:0.82rem; color:var(--accent-cyan); font-weight:700;">1.00x</span>
+          </div>
+          <input type="range" id="speed-custom-slider" min="0.5" max="2.0" step="0.05" value="1.0" style="width:100%; accent-color:var(--accent-cyan); cursor:pointer;">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.6rem; margin-top:1.2rem;">
+          <button id="btn-speed-reset" class="btn-outline-secondary" style="font-size:0.84rem; padding:0.5rem 1rem;">
+            <i class="fa-solid fa-rotate-left"></i> Restablecer (1.0x)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Glassmorphic Mini-Player Widget -->
   <div id="floating-mini-player" class="floating-mini-player hidden">
     <img id="fmini-art" class="floating-mini-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23191c28'/></svg>" alt="Art">
@@ -3281,6 +3578,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=4.0.0"></script>
+  <script src="app.js?v=4.1.0"></script>
 </body>
 </html>
