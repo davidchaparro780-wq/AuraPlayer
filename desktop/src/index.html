@@ -131,8 +131,9 @@
     }
 
     .search-wrapper {
-      flex: 1;
-      max-width: 480px;
+      flex: 1 1 280px;
+      min-width: 240px;
+      max-width: 420px;
       position: relative;
       display: flex;
       align-items: center;
@@ -140,54 +141,91 @@
 
     .search-icon {
       position: absolute;
-      left: 1.1rem;
+      left: 1rem;
       color: var(--text-dim);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
+      pointer-events: none;
     }
 
     .search-input {
       width: 100%;
-      padding: 0.65rem 1rem 0.65rem 2.6rem;
-      background: rgba(255, 255, 255, 0.05);
+      height: 38px;
+      box-sizing: border-box;
+      padding: 0 2.4rem 0 2.5rem;
+      background: rgba(255, 255, 255, 0.06);
       border: 1px solid var(--border-subtle);
-      border-radius: 30px;
-      color: white;
-      font-size: 0.88rem;
+      border-radius: 20px;
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 500;
       outline: none;
       transition: all 0.2s ease;
     }
 
+    .search-input::placeholder {
+      color: var(--text-dim);
+      font-size: 0.82rem;
+    }
+
     .search-input:focus {
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.1);
       border-color: var(--accent-cyan);
-      box-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 0.75rem;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 4px;
+      display: none;
+      border-radius: 50%;
+      transition: all 0.15s ease;
+    }
+
+    .search-clear-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.15);
     }
 
     .top-actions {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.5rem;
+      flex-shrink: 0;
     }
 
     .btn-action-pill {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      border-radius: 30px;
-      font-size: 0.82rem;
+      gap: 0.45rem;
+      padding: 0.38rem 0.8rem;
+      height: 36px;
+      box-sizing: border-box;
+      border-radius: 20px;
+      font-size: 0.78rem;
       font-weight: 600;
       text-decoration: none;
       border: 1px solid var(--border-subtle);
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text-main);
       cursor: pointer;
-      transition: all 0.2s ease;
+      white-space: nowrap;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .btn-action-pill:hover {
       background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
       transform: translateY(-1px);
+    }
+
+    .btn-action-pill i {
+      font-size: 0.85rem;
     }
 
     .btn-action-pill.accent-sync {
@@ -197,25 +235,108 @@
     }
 
     .btn-action-pill.accent-sync:hover {
-      background: var(--accent-cyan);
-      color: #000;
+      background: rgba(6, 182, 212, 0.22);
+      color: #fff;
     }
 
     .btn-action-pill.btn-download-apk {
       background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
       color: white;
       border-color: transparent;
-      box-shadow: 0 2px 12px var(--primary-glow);
+      box-shadow: 0 2px 10px var(--primary-glow);
     }
 
     .btn-action-pill.btn-download-apk:hover {
-      box-shadow: 0 4px 18px rgba(6, 182, 212, 0.6);
+      box-shadow: 0 4px 16px rgba(6, 182, 212, 0.5);
     }
 
     .btn-action-pill.btn-user-auth {
       border-color: rgba(99, 102, 241, 0.4);
       background: rgba(99, 102, 241, 0.12);
       color: #a5b4fc;
+    }
+
+    .btn-action-pill.btn-user-auth:hover {
+      background: rgba(99, 102, 241, 0.25);
+      color: #fff;
+    }
+
+    /* More Tools Dropdown Container */
+    .more-tools-wrapper {
+      position: relative;
+    }
+
+    .more-tools-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 250px;
+      background: rgba(14, 18, 27, 0.96);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(99, 102, 241, 0.15);
+      padding: 0.4rem;
+      display: none;
+      flex-direction: column;
+      gap: 0.25rem;
+      z-index: 1000;
+      animation: menuFadeIn 0.18s ease-out;
+    }
+
+    .more-tools-dropdown.show {
+      display: flex;
+    }
+
+    @keyframes menuFadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .more-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 10px;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      text-decoration: none;
+      font-size: 0.82rem;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      box-sizing: border-box;
+      transition: all 0.15s ease;
+    }
+
+    .more-menu-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      transform: translateX(2px);
+    }
+
+    .more-menu-item i {
+      font-size: 0.95rem;
+      width: 18px;
+      text-align: center;
+    }
+
+    .menu-item-info {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.25;
+    }
+
+    .menu-item-title {
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .menu-item-sub {
+      font-size: 0.7rem;
+      color: var(--text-dim);
     }
 
     /* Main Content Area */
@@ -2840,12 +2961,8 @@
       </div>
 
       <div class="top-actions">
-        <button id="btn-install-pwa" class="btn-action-pill hidden" title="Instalar DaVE Player como App Nativa" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan);">
-          <i class="fa-solid fa-download"></i> <span>Instalar App</span>
-        </button>
-
-        <button id="btn-open-palette" class="btn-action-pill" title="Búsqueda Rápida & Comandos (Ctrl+K)" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.1);">
-          <i class="fa-solid fa-bolt" style="color:var(--accent-cyan);"></i> <span>Comandos <kbd style="font-size:0.65rem; background:rgba(0,0,0,0.3); padding:0.1rem 0.35rem; border-radius:4px; margin-left:0.2rem;">Ctrl+K</kbd></span>
+        <button id="btn-open-palette" class="btn-action-pill" title="Búsqueda Rápida & Comandos (Ctrl+K)" style="border-color: rgba(6, 182, 212, 0.35); background: rgba(6, 182, 212, 0.08);">
+          <i class="fa-solid fa-bolt" style="color:var(--accent-cyan);"></i> <span>Comandos</span>
         </button>
 
         <button id="btn-open-ambience" class="btn-action-pill" title="Generador de Sonidos Ambientales (Lluvia, Olas, Fuego)">
@@ -2856,29 +2973,57 @@
           <i class="fa-solid fa-scissors" style="color:var(--accent-pink);"></i> <span>Ringtone</span>
         </button>
 
-        <button id="btn-open-backup" class="btn-action-pill" title="Copia de Seguridad & Restaurar">
-          <i class="fa-solid fa-database" style="color:#a855f7;"></i> <span>Backup</span>
-        </button>
-
         <button id="btn-theme-selector" class="btn-action-pill" title="Cambiar Tema Neón">
-          <i class="fa-solid fa-palette"></i> <span>Tema</span>
-        </button>
-
-        <button id="btn-view-stats" class="btn-action-pill" title="Mis Estadísticas">
-          <i class="fa-solid fa-chart-pie"></i> <span>Estadísticas</span>
-        </button>
-
-        <button id="btn-shortcuts-modal" class="btn-action-pill" title="Atajos de Teclado">
-          <i class="fa-regular fa-keyboard"></i> <span>Atajos</span>
+          <i class="fa-solid fa-palette" style="color:#eab308;"></i> <span>Tema</span>
         </button>
 
         <button id="btn-open-sync-modal" class="btn-action-pill accent-sync" title="Conectar celular por WiFi">
           <i class="fa-solid fa-mobile-screen-button"></i> <span>Mi Celular</span>
         </button>
 
-        <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" class="btn-action-pill btn-download-apk" title="Descargar APK para Android">
-          <i class="fa-brands fa-android"></i> <span>Descargar APK</span>
-        </a>
+        <!-- Menú Desplegable Herramientas Compacto & Uniforme -->
+        <div class="more-tools-wrapper">
+          <button id="btn-more-tools" class="btn-action-pill" title="Más herramientas y opciones">
+            <i class="fa-solid fa-sliders" style="color:var(--accent-cyan);"></i> <span>Herramientas</span> <i class="fa-solid fa-chevron-down" style="font-size:0.62rem; margin-left:1px; opacity:0.7;"></i>
+          </button>
+          <div id="menu-more-tools" class="more-tools-dropdown">
+            <button id="btn-open-backup" class="more-menu-item" title="Copia de Seguridad & Restaurar">
+              <i class="fa-solid fa-database" style="color:#a855f7;"></i>
+              <div class="menu-item-info">
+                <span class="menu-item-title">Backup & Restaurar</span>
+                <span class="menu-item-sub">Guardar o cargar biblioteca</span>
+              </div>
+            </button>
+            <button id="btn-view-stats" class="more-menu-item" title="Mis Estadísticas de Música">
+              <i class="fa-solid fa-chart-pie" style="color:#38bdf8;"></i>
+              <div class="menu-item-info">
+                <span class="menu-item-title">Estadísticas</span>
+                <span class="menu-item-sub">Métricas de escucha & top</span>
+              </div>
+            </button>
+            <button id="btn-shortcuts-modal" class="more-menu-item" title="Atajos de Teclado">
+              <i class="fa-regular fa-keyboard" style="color:#f59e0b;"></i>
+              <div class="menu-item-info">
+                <span class="menu-item-title">Atajos de Teclado</span>
+                <span class="menu-item-sub">Guía rápida de teclas</span>
+              </div>
+            </button>
+            <a href="https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.3.0/app-debug.apk" id="btn-download-apk-top" class="more-menu-item" title="Descargar APK para Android">
+              <i class="fa-brands fa-android" style="color:#22c55e;"></i>
+              <div class="menu-item-info">
+                <span class="menu-item-title">Descargar APK Android</span>
+                <span class="menu-item-sub">Instalar en tu teléfono móvil</span>
+              </div>
+            </a>
+            <button id="btn-install-pwa" class="more-menu-item hidden" title="Instalar DaVE Player como App Nativa">
+              <i class="fa-solid fa-download" style="color:var(--accent-cyan);"></i>
+              <div class="menu-item-info">
+                <span class="menu-item-title">Instalar App PC</span>
+                <span class="menu-item-sub">Aplicación de escritorio web</span>
+              </div>
+            </button>
+          </div>
+        </div>
 
         <button id="btn-login-modal" class="btn-user-auth btn-action-pill">
           <i class="fa-solid fa-user"></i> <span id="user-display-name">Iniciar Sesión</span>

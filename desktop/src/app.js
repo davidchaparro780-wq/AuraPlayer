@@ -1345,6 +1345,17 @@ function applyCurrentFilter() {
     searchClearBtn.style.display = rawQ ? 'block' : 'none';
   }
 
+  // Si hay búsqueda global de texto, buscar en TODA la biblioteca y actualizar chip a "Todas"
+  if (q) {
+    currentFilter = 'all';
+    const container = document.getElementById('category-chips');
+    if (container) {
+      container.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.filter === 'all');
+      });
+    }
+  }
+
   // Si el usuario escribe y está en otra pestaña que no es canciones ni celular, cambiar a canciones
   const activePane = document.querySelector('.tab-pane.active');
   const activeTabId = activePane ? activePane.id : '';
@@ -1355,17 +1366,17 @@ function applyCurrentFilter() {
   let list = playlist;
 
   if (currentFilter === 'urban') {
-    list = playlist.filter(t => /bad bunny|blessd|cris mj|westcol|beéle|daddy yankee|urbano|trap/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /bad bunny|blessd|cris mj|westcol|beéle|daddy yankee|floyymenor|louki|urbano|trap|reggaeton/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'pop') {
-    list = playlist.filter(t => /lady gaga|rihanna|ace of base|bôa|pop|dance/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /lady gaga|rihanna|ace of base|bôa|boa|marta s[aá]nchez|pop|dance/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'cyber') {
-    list = playlist.filter(t => /cyberpunk|dawid|edgerunners|topic|phantom|ziraki|sound/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /cyberpunk|edgerunners|dawid|adamczyk|phantom|topic|gigi|ziraki|forssell|electro|synthwave|sound/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'workout') {
-    list = playlist.filter(t => /bad bunny|trap|topic|breaking|cyberpunk|electronic|rock|beast|remix/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /bad bunny|blessd|cris mj|daddy yankee|rihanna|lady gaga|gaga|abracadabra|romance|paparazzi|dishes|pose|somos de calle|qu[eé] l[íi]o|phantom|l'amour|tanzen|remix|ziraki|edm|electro|dance|dubstep|focus|gym|workout/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'chill') {
-    list = playlist.filter(t => /lo-fi|ambient|bôa|relax|chill|slow|acoustic|night/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /happy nation|ace of base|guardian|curly|let you down|dawid|duvet|bôa|boa|color your night|lotus juice|phantom pain|ludvig|dame fuerza|marta s[aá]nchez|synthwave|lo-fi|ambient|relax|chill|slow|calm/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'party') {
-    list = playlist.filter(t => /remix|blessd|dance|club|pop|party|westcol|edgerunners|daddy/i.test(`${t.title} ${t.artist} ${t.album}`));
+    list = playlist.filter(t => /cris mj|floyymenor|blessd|daddy yankee|gigi|tanzen|l'amour|just dance|bad romance|paparazzi|la plena|beéle|westcol|fiesta|club|party|perreo|remix/i.test(`${t.title} ${t.artist} ${t.album}`));
   } else if (currentFilter === 'favs') {
     list = playlist.filter(t => favorites.has(t.title + t.artist));
   }
@@ -1399,12 +1410,37 @@ function setupFilterChips() {
   if (!container) return;
 
   container.querySelectorAll('.filter-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
+    chip.onclick = () => {
       container.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       currentFilter = chip.dataset.filter;
+      // Abrir inmediatamente la pestaña de canciones para mostrar el filtro
+      switchTab('songs');
       applyCurrentFilter();
+    };
+  });
+}
+
+// Dropdown "Herramientas" en Topbar
+const btnMoreTools = document.getElementById('btn-more-tools');
+const menuMoreTools = document.getElementById('menu-more-tools');
+
+if (btnMoreTools && menuMoreTools) {
+  btnMoreTools.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuMoreTools.classList.toggle('show');
+  });
+
+  menuMoreTools.querySelectorAll('.more-menu-item').forEach(item => {
+    item.addEventListener('click', () => {
+      menuMoreTools.classList.remove('show');
     });
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!menuMoreTools.contains(e.target) && e.target !== btnMoreTools && !btnMoreTools.contains(e.target)) {
+      menuMoreTools.classList.remove('show');
+    }
   });
 }
 
@@ -1951,6 +1987,7 @@ function handleSuccessfulLoginCloudSync(userObj = null) {
   localStorage.setItem('dave_cloud_tracks', JSON.stringify(realPhoneTracks));
 
   // 4. Renderizar listas con toda la música
+  setupFilterChips();
   renderTrackList();
   renderPhoneTracksList();
   updateUserUI();
@@ -5674,6 +5711,7 @@ function initApp() {
     }
   }
   updateUserUI();
+  setupFilterChips();
 
   // 5. Verificar si había un servidor de teléfono previamente conectado
   const savedConnectedIp = localStorage.getItem('dave_connected_phone_ip');
