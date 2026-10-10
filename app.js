@@ -36,6 +36,12 @@ let is8DActive = false;
 let animFrame8D = null;
 let orbitAngle = 0;
 
+// Tube Warmth Saturation & Bass Exciter State
+let tubeSaturationNode = null;
+let bassExciterFilter = null;
+let currentTubeMode = 'off';
+let activeRingtoneAudio = null;
+
 let isSlowedReverb = false;
 
 let totalSecondsListened = parseInt(localStorage.getItem('dave_total_seconds') || '0', 10);
@@ -289,6 +295,17 @@ function initAudioEngine() {
     stereoPanner.pan.value = 0;
   }
 
+  // 6b. Vintage Tube Warmth & Bass Exciter
+  tubeSaturationNode = audioCtx.createWaveShaper();
+  tubeSaturationNode.curve = null;
+  tubeSaturationNode.oversample = '4x';
+
+  bassExciterFilter = audioCtx.createBiquadFilter();
+  bassExciterFilter.type = 'peaking';
+  bassExciterFilter.frequency.value = 55;
+  bassExciterFilter.Q.value = 2.0;
+  bassExciterFilter.gain.value = 0;
+
   // 7. Master Gain Node (Controls speaker volume without dampening analyser)
   masterGain = audioCtx.createGain();
   masterGain.gain.value = currentVolume;
@@ -296,11 +313,14 @@ function initAudioEngine() {
   if (stereoPanner) {
     reverbDryGain.connect(stereoPanner);
     reverbWetGain.connect(stereoPanner);
-    stereoPanner.connect(masterGain);
+    stereoPanner.connect(tubeSaturationNode);
   } else {
-    reverbDryGain.connect(masterGain);
-    reverbWetGain.connect(masterGain);
+    reverbDryGain.connect(tubeSaturationNode);
+    reverbWetGain.connect(tubeSaturationNode);
   }
+
+  tubeSaturationNode.connect(bassExciterFilter);
+  bassExciterFilter.connect(masterGain);
 
   masterGain.connect(audioCtx.destination);
 
@@ -445,6 +465,10 @@ function startVisualizerLoop() {
   const vuMelodies = document.getElementById('vu-melodies');
   const strobeBorder = document.querySelector('.canvas-visualizer-wrapper');
   const chkPulse = document.getElementById('chk-strobe-pulse');
+  const vuBarL = document.getElementById('vu-bar-l');
+  const vuBarR = document.getElementById('vu-bar-r');
+  const vuPeakL = document.getElementById('vu-peak-l');
+  const vuPeakR = document.getElementById('vu-peak-r');
 
   function draw() {
     requestAnimationFrame(draw);
@@ -480,6 +504,33 @@ function startVisualizerLoop() {
     if (vuDrums) vuDrums.style.width = `${Math.min(100, (dataArray[16] / 255) * 125)}%`;
     if (vuVocals) vuVocals.style.width = `${Math.min(100, (dataArray[45] / 255) * 125)}%`;
     if (vuMelodies) vuMelodies.style.width = `${Math.min(100, (dataArray[28] / 255) * 125)}%`;
+
+    // Studio Stereo VU Meters (Peak dB & True Level)
+    if (vuBarL && vuBarR) {
+      if (isPlaying) {
+        let sumL = 0;
+        let sumR = 0;
+        const half = Math.min(64, Math.floor(bufferLength / 2));
+        for (let i = 0; i < half; i++) sumL += dataArray[i];
+        for (let i = half; i < half * 2; i++) sumR += dataArray[i];
+        const avgL = (sumL / half) / 255;
+        const avgR = (sumR / half) / 255;
+        const pctL = Math.min(100, Math.round(avgL * 135));
+        const pctR = Math.min(100, Math.round(avgR * 135));
+        vuBarL.style.width = `${pctL}%`;
+        vuBarR.style.width = `${pctR}%`;
+
+        const dbL = avgL > 0.02 ? (20 * Math.log10(avgL)).toFixed(1) : '-inf';
+        const dbR = avgR > 0.02 ? (20 * Math.log10(avgR)).toFixed(1) : '-inf';
+        if (vuPeakL) vuPeakL.innerText = `${dbL} dB`;
+        if (vuPeakR) vuPeakR.innerText = `${dbR} dB`;
+      } else {
+        vuBarL.style.width = '0%';
+        vuBarR.style.width = '0%';
+        if (vuPeakL) vuPeakL.innerText = '-inf dB';
+        if (vuPeakR) vuPeakR.innerText = '-inf dB';
+      }
+    }
 
     if (strobeBorder && chkPulse?.checked && isPlaying) {
       if (bassRatio > 0.58) {
@@ -619,6 +670,36 @@ function renderLyrics(currentTime) {
       l.classList.remove('active');
     }
   });
+
+  // Sync Apple Music Fullscreen Lyrics if overlay is visible
+  const fsBox = document.getElementById('fs-lyrics-container');
+  const fsOverlay = document.getElementById('overlay-fullscreen-lyrics');
+  if (fsBox && fsOverlay && !fsOverlay.classList.contains('hidden')) {
+    if (fsBox.dataset.trackIndex !== String(currentIndex) || fsBox.children.length !== currentLyrics.length) {
+      fsBox.innerHTML = '';
+      fsBox.dataset.trackIndex = String(currentIndex);
+      currentLyrics.forEach((line) => {
+        const div = document.createElement('div');
+        div.className = 'fs-lyric-line';
+        div.dataset.time = line.time;
+        div.innerText = line.text;
+        div.addEventListener('click', () => {
+          audio.currentTime = line.time;
+        });
+        fsBox.appendChild(div);
+      });
+    }
+
+    const fsLines = fsBox.querySelectorAll('.fs-lyric-line');
+    fsLines.forEach((l, idx) => {
+      if (idx === activeIdx) {
+        l.classList.add('active');
+        l.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        l.classList.remove('active');
+      }
+    });
+  }
 }
 
 // ==========================================
@@ -726,6 +807,21 @@ function playTrack(index) {
   const lyrArtist = document.getElementById('lyrics-song-artist');
   if (lyrTitle) lyrTitle.innerText = track.title;
   if (lyrArtist) lyrArtist.innerText = track.artist;
+
+  // Update Fullscreen lyrics & Ringtone modal headers
+  const fsTitle = document.getElementById('fs-lyrics-title');
+  const fsArtist = document.getElementById('fs-lyrics-artist');
+  const fsArt = document.getElementById('fs-lyrics-art');
+  const fsBg = document.getElementById('fs-lyrics-bg');
+  if (fsTitle) fsTitle.innerText = track.title;
+  if (fsArtist) fsArtist.innerText = track.artist;
+  if (fsArt) fsArt.src = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54"><rect width="54" height="54" fill="%23191c28"/></svg>';
+  if (fsBg && track.coverUrl) fsBg.style.backgroundImage = `url("${track.coverUrl}")`;
+
+  const rtTitle = document.getElementById('rt-song-title');
+  const rtArtist = document.getElementById('rt-song-artist');
+  if (rtTitle) rtTitle.innerText = track.title;
+  if (rtArtist) rtArtist.innerText = track.artist;
 
   // Update Like button state
   const trackId = track.title + track.artist;
@@ -4753,7 +4849,401 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ==========================================
-// 41. STARTUP INITIALIZATION (v4.1.0 TITANIUM)
+// 42. CALOR A TUBOS VINTAGE & SUB-BASS EXCITER (v4.2.0 APEX)
+// ==========================================
+function makeTubeCurve(k = 2) {
+  const n_samples = 44100;
+  const curve = new Float32Array(n_samples);
+  const deg = Math.PI / 180;
+  for (let i = 0; i < n_samples; ++i) {
+    const x = (i * 2) / n_samples - 1;
+    curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+  }
+  return curve;
+}
+
+function setTubeWarmth(mode = 'off') {
+  currentTubeMode = mode;
+  const btnToggle = document.getElementById('btn-toggle-tubewarmth');
+  const exciterStatus = document.getElementById('tube-exciter-status');
+
+  document.querySelectorAll('.tube-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.tube === mode);
+  });
+
+  if (!tubeSaturationNode || !bassExciterFilter) return;
+
+  if (mode === 'off') {
+    tubeSaturationNode.curve = null;
+    bassExciterFilter.gain.value = 0;
+    btnToggle?.classList.remove('tube-active');
+    if (exciterStatus) exciterStatus.innerText = 'Inactivo';
+    showToast('Calor a Tubos: Bypass (Desactivado)', 'info', 'fa-fire-flame-curved');
+  } else if (mode === 'warm') {
+    tubeSaturationNode.curve = makeTubeCurve(2);
+    bassExciterFilter.gain.value = 3.5;
+    btnToggle?.classList.add('tube-active');
+    if (exciterStatus) exciterStatus.innerText = '+3.5 dB @ 55Hz (Cálido Vinilo)';
+    showToast('Calor a Tubos: Cálido Vinilo (+2dB Sat)', 'success', 'fa-fire-flame-curved');
+  } else if (mode === 'punch') {
+    tubeSaturationNode.curve = makeTubeCurve(5);
+    bassExciterFilter.gain.value = 6.0;
+    btnToggle?.classList.add('tube-active');
+    if (exciterStatus) exciterStatus.innerText = '+6.0 dB @ 55Hz (Punch Analógico)';
+    showToast('Calor a Tubos: Punch Analógico (+5dB Sat)', 'success', 'fa-fire-flame-curved');
+  } else if (mode === 'beast') {
+    tubeSaturationNode.curve = makeTubeCurve(10);
+    bassExciterFilter.gain.value = 9.0;
+    btnToggle?.classList.add('tube-active');
+    if (exciterStatus) exciterStatus.innerText = '+9.0 dB @ 55Hz (Bestia a Válvulas)';
+    showToast('Calor a Tubos: ¡Bestia a Válvulas al Máximo!', 'warning', 'fa-fire-flame-curved');
+  }
+}
+
+const modalTubeWarmth = document.getElementById('modal-tubewarmth');
+const btnOpenTube = document.getElementById('btn-toggle-tubewarmth');
+const btnCloseTube = document.getElementById('btn-close-tubewarmth');
+
+btnOpenTube?.addEventListener('click', () => {
+  initAudioEngine();
+  modalTubeWarmth?.classList.remove('hidden');
+});
+btnCloseTube?.addEventListener('click', () => {
+  modalTubeWarmth?.classList.add('hidden');
+});
+
+document.querySelectorAll('.tube-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    initAudioEngine();
+    const mode = chip.dataset.tube || 'off';
+    setTubeWarmth(mode);
+  });
+});
+
+// ==========================================
+// 43. RECORTADOR & CREADOR DE RINGTONES (v4.2.0 APEX)
+// ==========================================
+const modalRingtone = document.getElementById('modal-ringtone-maker');
+const btnOpenRingtone = document.getElementById('btn-open-ringtone');
+const btnCloseRingtone = document.getElementById('btn-close-ringtone');
+const btnRtCurrent = document.getElementById('btn-rt-current');
+const btnRtPreview = document.getElementById('btn-rt-preview');
+const btnRtDownload = document.getElementById('btn-rt-download');
+const rtStartInput = document.getElementById('rt-start-sec');
+const rtDurationSel = document.getElementById('rt-duration-sel');
+
+function openRingtoneModal() {
+  if (currentIndex < 0 || !playlist[currentIndex]) {
+    showNotification('Selecciona o reproduce una canción primero para crear tu ringtone.', 'info');
+    return;
+  }
+  const track = playlist[currentIndex];
+  const tTitle = document.getElementById('rt-song-title');
+  const tArtist = document.getElementById('rt-song-artist');
+  if (tTitle) tTitle.innerText = track.title;
+  if (tArtist) tArtist.innerText = track.artist;
+  if (rtStartInput) rtStartInput.value = Math.floor(audio.currentTime || 30);
+  modalRingtone?.classList.remove('hidden');
+}
+
+btnOpenRingtone?.addEventListener('click', openRingtoneModal);
+btnCloseRingtone?.addEventListener('click', () => {
+  modalRingtone?.classList.add('hidden');
+  if (activeRingtoneAudio) {
+    activeRingtoneAudio.pause();
+    activeRingtoneAudio = null;
+    if (btnRtPreview) btnRtPreview.innerHTML = '<i class="fa-solid fa-play"></i> Escuchar Tono';
+  }
+});
+
+btnRtCurrent?.addEventListener('click', () => {
+  if (rtStartInput) {
+    rtStartInput.value = Math.floor(audio.currentTime || 0);
+    showToast(`Punto de inicio establecido en ${formatTime(audio.currentTime || 0)}`, 'info', 'fa-clock');
+  }
+});
+
+btnRtPreview?.addEventListener('click', () => {
+  if (activeRingtoneAudio) {
+    activeRingtoneAudio.pause();
+    activeRingtoneAudio = null;
+    btnRtPreview.innerHTML = '<i class="fa-solid fa-play"></i> Escuchar Tono';
+    return;
+  }
+  const track = playlist[currentIndex];
+  if (!track) return;
+  const src = track.streamUrl || track.demoUrl || (track.fileObj ? URL.createObjectURL(track.fileObj) : audio.src);
+  if (!src) return;
+
+  const startSec = Math.max(0, parseFloat(rtStartInput?.value) || 0);
+  const durSec = parseFloat(rtDurationSel?.value) || 25;
+
+  activeRingtoneAudio = new Audio(src);
+  activeRingtoneAudio.currentTime = startSec;
+  btnRtPreview.innerHTML = '<i class="fa-solid fa-stop"></i> Detener Preview';
+
+  activeRingtoneAudio.play().then(() => {
+    setTimeout(() => {
+      if (activeRingtoneAudio) {
+        activeRingtoneAudio.pause();
+        activeRingtoneAudio = null;
+        if (btnRtPreview) btnRtPreview.innerHTML = '<i class="fa-solid fa-play"></i> Escuchar Tono';
+      }
+    }, durSec * 1000);
+  }).catch(e => {
+    console.warn(e);
+    btnRtPreview.innerHTML = '<i class="fa-solid fa-play"></i> Escuchar Tono';
+  });
+});
+
+function audioBufferToWavBlob(buffer) {
+  const numOfChan = buffer.numberOfChannels;
+  const length = buffer.length * numOfChan * 2 + 44;
+  const out = new DataView(new ArrayBuffer(length));
+  const channels = [];
+  let sample = 0;
+  let offset = 0;
+  let pos = 0;
+
+  function setUint16(data) { out.setUint16(pos, data, true); pos += 2; }
+  function setUint32(data) { out.setUint32(pos, data, true); pos += 4; }
+
+  setUint32(0x46464952); // "RIFF"
+  setUint32(length - 8);
+  setUint32(0x45564157); // "WAVE"
+  setUint32(0x20746d66); // "fmt "
+  setUint32(16);
+  setUint16(1); // PCM
+  setUint16(numOfChan);
+  setUint32(buffer.sampleRate);
+  setUint32(buffer.sampleRate * 2 * numOfChan);
+  setUint16(numOfChan * 2);
+  setUint16(16);
+  setUint32(0x61746164); // "data"
+  setUint32(length - pos - 4);
+
+  for (let i = 0; i < buffer.numberOfChannels; i++) {
+    channels.push(buffer.getChannelData(i));
+  }
+
+  while (offset < buffer.length) {
+    for (let i = 0; i < numOfChan; i++) {
+      sample = Math.max(-1, Math.min(1, channels[i][offset]));
+      sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+      out.setInt16(pos, sample, true);
+      pos += 2;
+    }
+    offset++;
+  }
+
+  return new Blob([out.buffer], { type: 'audio/wav' });
+}
+
+btnRtDownload?.addEventListener('click', async () => {
+  const track = playlist[currentIndex];
+  if (!track) return;
+  const src = track.streamUrl || track.demoUrl || (track.fileObj ? URL.createObjectURL(track.fileObj) : audio.src);
+  if (!src) return;
+
+  const startSec = Math.max(0, parseFloat(rtStartInput?.value) || 0);
+  const durSec = parseFloat(rtDurationSel?.value) || 25;
+
+  btnRtDownload.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Recortando...';
+
+  try {
+    const resp = await fetch(src);
+    const arrayBuf = await resp.arrayBuffer();
+    const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await tempCtx.decodeAudioData(arrayBuf);
+
+    const sampleRate = audioBuffer.sampleRate;
+    const startSample = Math.floor(startSec * sampleRate);
+    const endSample = Math.min(audioBuffer.length, Math.floor((startSec + durSec) * sampleRate));
+    const lengthSamples = endSample - startSample;
+
+    if (lengthSamples <= 0) throw new Error('Rango de tiempo fuera de límites');
+
+    const offlineCtx = new OfflineAudioContext(audioBuffer.numberOfChannels, lengthSamples, sampleRate);
+    const bufferSource = offlineCtx.createBufferSource();
+    bufferSource.buffer = audioBuffer;
+    bufferSource.connect(offlineCtx.destination);
+    bufferSource.start(0, startSec, durSec);
+
+    const rendered = await offlineCtx.startRendering();
+    const wavBlob = audioBufferToWavBlob(rendered);
+
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    const cleanName = (track.title || 'Ringtone').replace(/[^\w\s-]/gi, '').trim().replace(/\s+/g, '_');
+    a.download = `${cleanName}_Ringtone.wav`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 2500);
+
+    showNotification(`¡Ringtone "${track.title}" descargado con éxito!`, 'success');
+  } catch (err) {
+    console.warn('Fallback a descarga directa de audio:', err);
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = `${track.title || 'Ringtone'}.mp3`;
+    a.target = '_blank';
+    a.click();
+    showNotification('Descargando pista completa como tono.', 'info');
+  } finally {
+    btnRtDownload.innerHTML = '<i class="fa-solid fa-download"></i> Descargar Ringtone';
+  }
+});
+
+// ==========================================
+// 44. LETRAS EN PANTALLA COMPLETA CINEMATOGRÁFICAS (v4.2.0 APEX)
+// ==========================================
+const overlayFullscreenLyrics = document.getElementById('overlay-fullscreen-lyrics');
+const btnFullscreenLyrics = document.getElementById('btn-fullscreen-lyrics');
+const btnCloseFsLyrics = document.getElementById('btn-close-fs-lyrics');
+
+function openFullscreenLyrics() {
+  if (!overlayFullscreenLyrics) return;
+  const track = (currentIndex >= 0 && playlist[currentIndex]) ? playlist[currentIndex] : {
+    title: 'DaVE Player',
+    artist: 'Música en vivo',
+    coverUrl: ''
+  };
+
+  const titleEl = document.getElementById('fs-lyrics-title');
+  const artistEl = document.getElementById('fs-lyrics-artist');
+  const artEl = document.getElementById('fs-lyrics-art');
+  const bgEl = document.getElementById('fs-lyrics-bg');
+
+  if (titleEl) titleEl.innerText = track.title;
+  if (artistEl) artistEl.innerText = track.artist;
+  if (artEl) artEl.src = track.coverUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54"><rect width="54" height="54" fill="%23191c28"/></svg>';
+  if (bgEl && track.coverUrl) bgEl.style.backgroundImage = `url("${track.coverUrl}")`;
+
+  overlayFullscreenLyrics.classList.remove('hidden');
+  renderLyrics(audio.currentTime || 0);
+}
+
+function closeFullscreenLyrics() {
+  overlayFullscreenLyrics?.classList.add('hidden');
+}
+
+btnFullscreenLyrics?.addEventListener('click', openFullscreenLyrics);
+btnCloseFsLyrics?.addEventListener('click', closeFullscreenLyrics);
+
+// ==========================================
+// 45. RESPALDO Y RESTAURACIÓN DE BIBLIOTECA JSON (v4.2.0 APEX)
+// ==========================================
+const modalBackup = document.getElementById('modal-backup');
+const btnOpenBackup = document.getElementById('btn-open-backup');
+const btnCloseBackup = document.getElementById('btn-close-backup');
+const btnDoExport = document.getElementById('btn-do-export-backup');
+const inputRestore = document.getElementById('input-restore-backup');
+
+btnOpenBackup?.addEventListener('click', () => {
+  modalBackup?.classList.remove('hidden');
+});
+btnCloseBackup?.addEventListener('click', () => {
+  modalBackup?.classList.add('hidden');
+});
+
+btnDoExport?.addEventListener('click', () => {
+  try {
+    const backupData = {
+      app: 'DaVE Player',
+      version: '4.2.0',
+      exportedAt: new Date().toISOString(),
+      favorites: Array.from(favorites),
+      userPlaylists: userPlaylists,
+      totalSecondsListened: totalSecondsListened,
+      trackPlayCounts: trackPlayCounts,
+      currentTheme: currentTheme,
+      isNormalizerActive: isNormalizerActive,
+      currentTubeMode: currentTubeMode
+    };
+
+    const jsonStr = JSON.stringify(backupData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `DaVE_Player_Backup_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 2000);
+
+    showNotification('¡Copia de seguridad JSON exportada con éxito!', 'success');
+  } catch (err) {
+    console.error(err);
+    showNotification('Error al exportar la copia de seguridad.', 'error');
+  }
+});
+
+inputRestore?.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const data = JSON.parse(event.target.result);
+      if (!data || typeof data !== 'object') throw new Error('Formato inválido');
+
+      if (Array.isArray(data.favorites)) {
+        favorites = new Set(data.favorites);
+        localStorage.setItem('dave_favorites', JSON.stringify(data.favorites));
+        if (favoritesCount) favoritesCount.innerText = favorites.size;
+        const filterFav = document.getElementById('filter-favs-count');
+        if (filterFav) filterFav.innerText = favorites.size;
+      }
+
+      if (Array.isArray(data.userPlaylists)) {
+        userPlaylists = data.userPlaylists;
+        saveUserPlaylists();
+        renderPlaylists();
+      }
+
+      if (data.totalSecondsListened) {
+        totalSecondsListened = parseInt(data.totalSecondsListened, 10) || totalSecondsListened;
+        localStorage.setItem('dave_total_seconds', totalSecondsListened.toString());
+      }
+
+      if (data.trackPlayCounts && typeof data.trackPlayCounts === 'object') {
+        trackPlayCounts = data.trackPlayCounts;
+        localStorage.setItem('dave_track_plays', JSON.stringify(trackPlayCounts));
+      }
+
+      if (data.currentTheme) {
+        currentTheme = data.currentTheme;
+        applyTheme(currentTheme);
+      }
+
+      if (data.currentTubeMode) {
+        setTubeWarmth(data.currentTubeMode);
+      }
+
+      renderTrackList();
+      renderPhoneTracksList();
+      showNotification(`¡Restauración exitosa! (${userPlaylists.length} playlists, ${favorites.size} favoritas)`, 'success');
+      modalBackup?.classList.add('hidden');
+    } catch (err) {
+      console.error(err);
+      showNotification('Error al leer el archivo JSON de respaldo. Verifica que sea un archivo válido.', 'error');
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ==========================================
+// 46. STARTUP INITIALIZATION (v4.2.0 APEX)
 // ==========================================
 function initApp() {
   // 1. Render EQ Sliders immediately
@@ -4787,7 +5277,7 @@ function initApp() {
   renderRadioStations();
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '4.1.0';
+  const CATALOG_VERSION = '4.2.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?
