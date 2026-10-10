@@ -380,6 +380,14 @@ function initAudioEngine() {
   // Audio element itself stays at 1.0 so analyser always receives full audio signal
   audio.volume = 1.0;
 
+  // Restore active user sound enhancements if previously selected
+  if (currentTubeMode && currentTubeMode !== 'off') {
+    setTubeWarmth(currentTubeMode, true);
+  }
+  if (stereoWidenerMode && stereoWidenerMode !== 'normal') {
+    setStereoWidener(stereoWidenerMode, true);
+  }
+
   startVisualizerLoop();
 }
 
@@ -708,15 +716,19 @@ function renderLyrics(currentTime) {
     }
   }
 
-  const lines = box.querySelectorAll('.lyric-line');
-  lines.forEach((l, idx) => {
-    if (idx === activeIdx) {
-      l.classList.add('active');
-      l.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else {
-      l.classList.remove('active');
-    }
-  });
+  // Only scroll into view and toggle class if activeIdx has changed
+  if (box.dataset.activeIdx !== String(activeIdx)) {
+    box.dataset.activeIdx = String(activeIdx);
+    const lines = box.querySelectorAll('.lyric-line');
+    lines.forEach((l, idx) => {
+      if (idx === activeIdx) {
+        l.classList.add('active');
+        l.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        l.classList.remove('active');
+      }
+    });
+  }
 
   // Sync Apple Music Fullscreen Lyrics if overlay is visible
   const fsBox = document.getElementById('fs-lyrics-container');
@@ -725,6 +737,7 @@ function renderLyrics(currentTime) {
     if (fsBox.dataset.trackIndex !== String(currentIndex) || fsBox.children.length !== currentLyrics.length) {
       fsBox.innerHTML = '';
       fsBox.dataset.trackIndex = String(currentIndex);
+      fsBox.dataset.activeIdx = '-1';
       currentLyrics.forEach((line) => {
         const div = document.createElement('div');
         div.className = 'fs-lyric-line';
@@ -737,15 +750,18 @@ function renderLyrics(currentTime) {
       });
     }
 
-    const fsLines = fsBox.querySelectorAll('.fs-lyric-line');
-    fsLines.forEach((l, idx) => {
-      if (idx === activeIdx) {
-        l.classList.add('active');
-        l.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        l.classList.remove('active');
-      }
-    });
+    if (fsBox.dataset.activeIdx !== String(activeIdx)) {
+      fsBox.dataset.activeIdx = String(activeIdx);
+      const fsLines = fsBox.querySelectorAll('.fs-lyric-line');
+      fsLines.forEach((l, idx) => {
+        if (idx === activeIdx) {
+          l.classList.add('active');
+          l.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          l.classList.remove('active');
+        }
+      });
+    }
   }
 }
 
@@ -2050,10 +2066,24 @@ function logoutUser() {
     updateUserUI();
   } catch (e) {}
 
-  // 5. Cerrar cualquier modal abierto
+  // 5. Cerrar cualquier modal abierto y detener previews de audio
   modalAuth?.classList.add('hidden');
   modalSync?.classList.add('hidden');
   document.getElementById('modal-shortcuts')?.classList.add('hidden');
+  document.getElementById('modal-equalizer')?.classList.add('hidden');
+  document.getElementById('modal-spatial-reverb')?.classList.add('hidden');
+  document.getElementById('modal-speed')?.classList.add('hidden');
+  document.getElementById('modal-ringtone-maker')?.classList.add('hidden');
+  document.getElementById('modal-pitch-shifter')?.classList.add('hidden');
+  document.getElementById('modal-backup')?.classList.add('hidden');
+  document.getElementById('modal-tubewarmth')?.classList.add('hidden');
+  document.getElementById('overlay-fullscreen-lyrics')?.classList.add('hidden');
+  if (activeRingtoneAudio) {
+    try {
+      activeRingtoneAudio.pause();
+      activeRingtoneAudio = null;
+    } catch (e) {}
+  }
 
   // 6. OCULTAR TOTALMENTE EL REPRODUCTOR Y MOSTRAR LA PANTALLA PRINCIPAL DE INICIAR SESIÓN
   const appViewport = document.querySelector('.app-viewport') || document.getElementById('app-viewport');
@@ -3652,11 +3682,11 @@ function toggleSlowedReverb() {
   }
 
   if (isSlowedReverb) {
-    audio.playbackRate = 0.85;
+    applyPlaybackRateAndPitch();
     setSpatialReverb('cathedral');
     showToast('🌌 Modo Slowed + Reverb activado (0.85x + Catedral)', 'success', 'fa-hourglass-start');
   } else {
-    audio.playbackRate = 1.0;
+    applyPlaybackRateAndPitch();
     setSpatialReverb('off');
     showToast('Modo normal restaurado (1.0x)', 'info', 'fa-hourglass-start');
   }
@@ -4079,7 +4109,7 @@ function playRadioStation(station) {
 
   activeRadioStation = station;
   audio.src = station.streamUrl;
-  audio.playbackRate = isSlowedReverb ? 0.85 : 1.0;
+  applyPlaybackRateAndPitch();
 
   audio.play().then(() => {
     isPlaying = true;
@@ -4438,7 +4468,7 @@ const btnSpeedReset = document.getElementById('btn-speed-reset');
 
 function setPlaybackSpeed(speed) {
   currentPlaybackSpeed = parseFloat(speed);
-  audio.playbackRate = currentPlaybackSpeed;
+  applyPlaybackRateAndPitch();
 
   if (speedLabel) speedLabel.innerText = `${currentPlaybackSpeed}x`;
   if (speedCustomSlider) speedCustomSlider.value = currentPlaybackSpeed;
@@ -4920,8 +4950,9 @@ function makeTubeCurve(k = 2) {
   return curve;
 }
 
-function setTubeWarmth(mode = 'off') {
+function setTubeWarmth(mode = 'off', silent = false) {
   currentTubeMode = mode;
+  localStorage.setItem('dave_tube_warmth', mode);
   const btnToggle = document.getElementById('btn-toggle-tubewarmth');
   const exciterStatus = document.getElementById('tube-exciter-status');
 
@@ -4936,25 +4967,25 @@ function setTubeWarmth(mode = 'off') {
     bassExciterFilter.gain.value = 0;
     btnToggle?.classList.remove('tube-active');
     if (exciterStatus) exciterStatus.innerText = 'Inactivo';
-    showToast('Calor a Tubos: Bypass (Desactivado)', 'info', 'fa-fire-flame-curved');
+    if (!silent) showToast('Calor a Tubos: Bypass (Desactivado)', 'info', 'fa-fire-flame-curved');
   } else if (mode === 'warm') {
     tubeSaturationNode.curve = makeTubeCurve(2);
     bassExciterFilter.gain.value = 3.5;
     btnToggle?.classList.add('tube-active');
     if (exciterStatus) exciterStatus.innerText = '+3.5 dB @ 55Hz (Cálido Vinilo)';
-    showToast('Calor a Tubos: Cálido Vinilo (+2dB Sat)', 'success', 'fa-fire-flame-curved');
+    if (!silent) showToast('Calor a Tubos: Cálido Vinilo (+2dB Sat)', 'success', 'fa-fire-flame-curved');
   } else if (mode === 'punch') {
     tubeSaturationNode.curve = makeTubeCurve(5);
     bassExciterFilter.gain.value = 6.0;
     btnToggle?.classList.add('tube-active');
     if (exciterStatus) exciterStatus.innerText = '+6.0 dB @ 55Hz (Punch Analógico)';
-    showToast('Calor a Tubos: Punch Analógico (+5dB Sat)', 'success', 'fa-fire-flame-curved');
+    if (!silent) showToast('Calor a Tubos: Punch Analógico (+5dB Sat)', 'success', 'fa-fire-flame-curved');
   } else if (mode === 'beast') {
     tubeSaturationNode.curve = makeTubeCurve(10);
     bassExciterFilter.gain.value = 9.0;
     btnToggle?.classList.add('tube-active');
     if (exciterStatus) exciterStatus.innerText = '+9.0 dB @ 55Hz (Bestia a Válvulas)';
-    showToast('Calor a Tubos: ¡Bestia a Válvulas al Máximo!', 'warning', 'fa-fire-flame-curved');
+    if (!silent) showToast('Calor a Tubos: ¡Bestia a Válvulas al Máximo!', 'warning', 'fa-fire-flame-curved');
   }
 }
 
@@ -5261,6 +5292,7 @@ inputRestore?.addEventListener('change', (e) => {
         if (favoritesCount) favoritesCount.innerText = favorites.size;
         const filterFav = document.getElementById('filter-favs-count');
         if (filterFav) filterFav.innerText = favorites.size;
+        if (pstatFavs) pstatFavs.innerText = favorites.size;
       }
 
       if (Array.isArray(data.userPlaylists)) {
@@ -5303,8 +5335,9 @@ inputRestore?.addEventListener('change', (e) => {
 // ==========================================
 // 47. EXPANSOR ESTÉREO 3D & HAAS SOUNDSTAGE (v4.3.0 INFINITY)
 // ==========================================
-function setStereoWidener(mode = 'normal') {
+function setStereoWidener(mode = 'normal', silent = false) {
   stereoWidenerMode = mode;
+  localStorage.setItem('dave_stereo_widener', mode);
   const btn = document.getElementById('btn-toggle-widener');
 
   if (!widenerCrossGainL || !widenerCrossGainR) return;
@@ -5314,7 +5347,7 @@ function setStereoWidener(mode = 'normal') {
     widenerCrossGainR.gain.value = 0;
     btn?.classList.remove('widener-active');
     btn?.setAttribute('title', 'Expansor Estéreo: Normal (100%)');
-    showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', 'Bypass (Normal 100%)');
+    if (!silent) showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', 'Bypass (Normal 100%)');
   } else if (mode === 'wide') {
     widenerCrossDelayL.delayTime.value = 0.014;
     widenerCrossDelayR.delayTime.value = 0.014;
@@ -5322,7 +5355,7 @@ function setStereoWidener(mode = 'normal') {
     widenerCrossGainR.gain.value = -0.35;
     btn?.classList.add('widener-active');
     btn?.setAttribute('title', 'Expansor Estéreo: Amplio (150%)');
-    showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', 'Escenario Amplio (150%)');
+    if (!silent) showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', 'Escenario Amplio (150%)');
   } else if (mode === 'superwide') {
     widenerCrossDelayL.delayTime.value = 0.024;
     widenerCrossDelayR.delayTime.value = 0.024;
@@ -5330,7 +5363,7 @@ function setStereoWidener(mode = 'normal') {
     widenerCrossGainR.gain.value = -0.55;
     btn?.classList.add('widener-active');
     btn?.setAttribute('title', 'Expansor Estéreo: 3D Holográfico (200%)');
-    showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', '¡Inmersión 3D Total (200%)!');
+    if (!silent) showHUD('fa-arrows-left-right-to-line', 'Estéreo 3D', '¡Inmersión 3D Total (200%)!');
   }
 }
 
@@ -5367,8 +5400,9 @@ function applyPlaybackRateAndPitch() {
   }
 }
 
-function setPitchSemitones(semitones) {
+function setPitchSemitones(semitones, skipHUD = false) {
   currentPitchSemitones = Math.max(-6, Math.min(6, semitones));
+  localStorage.setItem('dave_pitch_semitones', currentPitchSemitones.toString());
 
   if (pitchBadgeLabel) {
     pitchBadgeLabel.innerText = currentPitchSemitones > 0 ? `+${currentPitchSemitones}` : `${currentPitchSemitones}`;
@@ -5392,8 +5426,10 @@ function setPitchSemitones(semitones) {
 
   applyPlaybackRateAndPitch();
 
-  const sub = currentPitchSemitones === 0 ? 'Original (0)' : (currentPitchSemitones > 0 ? `+${currentPitchSemitones} Semitonos` : `${currentPitchSemitones} Semitonos`);
-  showHUD('fa-music', 'Tonalidad Karaoke', sub);
+  if (!skipHUD) {
+    const sub = currentPitchSemitones === 0 ? 'Original (0)' : (currentPitchSemitones > 0 ? `+${currentPitchSemitones} Semitonos` : `${currentPitchSemitones} Semitonos`);
+    showHUD('fa-music', 'Tonalidad Karaoke', sub);
+  }
 }
 
 btnOpenPitch?.addEventListener('click', () => {
@@ -5486,6 +5522,32 @@ function initApp() {
 
   // Populate Radio Stations
   renderRadioStations();
+
+  // Restore sound enhancement settings from localStorage
+  const savedTube = localStorage.getItem('dave_tube_warmth');
+  if (savedTube) {
+    currentTubeMode = savedTube;
+    document.querySelectorAll('.tube-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.tube === currentTubeMode);
+    });
+    const btnToggleTube = document.getElementById('btn-toggle-tubewarmth');
+    btnToggleTube?.classList.toggle('tube-active', currentTubeMode !== 'off');
+  }
+
+  const savedWidener = localStorage.getItem('dave_stereo_widener');
+  if (savedWidener) {
+    stereoWidenerMode = savedWidener;
+    const btnWidener = document.getElementById('btn-toggle-widener');
+    btnWidener?.classList.toggle('widener-active', stereoWidenerMode !== 'normal');
+  }
+
+  const savedPitch = localStorage.getItem('dave_pitch_semitones');
+  if (savedPitch !== null) {
+    const pVal = parseInt(savedPitch, 10);
+    if (!isNaN(pVal) && pVal !== 0) {
+      setPitchSemitones(pVal, true);
+    }
+  }
 
   // 3. Versioning y catálogo
   const CATALOG_VERSION = '4.3.0';
