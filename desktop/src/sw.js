@@ -1,9 +1,9 @@
-// DaVE Player Pro — Service Worker v3.7.0
-const CACHE_NAME = 'dave-player-v3.7.0';
+// DaVE Player Pro — Service Worker v3.8.0
+const CACHE_NAME = 'dave-player-v3.8.0';
 const STATIC_ASSETS = [
   './index.html',
-  './style.css?v=3.7.0',
-  './app.js?v=3.7.0',
+  './style.css?v=3.8.0',
+  './app.js?v=3.8.0',
   './manifest.json'
 ];
 
