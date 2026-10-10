@@ -48,8 +48,18 @@ object VideoToAudioExtractor {
 
             extractor.selectTrack(audioTrackIndex)
 
-            // Crear archivo destino en la carpeta de Música o archivos de la app
-            val musicDir = context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
+            // Crear archivo destino en la carpeta pública de Música (o fallback a almacenamiento de la app)
+            val publicMusicDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                "DaVE_Extracted"
+            ).apply {
+                if (!exists()) mkdirs()
+            }
+            val musicDir = if (publicMusicDir.exists() && publicMusicDir.canWrite()) {
+                publicMusicDir
+            } else {
+                context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
+            }
             val safeName = outputFileName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
             val outputFile = File(musicDir, "${safeName}.m4a")
 
@@ -66,17 +76,40 @@ object VideoToAudioExtractor {
             val buffer = ByteBuffer.allocate(maxBufferSize)
             val bufferInfo = MediaCodec.BufferInfo()
 
+            var lastPresentationTimeUs = 0L
+            var isFirstSample = true
+
             while (true) {
                 bufferInfo.offset = 0
                 bufferInfo.size = extractor.readSampleData(buffer, 0)
                 if (bufferInfo.size < 0) {
                     break
                 }
-                bufferInfo.presentationTimeUs = extractor.sampleTime
+                val sampleTimeUs = extractor.sampleTime
+                if (isFirstSample) {
+                    lastPresentationTimeUs = 0L
+                    isFirstSample = false
+                } else if (sampleTimeUs > lastPresentationTimeUs) {
+                    lastPresentationTimeUs = sampleTimeUs
+                } else {
+                    lastPresentationTimeUs += 1000L
+                }
+
+                bufferInfo.presentationTimeUs = lastPresentationTimeUs
                 bufferInfo.flags = extractor.sampleFlags
                 muxer.writeSampleData(muxerAudioTrack, buffer, bufferInfo)
                 extractor.advance()
             }
+
+            // Escanear el archivo para que aparezca inmediatamente en MediaStore y la biblioteca
+            try {
+                android.media.MediaScannerConnection.scanFile(
+                    context,
+                    arrayOf(outputFile.absolutePath),
+                    arrayOf("audio/mp4", "audio/m4a"),
+                    null
+                )
+            } catch (_: Exception) {}
 
             outputFile
         } catch (_: Exception) {

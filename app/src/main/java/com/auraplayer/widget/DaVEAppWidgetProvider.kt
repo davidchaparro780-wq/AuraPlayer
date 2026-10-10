@@ -12,9 +12,11 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.widget.RemoteViews
+import androidx.media3.common.Player
 import com.auraplayer.MainActivity
 import com.auraplayer.R
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.service.PlaybackService
 
 /**
  * Proveedor de Widget de Escritorio para DaVE Player (Material 3 Cyberpunk).
@@ -30,19 +32,19 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        val controller = MainActivity.activeController
+        val player: Player? = MainActivity.activeController ?: PlaybackService.activePlayer
 
         when (intent.action) {
             ACTION_PLAY_PAUSE -> {
-                controller?.let {
+                player?.let {
                     if (it.isPlaying) it.pause() else it.play()
                 }
             }
             ACTION_NEXT -> {
-                controller?.seekToNextMediaItem()
+                player?.seekToNextMediaItem()
             }
             ACTION_PREV -> {
-                controller?.seekToPreviousMediaItem()
+                player?.seekToPreviousMediaItem()
             }
         }
     }
@@ -54,6 +56,27 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
 
         private var currentSongCached: MediaModel? = null
         private var isPlayingCached: Boolean = false
+
+        fun updateWidgetFromPlayer(context: Context, player: Player?) {
+            if (player == null) return
+            val mediaItem = player.currentMediaItem
+            val metadata = mediaItem?.mediaMetadata
+            val title = metadata?.title?.toString() ?: "DaVE Player"
+            val artist = metadata?.artist?.toString() ?: ""
+            val artworkUri = metadata?.artworkUri
+            val isPlaying = player.isPlaying
+            val song = MediaModel(
+                id = mediaItem?.mediaId?.toLongOrNull() ?: 0L,
+                title = title,
+                artist = artist,
+                album = metadata?.albumTitle?.toString() ?: "",
+                duration = player.duration.coerceAtLeast(0L),
+                path = "",
+                uri = Uri.EMPTY,
+                artworkUri = artworkUri
+            )
+            updateAllWidgets(context, song, isPlaying)
+        }
 
         fun updateAllWidgets(context: Context, song: MediaModel?, isPlaying: Boolean) {
             currentSongCached = song

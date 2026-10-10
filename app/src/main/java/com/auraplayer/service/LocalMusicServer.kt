@@ -199,9 +199,15 @@ class LocalMusicServer {
 
             val requestLine = reader.readLine() ?: return
 
-            // Consume all remaining headers to avoid TCP RST on close
+            val reqHeaders = mutableMapOf<String, String>()
             var headerLine: String? = reader.readLine()
             while (!headerLine.isNullOrEmpty()) {
+                val colon = headerLine.indexOf(':')
+                if (colon > 0) {
+                    val key = headerLine.substring(0, colon).trim().lowercase()
+                    val value = headerLine.substring(colon + 1).trim()
+                    reqHeaders[key] = value
+                }
                 headerLine = reader.readLine()
             }
 
@@ -240,14 +246,14 @@ class LocalMusicServer {
                 }
                 path == "/stream/current" -> {
                     val song = controller?.getCurrentSong()
-                    if (song != null) streamSong(socket, song)
+                    if (song != null) streamSong(socket, song, reqHeaders["range"])
                     else serve404(socket)
                 }
                 path.startsWith("/stream") -> {
                     val id = if (rawPath.contains("id=")) rawPath.substringAfter("id=").substringBefore("&").toLongOrNull()
                              else path.removePrefix("/stream/").removePrefix("/stream").toLongOrNull()
                     val song = songList.firstOrNull { it.id == id }
-                    if (song != null) streamSong(socket, song)
+                    if (song != null) streamSong(socket, song, reqHeaders["range"])
                     else serve404(socket)
                 }
                 else -> serve404(socket)
@@ -715,7 +721,7 @@ checkSong();
         sendResponse(socket, "200 OK", "text/html; charset=UTF-8", html.toByteArray(Charsets.UTF_8))
     }
 
-    private fun streamSong(socket: Socket, song: MediaModel) {
+    private fun streamSong(socket: Socket, song: MediaModel, rangeHeader: String? = null) {
         var inputStream: InputStream? = null
         var fileSize = 0L
         val file = if (song.path.isNotBlank()) File(song.path) else null
@@ -743,20 +749,74 @@ checkSong();
             else -> "audio/mpeg"
         }
 
-        val headers = "HTTP/1.1 200 OK\r\n" +
-                "Content-Type: $mimeType\r\n" +
-                (if (fileSize > 0) "Content-Length: $fileSize\r\n" else "") +
-                "Accept-Ranges: bytes\r\n" +
-                "Access-Control-Allow-Origin: *\r\n" +
-                "Connection: close\r\n\r\n"
+        var startOffset = 0L
+        var endOffset = if (fileSize > 0) fileSize - 1 else -1L
+        var isPartial = false
+
+        if (!rangeHeader.isNullOrBlank() && rangeHeader.startsWith("bytes=") && fileSize > 0) {
+            try {
+                val rangeVal = rangeHeader.removePrefix("bytes=").trim()
+                val parts = rangeVal.split("-")
+                val rStart = parts.getOrNull(0)?.toLongOrNull()
+                val rEnd = parts.getOrNull(1)?.toLongOrNull()
+
+                if (rStart != null) {
+                    startOffset = rStart.coerceIn(0L, fileSize - 1)
+                    if (rEnd != null && rEnd >= startOffset) {
+                        endOffset = rEnd.coerceIn(startOffset, fileSize - 1)
+                    }
+                    isPartial = true
+                }
+            } catch (_: Exception) {}
+        }
 
         val out = socket.getOutputStream()
-        out.write(headers.toByteArray(Charsets.ISO_8859_1))
-        out.flush()
 
-        inputStream.use { ins ->
-            ins.copyTo(out)
+        if (isPartial && fileSize > 0) {
+            val contentLength = endOffset - startOffset + 1
+            val headers = "HTTP/1.1 206 Partial Content\r\n" +
+                    "Content-Type: $mimeType\r\n" +
+                    "Content-Range: bytes $startOffset-$endOffset/$fileSize\r\n" +
+                    "Content-Length: $contentLength\r\n" +
+                    "Accept-Ranges: bytes\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Connection: close\r\n\r\n"
+            out.write(headers.toByteArray(Charsets.ISO_8859_1))
+            out.flush()
+
+            inputStream.use { ins ->
+                var skipped = 0L
+                while (skipped < startOffset) {
+                    val n = ins.skip(startOffset - skipped)
+                    if (n <= 0) break
+                    skipped += n
+                }
+
+                val buffer = ByteArray(16 * 1024)
+                var remaining = contentLength
+                while (remaining > 0) {
+                    val toRead = remaining.coerceAtMost(buffer.size.toLong()).toInt()
+                    val read = ins.read(buffer, 0, toRead)
+                    if (read < 0) break
+                    out.write(buffer, 0, read)
+                    remaining -= read
+                }
+            }
+        } else {
+            val headers = "HTTP/1.1 200 OK\r\n" +
+                    "Content-Type: $mimeType\r\n" +
+                    (if (fileSize > 0) "Content-Length: $fileSize\r\n" else "") +
+                    "Accept-Ranges: bytes\r\n" +
+                    "Access-Control-Allow-Origin: *\r\n" +
+                    "Connection: close\r\n\r\n"
+            out.write(headers.toByteArray(Charsets.ISO_8859_1))
+            out.flush()
+
+            inputStream.use { ins ->
+                ins.copyTo(out)
+            }
         }
+
         out.flush()
         try { socket.shutdownOutput() } catch (_: Exception) {}
     }

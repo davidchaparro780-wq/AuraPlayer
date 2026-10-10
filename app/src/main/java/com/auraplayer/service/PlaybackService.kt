@@ -32,6 +32,9 @@ class PlaybackService : MediaSessionService() {
 
     companion object {
         const val CHANNEL_ID = "aura_playback_channel"
+        @Volatile
+        var activePlayer: ExoPlayer? = null
+            private set
     }
 
     @OptIn(UnstableApi::class)
@@ -72,6 +75,8 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .build()
 
+        activePlayer = player
+
         EqualizerManager.instance.initPrefs(this)
         EqualizerManager.instance.attachToAudioSession(player.audioSessionId)
         com.auraplayer.audio.RealtimeVisualizerManager.instance.attachToAudioSession(player.audioSessionId)
@@ -86,6 +91,11 @@ class PlaybackService : MediaSessionService() {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
                 EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
                 com.auraplayer.audio.VibeModeManager.setVibe(com.auraplayer.audio.VibeModeManager.currentVibe, player)
+                com.auraplayer.widget.DaVEAppWidgetProvider.updateWidgetFromPlayer(this@PlaybackService, player)
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                com.auraplayer.widget.DaVEAppWidgetProvider.updateWidgetFromPlayer(this@PlaybackService, player)
             }
 
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -244,6 +254,9 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        if (activePlayer == player) {
+            activePlayer = null
+        }
         serviceScope.cancel()
         com.auraplayer.audio.RealtimeVisualizerManager.instance.release()
         mediaSession?.run {

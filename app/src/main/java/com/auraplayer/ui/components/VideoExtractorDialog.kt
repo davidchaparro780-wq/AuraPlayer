@@ -148,7 +148,8 @@ fun VideoExtractorDialog(
                                             )
                                             isExtracting = false
                                             if (outFile != null && outFile.exists()) {
-                                                Toast.makeText(context, "Audio extraído: ${video.title}", Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, "Audio extraído en Música: ${video.title}", Toast.LENGTH_LONG).show()
+                                                kotlinx.coroutines.delay(350)
                                                 onAudioExtracted()
                                                 onDismiss()
                                             } else {

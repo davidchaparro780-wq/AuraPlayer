@@ -1038,6 +1038,9 @@ fun AuraApp(
         }, MoreExecutors.directExecutor())
 
         onDispose {
+            if (MainActivity.activeController == controller) {
+                MainActivity.activeController = null
+            }
             controller?.release()
         }
     }

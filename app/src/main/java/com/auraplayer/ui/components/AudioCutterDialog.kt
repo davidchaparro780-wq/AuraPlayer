@@ -168,12 +168,42 @@ fun AudioCutterDialog(
 
     fun applyRingtoneType(type: Int, label: String) {
         if (!checkWriteSettingsPermission()) return
-        try {
-            RingtoneManager.setActualDefaultRingtoneUri(context, type, song.uri)
-            Toast.makeText(context, "¡'$label' actualizado con éxito! 🎉", Toast.LENGTH_SHORT).show()
-            onDismiss()
-        } catch (e: Exception) {
-            Toast.makeText(context, "Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+        isTrimming = true
+        scope.launch(Dispatchers.IO) {
+            try {
+                val isSubRange = startSec > 0.5f || endSec < (totalSec - 0.5f)
+                val targetUri = if (isSubRange) {
+                    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Cuts")
+                    if (!dir.exists()) dir.mkdirs()
+                    val safeName = song.title.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                    val outExt = if (song.path.endsWith(".m4a", true)) "m4a" else "mp3"
+                    val outFile = File(dir, "${safeName}_corte_${startSec.toInt()}s_${endSec.toInt()}s.$outExt")
+                    if (!outFile.exists() || outFile.length() == 0L) {
+                        trimAudioFile(context, song.uri, outFile, (startSec * 1000).toLong(), (endSec * 1000).toLong())
+                    }
+                    android.media.MediaScannerConnection.scanFile(context, arrayOf(outFile.absolutePath), null, null)
+                    Uri.fromFile(outFile)
+                } else {
+                    song.uri
+                }
+
+                withContext(Dispatchers.Main) {
+                    try {
+                        RingtoneManager.setActualDefaultRingtoneUri(context, type, targetUri)
+                        Toast.makeText(context, "¡'$label' actualizado con éxito! 🎉", Toast.LENGTH_SHORT).show()
+                        onDismiss()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Error al fijar tono: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    } finally {
+                        isTrimming = false
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    isTrimming = false
+                    Toast.makeText(context, "Error al procesar tono: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
 
@@ -483,6 +513,9 @@ private fun trimAudioFile(
 
     extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
+    var lastPresentationTimeUs = 0L
+    var isFirstSample = true
+
     try {
         while (true) {
             val sampleSize = extractor.readSampleData(buffer, 0)
@@ -491,9 +524,19 @@ private fun trimAudioFile(
             val sampleTimeUs = extractor.sampleTime
             if (sampleTimeUs > endMs * 1000) break
 
+            val adjustedTimeUs = (sampleTimeUs - (startMs * 1000)).coerceAtLeast(0L)
+            if (isFirstSample) {
+                lastPresentationTimeUs = 0L
+                isFirstSample = false
+            } else if (adjustedTimeUs > lastPresentationTimeUs) {
+                lastPresentationTimeUs = adjustedTimeUs
+            } else {
+                lastPresentationTimeUs += 1000L
+            }
+
             bufferInfo.offset = 0
             bufferInfo.size = sampleSize
-            bufferInfo.presentationTimeUs = sampleTimeUs - (startMs * 1000)
+            bufferInfo.presentationTimeUs = lastPresentationTimeUs
             bufferInfo.flags = extractor.sampleFlags
 
             muxer.writeSampleData(muxerTrack, buffer, bufferInfo)

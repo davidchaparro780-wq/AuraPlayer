@@ -436,8 +436,11 @@ class VaultManager(private val context: Context) {
                     null
                 )?.use { cursor ->
                     if (cursor.moveToFirst()) {
-                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
-                        return ContentUris.withAppendedId(baseUri, id)
+                        val idCol = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+                        if (idCol >= 0) {
+                            val id = cursor.getLong(idCol)
+                            return ContentUris.withAppendedId(baseUri, id)
+                        }
                     }
                 }
             } catch (_: Exception) {}

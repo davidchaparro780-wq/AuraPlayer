@@ -1,11 +1,15 @@
 package com.auraplayer.audio
 
 import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.core.app.NotificationCompat
+import com.auraplayer.service.PlaybackService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -113,12 +117,59 @@ class MusicAlarmManager(private val context: Context) {
 
 class MusicAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Launch MainActivity with flag to start playing music gently
-        val launchIntent = Intent(context, Class.forName("com.auraplayer.MainActivity")).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("alarm_wake", true)
-            putExtra("alarm_label", intent.getStringExtra("alarm_label") ?: "Alarma DaVE")
+        val alarmLabel = intent.getStringExtra("alarm_label") ?: "Alarma DaVE"
+        val channelId = "dave_alarm_channel"
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && notificationManager != null) {
+            val channel = NotificationChannel(
+                channelId,
+                "Alarmas DaVE Player",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificaciones de alarma musical"
+                enableVibration(true)
+            }
+            notificationManager.createNotificationChannel(channel)
         }
-        context.startActivity(launchIntent)
+
+        val launchIntent = Intent(context, Class.forName("com.auraplayer.MainActivity")).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("alarm_wake", true)
+            putExtra("alarm_label", alarmLabel)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            intent.getIntExtra("alarm_id", 0),
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("⏰ $alarmLabel")
+            .setContentText("¡Hora de despertar! Toca para abrir tu música en DaVE Player.")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setFullScreenIntent(pendingIntent, true)
+            .build()
+
+        notificationManager?.notify(1001 + intent.getIntExtra("alarm_id", 0), notification)
+
+        // Reproducir suavemente si el reproductor está activo
+        try {
+            PlaybackService.activePlayer?.let { player ->
+                if (!player.isPlaying) {
+                    player.play()
+                }
+            }
+        } catch (_: Exception) {}
+
+        try {
+            context.startActivity(launchIntent)
+        } catch (_: Exception) {}
     }
 }

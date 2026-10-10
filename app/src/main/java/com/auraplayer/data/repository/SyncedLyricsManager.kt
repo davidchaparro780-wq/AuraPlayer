@@ -83,6 +83,23 @@ class SyncedLyricsManager(private val context: Context) {
         val local = getLocalSyncedLyrics(song.id)
         if (local != null && local.isNotEmpty()) return@withContext local
 
+        // 1.5. Verificar archivo compañero offline .lrc en la misma carpeta física del audio
+        try {
+            if (song.path.isNotBlank()) {
+                val songFile = File(song.path)
+                if (songFile.exists()) {
+                    val companionLrc = File(songFile.parentFile, "${songFile.nameWithoutExtension}.lrc")
+                    if (companionLrc.exists() && companionLrc.length() > 0) {
+                        val parsed = parseLrc(companionLrc.readText())
+                        if (parsed.isNotEmpty()) {
+                            saveSyncedLyrics(song.id, companionLrc.readText())
+                            return@withContext parsed
+                        }
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
         // 2. Consultar API pública de LRCLIB
         try {
             val cleanTitle = song.title.replace(Regex("(?i)\\(.*?\\)|\\[.*?\\]"), "").trim()
