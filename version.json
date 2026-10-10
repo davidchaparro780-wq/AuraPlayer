@@ -1,7 +1,7 @@
 {
-  "versionCode": 71,
-  "versionName": "3.7.1",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.1/app-debug.apk",
-  "changelog": "🔒 DaVE Player v3.7.1 (Build 71):\n• 🎬 Selección Múltiple de Videos y Fotos en la Bóveda: Ahora puedes seleccionar varios videos o fotos al mismo tiempo desde tu galería para ocultarlos y protegerlos en la Bóveda en un solo paso.\n• ⚡ Procesamiento por lotes y blindaje de permisos de borrado de galería en Android 13/14.",
+  "versionCode": 72,
+  "versionName": "3.7.2",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.2/app-debug.apk",
+  "changelog": "🛡️ DaVE Player v3.7.2 (Build 72):\n• 🚫 Cero duplicados en la Bóveda: Detección inteligente de nombres originales y deduplicación por archivo para evitar que se muestren videos repetidos.\n• 🔕 Eliminada notificación repetitiva de permisos: Ya no te redirige a los ajustes del sistema en cada video guardado. Flujo limpio y silencioso con banner opcional y descartable con (X).",
   "fileSizeMb": 24.1
 }

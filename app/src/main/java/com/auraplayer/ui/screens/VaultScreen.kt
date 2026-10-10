@@ -108,6 +108,9 @@ fun VaultScreen(
     var isUnlocked by remember { mutableStateOf(false) }
     var isPinSet by remember { mutableStateOf(vaultManager.isPinSet()) }
 
+    val vaultPrefs = remember { context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE) }
+    var isBannerDismissed by remember { mutableStateOf(vaultPrefs.getBoolean("vault_banner_dismissed", false)) }
+
     // PIN Setup / Entry state
     var enteredPin by remember { mutableStateOf("") }
     var setupFirstPin by remember { mutableStateOf("") }
@@ -203,12 +206,13 @@ fun VaultScreen(
                             androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
                     } else {
-                        Toast.makeText(context, "Para borrar de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
-                        vaultManager.openAllFilesAccessSettings(context)
+                        val total = successCount + pendingDeleteList.size
+                        val msg = if (total == 1) "🔒 Video protegido en la Bóveda" else "🔒 $total videos protegidos en la Bóveda"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         refreshItems()
                     }
                 } else if (successCount > 0) {
-                    val msg = if (successCount == 1) "🔒 Video ocultado de la galería y protegido en Bóveda" else "🔒 $successCount videos ocultados y protegidos en Bóveda"
+                    val msg = if (successCount == 1) "🔒 Video protegido en la Bóveda" else "🔒 $successCount videos protegidos en la Bóveda"
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     refreshItems()
                 }
@@ -254,12 +258,13 @@ fun VaultScreen(
                             androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
                     } else {
-                        Toast.makeText(context, "Para borrar de la galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
-                        vaultManager.openAllFilesAccessSettings(context)
+                        val total = successCount + pendingDeleteList.size
+                        val msg = if (total == 1) "🔒 Foto protegida en la Bóveda" else "🔒 $total fotos protegidas en la Bóveda"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         refreshItems()
                     }
                 } else if (successCount > 0) {
-                    val msg = if (successCount == 1) "🔒 Foto ocultada de la galería y protegida en Bóveda" else "🔒 $successCount fotos ocultadas y protegidas en Bóveda"
+                    val msg = if (successCount == 1) "🔒 Foto protegida en la Bóveda" else "🔒 $successCount fotos protegidas en la Bóveda"
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     refreshItems()
                 }
@@ -613,26 +618,36 @@ fun VaultScreen(
                     )
                 }
 
-                // Storage Permission banner if not granted on Android 11+
-                if (!vaultManager.hasAllFilesAccess()) {
+                // Storage Permission banner if not granted on Android 11+ and not dismissed
+                if (!vaultManager.hasAllFilesAccess() && !isBannerDismissed) {
                     androidx.compose.material3.Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                            .clickable { vaultManager.openAllFilesAccessSettings(context) },
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
                         color = Color(0xFF1E1B4B),
                         shape = RoundedCornerShape(12.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.5f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(12.dp),
+                            modifier = Modifier
+                                .clickable { vaultManager.openAllFilesAccessSettings(context) }
+                                .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Permiso de Archivos Recomendado", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                Text("Toca aquí para permitir que DaVE elimine automáticamente los videos de tu galería principal de Android.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                                Text("Permiso de Archivos Opcional", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Toca aquí si deseas que DaVE borre automáticamente los videos de la galería al guardarlos.", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                            }
+                            IconButton(
+                                onClick = {
+                                    isBannerDismissed = true
+                                    vaultPrefs.edit().putBoolean("vault_banner_dismissed", true).apply()
+                                },
+                                modifier = Modifier.size(28.dp)
+                            ) {
+                                Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                             }
                         }
                     }

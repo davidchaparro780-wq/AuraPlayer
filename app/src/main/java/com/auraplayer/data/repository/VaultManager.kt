@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.provider.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -219,6 +220,26 @@ class VaultManager(private val context: Context) {
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
+    fun resolveFileNameFromUri(uri: Uri?): String? {
+        if (uri == null) return null
+        try {
+            if (uri.scheme == "file") {
+                return File(uri.path ?: "").name
+            }
+            val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx != -1) {
+                        val name = cursor.getString(idx)
+                        if (!name.isNullOrBlank()) return name
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return uri.lastPathSegment?.substringAfterLast("/")
+    }
+
     suspend fun getVaultItems(): List<VaultItem> = withContext(Dispatchers.IO) {
         val itemsMap = mutableMapOf<String, VaultItem>()
 
@@ -230,17 +251,16 @@ class VaultManager(private val context: Context) {
             File(externalAppVaultDir, "videos") to true,
             File(externalAppVaultDir, "photos") to false,
             File(Environment.getExternalStorageDirectory(), ".dave_vault/videos") to true,
-            File(Environment.getExternalStorageDirectory(), ".dave_vault/photos") to false,
-            File(context.filesDir, "vault/videos") to true,
-            File(context.filesDir, "vault/photos") to false
+            File(Environment.getExternalStorageDirectory(), ".dave_vault/photos") to false
         )
 
         for ((dir, isVideo) in candidateDirs) {
             try {
                 if (dir.exists()) {
                     dir.listFiles()?.filter { it.isFile && it.name != ".nomedia" && it.length() > 0 }?.forEach { f ->
-                        if (!itemsMap.containsKey(f.name)) {
-                            itemsMap[f.name] = VaultItem(
+                        val dedupeKey = "${if (isVideo) "v_" else "p_"}${f.name.lowercase().trim()}"
+                        if (!itemsMap.containsKey(dedupeKey)) {
+                            itemsMap[dedupeKey] = VaultItem(
                                 id = f.name,
                                 file = f,
                                 name = f.nameWithoutExtension,
@@ -271,25 +291,6 @@ class VaultManager(private val context: Context) {
             } catch (_: Exception) {}
         }
 
-        // Also check if any known hidden path still exists on disk
-        val hiddenPaths = prefs.getStringSet(hiddenPathsKey, emptySet()) ?: emptySet()
-        for (hp in hiddenPaths) {
-            try {
-                val f = File(hp)
-                if (f.exists() && f.isFile && f.length() > 0 && !itemsMap.containsKey(f.name)) {
-                    val isVid = hp.endsWith(".mp4", true) || hp.endsWith(".mkv", true) || hp.endsWith(".webm", true)
-                    itemsMap[f.name] = VaultItem(
-                        id = f.name,
-                        file = f,
-                        name = f.nameWithoutExtension,
-                        isVideo = isVid,
-                        sizeBytes = f.length(),
-                        dateAdded = f.lastModified()
-                    )
-                }
-            } catch (_: Exception) {}
-        }
-
         itemsMap.values.sortedByDescending { it.dateAdded }
     }
 
@@ -303,13 +304,37 @@ class VaultManager(private val context: Context) {
             val targetDir = if (isVideo) videoVaultDir else photoVaultDir
             val persistentDir = if (isVideo) persistentVideoVaultDir else persistentPhotoVaultDir
 
-            val ext = if (sourcePath != null && sourcePath.contains(".")) {
+            // Determine original file name and extension
+            var originalFileName: String? = null
+            if (!sourcePath.isNullOrBlank()) {
+                originalFileName = File(sourcePath).name
+            } else if (sourceUri != null) {
+                originalFileName = resolveFileNameFromUri(sourceUri)
+            }
+
+            val ext = if (originalFileName != null && originalFileName.contains(".")) {
+                "." + originalFileName.substringAfterLast(".")
+            } else if (sourcePath != null && sourcePath.contains(".")) {
                 "." + sourcePath.substringAfterLast(".")
             } else if (isVideo) ".mp4" else ".jpg"
 
-            val baseName = customName ?: "hidden_${System.currentTimeMillis()}"
-            val targetFile = File(targetDir, "${baseName}${ext}")
-            val persistentFile = File(persistentDir, "${baseName}${ext}")
+            val rawBaseName = customName
+                ?: (originalFileName?.substringBeforeLast(".")?.takeIf { it.isNotBlank() })
+                ?: "hidden_${System.currentTimeMillis()}"
+
+            // Clean characters for safe filename
+            val safeBaseName = rawBaseName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
+
+            val targetFile = File(targetDir, "${safeBaseName}${ext}")
+            val persistentFile = File(persistentDir, "${safeBaseName}${ext}")
+
+            // If this exact file already exists in vault and has content (>0 bytes), avoid duplicate re-copy!
+            if (targetFile.exists() && targetFile.length() > 0) {
+                val realSourcePath = sourcePath ?: resolveRealPathFromUri(sourceUri)
+                if (realSourcePath != null) markPathAsHidden(realSourcePath)
+                markPathAsHidden(targetFile.name)
+                return@withContext targetFile
+            }
 
             var realSourcePath = sourcePath
             if (realSourcePath.isNullOrBlank() && sourceUri != null) {
@@ -384,9 +409,23 @@ class VaultManager(private val context: Context) {
                     }
                 }
             } catch (_: Exception) {}
+
+            // 3. Android Photo Picker URIs (e.g. content://media/picker/0/com.android.providers.media.photopicker/media/1000000001)
+            try {
+                val lastSeg = uri.lastPathSegment
+                val idLong = lastSeg?.toLongOrNull()
+                if (idLong != null) {
+                    val testUri = ContentUris.withAppendedId(baseUri, idLong)
+                    ctx.contentResolver.query(testUri, arrayOf(MediaStore.MediaColumns._ID), null, null, null)?.use { cur ->
+                        if (cur.moveToFirst()) {
+                            return testUri
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
         }
 
-        // 3. Query MediaStore by file path
+        // 4. Query MediaStore by file path
         if (!filePath.isNullOrBlank()) {
             try {
                 ctx.contentResolver.query(
