@@ -31,6 +31,17 @@ let reverbDryGain = null;
 let reverbWetGain = null;
 let currentReverbPreset = 'off';
 
+let stereoPanner = null;
+let is8DActive = false;
+let animFrame8D = null;
+let orbitAngle = 0;
+
+let isSlowedReverb = false;
+
+let totalSecondsListened = parseInt(localStorage.getItem('dave_total_seconds') || '0', 10);
+let trackPlayCounts = JSON.parse(localStorage.getItem('dave_track_plays') || '{}');
+let currentTheme = localStorage.getItem('dave_theme') || 'cyberpunk';
+
 let sleepTimerInterval = null;
 let sleepTimerRemaining = 0;
 let sleepTimerMode = null; // null, 'minutes', 'end-track'
@@ -239,11 +250,25 @@ function initAudioEngine() {
   analyserNode.connect(convolverNode);
   convolverNode.connect(reverbWetGain);
 
-  // 6. Master Gain Node (Controls speaker volume without dampening analyser)
+  // 6. Stereo Panner Node for 8D Orbital Audio
+  if (audioCtx.createStereoPanner) {
+    stereoPanner = audioCtx.createStereoPanner();
+    stereoPanner.pan.value = 0;
+  }
+
+  // 7. Master Gain Node (Controls speaker volume without dampening analyser)
   masterGain = audioCtx.createGain();
   masterGain.gain.value = currentVolume;
-  reverbDryGain.connect(masterGain);
-  reverbWetGain.connect(masterGain);
+
+  if (stereoPanner) {
+    reverbDryGain.connect(stereoPanner);
+    reverbWetGain.connect(stereoPanner);
+    stereoPanner.connect(masterGain);
+  } else {
+    reverbDryGain.connect(masterGain);
+    reverbWetGain.connect(masterGain);
+  }
+
   masterGain.connect(audioCtx.destination);
 
   // Audio element itself stays at 1.0 so analyser always receives full audio signal
@@ -614,6 +639,13 @@ function playTrack(index) {
     updatePlayPauseUI();
     showToast(`Reproduciendo: ${track.title}`, 'info', 'fa-play');
 
+    audio.playbackRate = isSlowedReverb ? 0.85 : 1.0;
+
+    // Track playback statistics
+    const trackKey = `${track.title} — ${track.artist}`;
+    trackPlayCounts[trackKey] = (trackPlayCounts[trackKey] || 0) + 1;
+    localStorage.setItem('dave_track_plays', JSON.stringify(trackPlayCounts));
+
     // Ramp volume back up smoothly to currentVolume (velvety crossfade)
     if (masterGain && audioCtx) {
       try {
@@ -762,6 +794,14 @@ audio.addEventListener('timeupdate', () => {
         position: audio.currentTime
       });
     } catch (e) {}
+  }
+
+  // Track listening time statistics
+  if (isPlaying) {
+    totalSecondsListened += 0.25;
+    if (Math.floor(totalSecondsListened) % 15 === 0) {
+      localStorage.setItem('dave_total_seconds', Math.floor(totalSecondsListened).toString());
+    }
   }
 });
 
@@ -3333,7 +3373,245 @@ async function togglePictureInPicture() {
 btnPipPlayer?.addEventListener('click', togglePictureInPicture);
 
 // ==========================================
-// 26. STARTUP INITIALIZATION
+// 27. DYNAMIC 8D AUDIO ENGINE (360° ORBIT)
+// ==========================================
+const btnToggle8D = document.getElementById('btn-toggle-8d');
+
+function loop8D() {
+  if (!is8DActive) return;
+  orbitAngle += 0.022; // ~10 seconds per full 360-degree rotation
+  if (stereoPanner && audioCtx) {
+    try {
+      const panVal = Math.sin(orbitAngle);
+      stereoPanner.pan.setValueAtTime(panVal, audioCtx.currentTime);
+    } catch (e) {}
+  }
+  animFrame8D = requestAnimationFrame(loop8D);
+}
+
+function toggle8DAudio() {
+  initAudioEngine();
+  is8DActive = !is8DActive;
+
+  if (btnToggle8D) {
+    btnToggle8D.classList.toggle('active', is8DActive);
+    btnToggle8D.classList.toggle('orbit-active', is8DActive);
+  }
+
+  if (is8DActive) {
+    orbitAngle = 0;
+    loop8D();
+    showToast('🎧 Audio 8D Órbita 360° activado (Usa audífonos)', 'success', 'fa-headphones');
+  } else {
+    if (animFrame8D) cancelAnimationFrame(animFrame8D);
+    if (stereoPanner && audioCtx) {
+      try {
+        stereoPanner.pan.setValueAtTime(0, audioCtx.currentTime);
+      } catch (e) {}
+    }
+    showToast('Audio 8D desactivado', 'info', 'fa-headphones');
+  }
+}
+
+btnToggle8D?.addEventListener('click', toggle8DAudio);
+
+// ==========================================
+// 28. SLOWED + REVERB MODE (1-CLICK NOSTALGIA)
+// ==========================================
+const btnSlowedReverb = document.getElementById('btn-slowed-reverb');
+
+function toggleSlowedReverb() {
+  initAudioEngine();
+  isSlowedReverb = !isSlowedReverb;
+
+  if (btnSlowedReverb) {
+    btnSlowedReverb.classList.toggle('active', isSlowedReverb);
+  }
+
+  if (isSlowedReverb) {
+    audio.playbackRate = 0.85;
+    setSpatialReverb('cathedral');
+    showToast('🌌 Modo Slowed + Reverb activado (0.85x + Catedral)', 'success', 'fa-hourglass-start');
+  } else {
+    audio.playbackRate = 1.0;
+    setSpatialReverb('off');
+    showToast('Modo normal restaurado (1.0x)', 'info', 'fa-hourglass-start');
+  }
+}
+
+btnSlowedReverb?.addEventListener('click', toggleSlowedReverb);
+
+// ==========================================
+// 29. THEME SWITCHER (CUSTOM COLOR PALETTES)
+// ==========================================
+const themes = {
+  cyberpunk: {
+    name: 'Cyber Glow',
+    primary: '#6366f1',
+    primaryGlow: 'rgba(99, 102, 241, 0.5)',
+    cyan: '#06b6d4',
+    pink: '#ec4899',
+    borderGlow: 'rgba(99, 102, 241, 0.35)'
+  },
+  emerald: {
+    name: 'Emerald Green',
+    primary: '#10b981',
+    primaryGlow: 'rgba(16, 185, 129, 0.5)',
+    cyan: '#34d399',
+    pink: '#6ee7b7',
+    borderGlow: 'rgba(16, 185, 129, 0.35)'
+  },
+  crimson: {
+    name: 'Crimson Red',
+    primary: '#ef4444',
+    primaryGlow: 'rgba(239, 68, 68, 0.5)',
+    cyan: '#f87171',
+    pink: '#fb7185',
+    borderGlow: 'rgba(239, 68, 68, 0.35)'
+  },
+  sunset: {
+    name: 'Sunset Wave',
+    primary: '#ec4899',
+    primaryGlow: 'rgba(236, 72, 153, 0.5)',
+    cyan: '#f97316',
+    pink: '#f43f5e',
+    borderGlow: 'rgba(236, 72, 153, 0.35)'
+  },
+  diamond: {
+    name: 'Ice Diamond',
+    primary: '#38bdf8',
+    primaryGlow: 'rgba(56, 189, 248, 0.5)',
+    cyan: '#7dd3fc',
+    pink: '#cbd5e1',
+    borderGlow: 'rgba(56, 189, 248, 0.35)'
+  }
+};
+
+const modalTheme = document.getElementById('modal-theme');
+const btnThemeSelector = document.getElementById('btn-theme-selector');
+const btnCloseTheme = document.getElementById('btn-close-theme');
+
+function applyTheme(themeKey, notify = false) {
+  const t = themes[themeKey] || themes.cyberpunk;
+  currentTheme = themeKey;
+  localStorage.setItem('dave_theme', themeKey);
+
+  const root = document.documentElement;
+  root.style.setProperty('--primary', t.primary);
+  root.style.setProperty('--primary-glow', t.primaryGlow);
+  root.style.setProperty('--accent-cyan', t.cyan);
+  root.style.setProperty('--accent-pink', t.pink);
+  root.style.setProperty('--border-glow', t.borderGlow);
+
+  document.querySelectorAll('.theme-card').forEach(card => {
+    card.classList.toggle('active', card.dataset.theme === themeKey);
+  });
+
+  if (notify) {
+    showToast(`Tema visual: ${t.name}`, 'success', 'fa-palette');
+  }
+}
+
+btnThemeSelector?.addEventListener('click', () => modalTheme?.classList.remove('hidden'));
+btnCloseTheme?.addEventListener('click', () => modalTheme?.classList.add('hidden'));
+
+document.querySelectorAll('.theme-card').forEach(card => {
+  card.addEventListener('click', () => {
+    applyTheme(card.dataset.theme, true);
+    modalTheme?.classList.add('hidden');
+  });
+});
+
+// ==========================================
+// 30. DAVE STATS (PERSONAL LISTENING SUMMARY)
+// ==========================================
+const modalStats = document.getElementById('modal-stats');
+const btnViewStats = document.getElementById('btn-view-stats');
+const btnCloseStats = document.getElementById('btn-close-stats');
+const statTotalTime = document.getElementById('stat-total-time');
+const statTotalPlays = document.getElementById('stat-total-plays');
+const statTopArtist = document.getElementById('stat-top-artist');
+const statFavsCount = document.getElementById('stat-favs-count');
+const statTopTracks = document.getElementById('stat-top-tracks');
+
+function renderStatsModal() {
+  if (!modalStats) return;
+
+  // 1. Total listening time
+  const totalMins = Math.floor(totalSecondsListened / 60);
+  if (statTotalTime) {
+    if (totalMins >= 60) {
+      const hrs = Math.floor(totalMins / 60);
+      const mins = totalMins % 60;
+      statTotalTime.innerText = `${hrs}h ${mins}m`;
+    } else {
+      statTotalTime.innerText = `${totalMins} min`;
+    }
+  }
+
+  // 2. Play counts and Top Tracks
+  const trackEntries = Object.entries(trackPlayCounts);
+  let totalPlays = 0;
+  const artistCounts = {};
+
+  trackEntries.forEach(([key, count]) => {
+    totalPlays += count;
+    const parts = key.split(' — ');
+    const artist = parts[1] || 'Varios';
+    artistCounts[artist] = (artistCounts[artist] || 0) + count;
+  });
+
+  if (statTotalPlays) statTotalPlays.innerText = totalPlays;
+
+  // 3. Top Artist
+  let topArtist = '-';
+  let topArtistCount = 0;
+  Object.entries(artistCounts).forEach(([art, count]) => {
+    if (count > topArtistCount) {
+      topArtistCount = count;
+      topArtist = art;
+    }
+  });
+  if (statTopArtist) statTopArtist.innerText = topArtist;
+
+  // 4. Favorites count
+  if (statFavsCount) statFavsCount.innerText = favorites.size;
+
+  // 5. Top 5 Tracks List
+  if (statTopTracks) {
+    statTopTracks.innerHTML = '';
+    const sortedTracks = trackEntries.sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    if (sortedTracks.length === 0) {
+      statTopTracks.innerHTML = '<div style="color:var(--text-muted); font-size:0.82rem; padding:0.5rem; text-align:center;">Aún no hay reproducciones registradas. ¡Escucha música para ver tus estadísticas!</div>';
+    } else {
+      sortedTracks.forEach(([key, count], idx) => {
+        const parts = key.split(' — ');
+        const title = parts[0];
+        const artist = parts[1] || '';
+        const item = document.createElement('div');
+        item.className = 'top-track-item';
+        item.innerHTML = `
+          <span class="top-track-rank">#${idx + 1}</span>
+          <div class="top-track-meta">
+            <strong>${title}</strong>
+            <span>${artist}</span>
+          </div>
+          <span class="top-track-count">${count} ${count === 1 ? 'play' : 'plays'}</span>
+        `;
+        statTopTracks.appendChild(item);
+      });
+    }
+  }
+
+  modalStats.classList.remove('hidden');
+}
+
+btnViewStats?.addEventListener('click', renderStatsModal);
+btnCloseStats?.addEventListener('click', () => modalStats?.classList.add('hidden'));
+
+// ==========================================
+// 31. STARTUP INITIALIZATION (v3.9.0)
 // ==========================================
 function initApp() {
   // 1. Render EQ Sliders immediately
@@ -3353,12 +3631,15 @@ function initApp() {
 
   loadUserPlaylists();
 
+  // Apply Theme
+  applyTheme(currentTheme);
+
   // Normalizer button state
   const btnNormalizer = document.getElementById('btn-toggle-normalizer');
   if (btnNormalizer) btnNormalizer.classList.toggle('active', isNormalizerActive);
 
   // 3. Versioning y catálogo
-  const CATALOG_VERSION = '3.8.0';
+  const CATALOG_VERSION = '3.9.0';
   localStorage.setItem('dave_catalog_ver', CATALOG_VERSION);
 
   // 4. Session check: ¿Existe sesión activa en esta sesión de navegación?

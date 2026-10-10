@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="style.css?v=3.8.0">
+  <link rel="stylesheet" href="style.css?v=3.9.0">
 
   <style>
     /* CRITICAL INLINE STYLES (Guarantees zero-cache rendering) */
@@ -1219,8 +1219,9 @@
     .player-right-dock {
       display: flex;
       align-items: center;
-      gap: 0.8rem;
-      width: 280px;
+      gap: 0.55rem;
+      width: auto;
+      max-width: 440px;
       justify-content: flex-end;
     }
 
@@ -1958,6 +1959,127 @@
       color: var(--accent-cyan);
     }
 
+    /* Theme Modal Grid */
+    .theme-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    .theme-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 12px;
+      padding: 0.85rem 0.65rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .theme-card:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+    .theme-card.active {
+      border-color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.3);
+    }
+    .theme-swatch {
+      width: 44px;
+      height: 22px;
+      border-radius: 11px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+    .theme-card strong {
+      font-size: 0.82rem;
+      color: #fff;
+    }
+
+    /* Stats Modal Cards */
+    .stats-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .stat-kpi-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 0.85rem;
+      text-align: center;
+    }
+    .stat-kpi-card strong {
+      display: block;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-bottom: 0.2rem;
+    }
+    .stat-kpi-card span {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+    .top-tracks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .top-track-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.65rem;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+    }
+    .top-track-rank {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      width: 22px;
+    }
+    .top-track-meta {
+      flex: 1;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .top-track-meta strong {
+      display: block;
+      font-size: 0.82rem;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .top-track-meta span {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+    .top-track-count {
+      font-size: 0.76rem;
+      color: var(--accent-pink);
+      font-weight: 700;
+    }
+
+    /* 8D Orbit Pulsing Animation */
+    @keyframes orbitPulse {
+      0% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent-cyan)); }
+      50% { transform: scale(1.15); filter: drop-shadow(0 0 10px var(--accent-cyan)); }
+      100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent-cyan)); }
+    }
+    .btn-icon-round.orbit-active i {
+      animation: orbitPulse 2s infinite ease-in-out;
+      color: var(--accent-cyan);
+    }
+
     .hidden {
       display: none !important;
     }
@@ -1974,7 +2096,7 @@
       <div class="login-brand">
         <i class="fa-solid fa-compact-disc login-brand-icon"></i>
         <h1>DaVE <strong>Player</strong></h1>
-        <span class="brand-badge">PRO v3.8.0 CLOUD</span>
+        <span class="brand-badge">PRO v3.9.0 CLOUD</span>
       </div>
 
       <div id="full-login-status-box" class="full-login-status-box">
@@ -2029,7 +2151,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v3.8.0</span>
+        <span class="brand-badge">PRO v3.9.0</span>
       </div>
 
       <div class="search-wrapper">
@@ -2041,6 +2163,14 @@
       <div class="top-actions">
         <button id="btn-install-pwa" class="btn-action-pill hidden" title="Instalar DaVE Player como App Nativa" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.12); color: var(--accent-cyan);">
           <i class="fa-solid fa-download"></i> <span>Instalar App</span>
+        </button>
+
+        <button id="btn-theme-selector" class="btn-action-pill" title="Cambiar Tema Neón">
+          <i class="fa-solid fa-palette"></i> <span>Tema</span>
+        </button>
+
+        <button id="btn-view-stats" class="btn-action-pill" title="Mis Estadísticas">
+          <i class="fa-solid fa-chart-pie"></i> <span>Estadísticas</span>
         </button>
 
         <button id="btn-shortcuts-modal" class="btn-action-pill" title="Atajos de Teclado">
@@ -2555,6 +2685,8 @@
           <i class="fa-solid fa-moon"></i>
           <span id="sleep-timer-badge" class="timer-badge hidden">0m</span>
         </button>
+        <button id="btn-toggle-8d" class="btn-icon-round" title="Audio 8D Órbita 360° (Usa Audífonos)"><i class="fa-solid fa-headphones"></i></button>
+        <button id="btn-slowed-reverb" class="btn-icon-round" title="Modo Slowed + Reverb (0.85x + Catedral)"><i class="fa-solid fa-hourglass-start"></i></button>
         <button id="btn-pip-player" class="btn-icon-round" title="Mini-Player Flotante (Picture-in-Picture)"><i class="fa-solid fa-clone"></i></button>
         <button id="btn-toggle-normalizer" class="btn-icon-round" title="Normalizador de Volumen Inteligente (Nivelación Automática)"><i class="fa-solid fa-compress"></i></button>
         <button id="btn-quick-stem" class="btn-icon-round" title="AI Stem Mixer"><i class="fa-solid fa-sliders"></i></button>
@@ -2841,6 +2973,85 @@
     </div>
   </div>
 
+  <!-- Modal: Selector de Temas Neón -->
+  <div id="modal-theme" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-palette" style="color:var(--accent-cyan);"></i> Personalizar Tema Visual</h3>
+        <button class="btn-close-x" id="btn-close-theme"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <p style="font-size:0.84rem; color:var(--text-muted); margin:0 0 0.5rem 0;">
+          Elige una paleta de colores para transformar toda la interfaz del reproductor:
+        </p>
+        <div class="theme-card-grid">
+          <div class="theme-card active" data-theme="cyberpunk">
+            <div class="theme-swatch" style="background: linear-gradient(90deg, #6366f1, #06b6d4);"></div>
+            <strong>Cyber Glow</strong>
+            <span style="font-size:0.7rem; color:var(--text-dim);">Cyan & Índigo</span>
+          </div>
+          <div class="theme-card" data-theme="emerald">
+            <div class="theme-swatch" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
+            <strong>Emerald Green</strong>
+            <span style="font-size:0.7rem; color:var(--text-dim);">Verde Spotify</span>
+          </div>
+          <div class="theme-card" data-theme="crimson">
+            <div class="theme-swatch" style="background: linear-gradient(90deg, #ef4444, #b91c1c);"></div>
+            <strong>Crimson Red</strong>
+            <span style="font-size:0.7rem; color:var(--text-dim);">Rojo Vampiro</span>
+          </div>
+          <div class="theme-card" data-theme="sunset">
+            <div class="theme-swatch" style="background: linear-gradient(90deg, #ec4899, #f97316);"></div>
+            <strong>Sunset Wave</strong>
+            <span style="font-size:0.7rem; color:var(--text-dim);">Fucsia & Naranja</span>
+          </div>
+          <div class="theme-card" data-theme="diamond">
+            <div class="theme-swatch" style="background: linear-gradient(90deg, #38bdf8, #e2e8f0);"></div>
+            <strong>Ice Diamond</strong>
+            <span style="font-size:0.7rem; color:var(--text-dim);">Glaciar Puro</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: DaVE Stats (Resumen Personal) -->
+  <div id="modal-stats" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 500px;">
+      <div class="modal-top">
+        <h3><i class="fa-solid fa-chart-pie" style="color:var(--accent-cyan);"></i> Tu Resumen de Música</h3>
+        <button class="btn-close-x" id="btn-close-stats"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-content">
+        <div class="stats-kpi-grid">
+          <div class="stat-kpi-card">
+            <strong id="stat-total-time">0m</strong>
+            <span>Tiempo Total Escuchado</span>
+          </div>
+          <div class="stat-kpi-card">
+            <strong id="stat-total-plays">0</strong>
+            <span>Canciones Reproducidas</span>
+          </div>
+          <div class="stat-kpi-card">
+            <strong id="stat-top-artist" style="font-size:1.05rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">-</strong>
+            <span>Artista #1 Más Escuchado</span>
+          </div>
+          <div class="stat-kpi-card">
+            <strong id="stat-favs-count" style="color:#f43f5e;">0</strong>
+            <span>Canciones Favoritas</span>
+          </div>
+        </div>
+
+        <h4 style="font-size:0.86rem; color:#fff; margin:0 0 0.5rem 0; display:flex; align-items:center; gap:0.4rem;">
+          <i class="fa-solid fa-trophy" style="color:#eab308;"></i> Top 5 Más Escuchadas
+        </h4>
+        <div class="top-tracks-list" id="stat-top-tracks">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Floating Glassmorphic Mini-Player Widget -->
   <div id="floating-mini-player" class="floating-mini-player hidden">
     <img id="fmini-art" class="floating-mini-art" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23191c28'/></svg>" alt="Art">
@@ -2864,6 +3075,6 @@
   <audio id="audio-player"></audio>
 
   <!-- Script -->
-  <script src="app.js?v=3.8.0"></script>
+  <script src="app.js?v=3.9.0"></script>
 </body>
 </html>
