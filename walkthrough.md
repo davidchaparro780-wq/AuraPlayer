@@ -238,3 +238,20 @@
       - **Actualización Dinámica de Servidor WiFi:** `LocalMusicServer.kt` y `MainActivity.kt` añadieron `updateSongList()`, refrescando la lista de canciones en vivo cada vez que se interactúa con el servidor.
       - **Banner Interactivo y Modal de Ayuda en DaVE Player PC:** La pestaña *Mi Celular* cuenta con un banner destacado para añadir canciones nuevas con 1 clic (`#btn-phone-quick-add`), un modal explicativo (`#modal-phone-sync-help`) y soporte de *Drag & Drop* con limpieza automática de metadatos y generación de URLs reproducibles (`URL.createObjectURL`).
     - *Despliegue:* Versión `v4.3.4` subida a la rama `main`, desplegada en vivo en GitHub Pages (`https://davidchaparro780-wq.github.io/AuraPlayer/`) y espejada en Google Drive (`G:\` y `H:\`).
+30. **🛠️ Corrección de Superposición de Menú Herramientas, Adaptabilidad Topbar y Filtros por Categoría (v4.3.5):**
+    - *Situación:* 
+      1. El menú desplegable *Herramientas* (`#menu-more-tools`) se renderizaba por debajo de la tabla de canciones (`.table-container`), quedando cortado y tapado por las canciones ("Backup & Restaurar", "Atajos de Teclado", etc. asomándose detrás).
+      2. En pantallas medianas y laptops de 1024px-1280px, la barra superior desbordaba horizontalmente y empujaba el botón *Iniciar Sesión* fuera de la pantalla.
+      3. Al pulsar chips de categorías como *Gym & Focus* o *Chill & Relax*, si había texto en el buscador o no había canciones coincidentes, se mostraba la pantalla de bienvenida vacía en lugar de un estado amigable.
+      4. El reproductor inferior mostraba `0:00 / 0:00` para canciones precargadas.
+      5. La insignia de versión mostraba `PRO v4.3.0` en lugar de la versión actual.
+    - *Solución Integral Implementada:*
+      - **Corrección de Contexto de Apilamiento (Z-Index Fix):** Se dotó a `.topbar` de `position: relative; z-index: 1000;`, a `.more-tools-wrapper` de `position: relative; z-index: 1010;` y a `.more-tools-dropdown` de `z-index: 2500; background: #0d111a; backdrop-filter: blur(28px); border: 1px solid rgba(255, 255, 255, 0.16); box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85);`. Ahora el menú flota 100% por encima de la tabla y cualquier componente del área de trabajo.
+      - **Adaptabilidad Ergonómica Topbar (901px - 1280px):** Se incorporaron reglas `@media (max-width: 1280px)` y `@media (max-width: 1100px)`. En pantallas de 1024px o ventanas reducidas, los botones secundarios (*Comandos*, *Ambiente*, *Ringtone*, *Tema*) muestran sus íconos limpios con tooltips, permitiendo que *Mi Celular*, *Herramientas* e *Iniciar Sesión* quepan perfectamente sin ningún desbordamiento.
+      - **Sincronización de Filtros y Estado Amigable de Categorías:** Al hacer clic en cualquier chip de categoría, se limpia automáticamente cualquier búsqueda de texto para respetar la elección del usuario. Además, se creó `#category-empty-state` para mostrar un mensaje amigable con botón "Ver Todas las Canciones" en caso de que una categoría o Favoritas no tengan canciones registradas.
+      - **Actualización de Duración de Pistas:** `loadTrackMeta` actualiza inmediatamente `totalTimeEl.innerText = formatTime(track.duration)` y resetea `currentTimeEl.innerText = '0:00'`, mostrando la duración real (ej. `4:15`) desde el primer instante.
+      - **Insignia PRO v4.3.5:** Actualizada en el encabezado.
+    - *Verificación AST y Balance de Etiquetas:*
+      - Parser JS: 0 discrepancias (`pDepth: 0`, `bDepth: 0`, `bracketDepth: 0`).
+      - Parser HTML: 349 `<div>` abiertas / 349 cerradas; 163 `<button>` abiertos / 163 cerrados.
+    - *Despliegue:* Versión `v4.3.5` subida a la rama `main`, desplegada en GitHub Pages y respaldada en Google Drive.

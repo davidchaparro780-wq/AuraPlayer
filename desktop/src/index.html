@@ -93,6 +93,8 @@
       padding: 0 1.5rem;
       gap: 1.5rem;
       flex-shrink: 0;
+      position: relative;
+      z-index: 1000;
     }
 
     .brand-group {
@@ -264,6 +266,7 @@
     /* More Tools Dropdown Container */
     .more-tools-wrapper {
       position: relative;
+      z-index: 1010;
     }
 
     .more-tools-dropdown {
@@ -271,16 +274,16 @@
       top: calc(100% + 8px);
       right: 0;
       width: 250px;
-      background: rgba(14, 18, 27, 0.96);
-      backdrop-filter: blur(24px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #0d111a;
+      backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
       border-radius: 14px;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 20px rgba(99, 102, 241, 0.15);
-      padding: 0.4rem;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85), 0 0 25px rgba(99, 102, 241, 0.25);
+      padding: 0.45rem;
       display: none;
       flex-direction: column;
       gap: 0.25rem;
-      z-index: 1000;
+      z-index: 2500;
       animation: menuFadeIn 0.18s ease-out;
     }
 
@@ -2951,7 +2954,7 @@
       <div class="brand-group">
         <i class="fa-solid fa-compact-disc brand-icon"></i>
         <div class="brand-title">DaVE <strong>Player</strong></div>
-        <span class="brand-badge">PRO v4.3.0</span>
+        <span class="brand-badge">PRO v4.3.5</span>
       </div>
 
       <div class="search-wrapper">
@@ -3141,6 +3144,15 @@
               <p id="search-empty-text" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">No hay canciones que coincidan con tu búsqueda.</p>
               <button id="btn-search-clear-action" class="btn-outline-secondary" style="margin: 0 auto;">
                 <i class="fa-solid fa-xmark"></i> Limpiar búsqueda
+              </button>
+            </div>
+
+            <div id="category-empty-state" class="empty-shelf hidden" style="padding: 2.5rem 1.5rem;">
+              <i class="fa-solid fa-filter-circle-xmark" style="font-size: 2.5rem; color: var(--accent-cyan); margin-bottom: 0.8rem;"></i>
+              <h3 style="font-size: 1.25rem;">Sin canciones en esta categoría</h3>
+              <p id="category-empty-desc" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.2rem;">No hay canciones en esta categoría por ahora.</p>
+              <button id="btn-category-all-action" class="btn-glow-primary" style="margin: 0 auto;">
+                <i class="fa-solid fa-layer-group"></i> Ver Todas las Canciones
               </button>
             </div>
 
