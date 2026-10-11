@@ -348,17 +348,8 @@ fun AuraApp(
         hasPermission = granted
         if (granted) {
             appPrefs.edit().putBoolean(permKey, true).apply()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-            ) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
         }
     }
-
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { }
 
     var songs by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
     var videos by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
