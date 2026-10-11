@@ -88,6 +88,8 @@ class PlaybackService : MediaSessionService() {
 
         com.auraplayer.audio.VibeModeManager.init(this)
         com.auraplayer.audio.VibeModeManager.setVibe(com.auraplayer.audio.VibeModeManager.currentVibe, player)
+        com.auraplayer.audio.VolumeBoosterManager.instance.init(this)
+        com.auraplayer.audio.BassHapticManager.instance.init(this)
 
         player.addListener(object : androidx.media3.common.Player.Listener {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
@@ -117,6 +119,12 @@ class PlaybackService : MediaSessionService() {
                     delay(1000)
                     continue
                 }
+
+                // Check A-B loop
+                com.auraplayer.audio.ABRepeatManager.instance.checkPositionAndLoop(player.currentPosition) { targetA ->
+                    player.seekTo(targetA)
+                }
+
                 val crossfadeSec = playlistManager.getCrossfadeSeconds()
                 val is8D = EqualizerManager.instance.isSpatial8DEnabled
                 val spatialFactor = if (is8D && player.isPlaying) {

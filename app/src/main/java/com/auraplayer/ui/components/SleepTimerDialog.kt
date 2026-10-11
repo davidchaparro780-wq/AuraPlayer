@@ -18,8 +18,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AvTimer
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,8 +52,10 @@ fun SleepTimerDialog(
     onDismiss: () -> Unit,
     onFinish: () -> Unit
 ) {
+    val context = LocalContext.current
     val isTimerActive by sleepTimerManager.isTimerActive.collectAsState()
     val isEndOfTrackActive by sleepTimerManager.isEndOfTrackActive.collectAsState()
+    val isSmartSensorActive by sleepTimerManager.isSmartSensorActive.collectAsState()
     val remainingSeconds by sleepTimerManager.remainingSeconds.collectAsState()
 
     val presets = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
@@ -61,7 +64,7 @@ fun SleepTimerDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Color(0xFF101422),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(26.dp),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -73,7 +76,7 @@ fun SleepTimerDialog(
                         imageVector = Icons.Default.Timer,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(26.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
@@ -97,7 +100,56 @@ fun SleepTimerDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (isEndOfTrackActive) {
+                if (isSmartSensorActive) {
+                    val minutes = remainingSeconds / 60
+                    val seconds = remainingSeconds % 60
+                    val formatted = String.format("%02d:%02d", minutes, seconds)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF8B5CF6).copy(alpha = 0.16f))
+                            .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                            .padding(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "🌙 Detector de Sueño Activo",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFA78BFA)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = formatted,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Si dejas el celular quieto en la mesita, el volumen se desvanecerá suavemente y se apagará solo.",
+                                fontSize = 11.sp,
+                                color = Color(0xFFCBD5E1),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { sleepTimerManager.cancelTimer() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Detener Detector de Sueño", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                } else if (isEndOfTrackActive) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -132,12 +184,8 @@ fun SleepTimerDialog(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = {
-                            sleepTimerManager.cancelTimer()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                        ),
+                        onClick = { sleepTimerManager.cancelTimer() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -175,18 +223,49 @@ fun SleepTimerDialog(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Button(
-                        onClick = {
-                            sleepTimerManager.cancelTimer()
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                        ),
+                        onClick = { sleepTimerManager.cancelTimer() },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Detener Temporizador", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 } else {
+                    // Smart Motion Sensor Sleep Button
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color(0xFF8B5CF6).copy(alpha = 0.18f))
+                            .border(1.dp, Color(0xFFA78BFA).copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                            .clickable {
+                                sleepTimerManager.startSmartSensorTimer(context, 15, onFinish)
+                                onDismiss()
+                            }
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.NightsStay, contentDescription = null, tint = Color(0xFFA78BFA), modifier = Modifier.size(22.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "🌙 Detector de Sueño por Movimiento",
+                                    color = Color(0xFFA78BFA),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Se apaga con fade-out suave si dejas el móvil quieto 15 min",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     // Smart End of Track Button
                     Box(
                         modifier = Modifier
@@ -198,28 +277,28 @@ fun SleepTimerDialog(
                                 sleepTimerManager.startEndOfTrackTimer(onFinish)
                                 onDismiss()
                             }
-                            .padding(14.dp),
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "🎵", fontSize = 18.sp)
+                            Text(text = "🎵", fontSize = 16.sp)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Apagar al terminar la canción actual",
                                 color = Color(0xFF38BDF8),
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "O selecciona minutos de apagado:",
+                        text = "O selecciona minutos fijos:",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 10.dp)
+                        modifier = Modifier.padding(bottom = 8.dp)
                     )
 
                     // Presets Grid
@@ -227,7 +306,7 @@ fun SleepTimerDialog(
                         columns = GridCells.Fixed(3),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth().height(140.dp)
+                        modifier = Modifier.fillMaxWidth().height(125.dp)
                     ) {
                         items(presets) { minutes ->
                             Box(
@@ -238,7 +317,7 @@ fun SleepTimerDialog(
                                         sleepTimerManager.startTimer(minutes, onFinish)
                                         onDismiss()
                                     }
-                                    .padding(vertical = 10.dp),
+                                    .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -251,7 +330,7 @@ fun SleepTimerDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Custom Slider Option
                     Row(

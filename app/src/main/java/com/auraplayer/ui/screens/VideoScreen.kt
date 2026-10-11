@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
 import com.auraplayer.ui.components.TikTokDownloaderDialog
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Send
@@ -56,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -190,6 +192,7 @@ fun VideoScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var videoForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var showTikTokDialog by remember { mutableStateOf(false) }
 
@@ -417,6 +420,36 @@ fun VideoScreen(
                                                 videoForMenu = null
                                                 if (v != null) {
                                                     com.auraplayer.data.repository.TikTokDownloader.shareMedia(context, v.uri, true, "com.whatsapp")
+                                                }
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.MusicNote,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFA855F7),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("🎵 Extraer Audio (MP3)", color = Color.White, fontSize = 13.sp)
+                                                }
+                                            },
+                                            onClick = {
+                                                val v = videoForMenu
+                                                videoForMenu = null
+                                                if (v != null) {
+                                                    android.widget.Toast.makeText(context, "Extrayendo pista de audio en HD...", android.widget.Toast.LENGTH_SHORT).show()
+                                                    scope.launch {
+                                                        val res = com.auraplayer.audio.VideoToAudioConverter.extractAudio(context, v.uri, v.title)
+                                                        res.onSuccess {
+                                                            android.widget.Toast.makeText(context, "¡Audio guardado en Música/DaVEPlayer!", android.widget.Toast.LENGTH_LONG).show()
+                                                            onRefreshVideos()
+                                                        }.onFailure { err ->
+                                                            android.widget.Toast.makeText(context, "Error: ${err.message}", android.widget.Toast.LENGTH_LONG).show()
+                                                        }
+                                                    }
                                                 }
                                             }
                                         )

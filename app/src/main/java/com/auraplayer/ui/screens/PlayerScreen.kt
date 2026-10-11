@@ -168,6 +168,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -285,6 +286,12 @@ fun PlayerScreen(
     var showCarDriveModeDialog by remember { mutableStateOf(false) }
     var showSongHunterDialog by remember { mutableStateOf(false) }
     var showMoodAuraDialog by remember { mutableStateOf(false) }
+    var showVolumeBoosterDialog by remember { mutableStateOf(false) }
+    val boostPercent by com.auraplayer.audio.VolumeBoosterManager.instance.boostPercent.collectAsState()
+    val hapticIntensity by com.auraplayer.audio.BassHapticManager.instance.intensity.collectAsState()
+    val abPointA by com.auraplayer.audio.ABRepeatManager.instance.pointA.collectAsState()
+    val abPointB by com.auraplayer.audio.ABRepeatManager.instance.pointB.collectAsState()
+    val isAbActive by com.auraplayer.audio.ABRepeatManager.instance.isActive.collectAsState()
     val smartDjManager = remember { com.auraplayer.audio.SmartDjTransitionManager.getInstance(context) }
     var isSmartDj by remember { mutableStateOf(smartDjManager.isSmartDjEnabled) }
     var isKaraokeVocalRemoved by remember { mutableStateOf(EqualizerManager.instance.isKaraokeMode) }
@@ -334,6 +341,7 @@ fun PlayerScreen(
         abLoopA = null
         abLoopB = null
         isAbLoopActive = false
+        com.auraplayer.audio.ABRepeatManager.instance.clear()
     }
 
     LaunchedEffect(currentPositionMs, isAbLoopActive, abLoopA, abLoopB, isPlaying) {
@@ -1470,16 +1478,19 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (isAbLoopActive && abLoopA != null && abLoopB != null) {
+                        val dispA = abPointA ?: abLoopA
+                        val dispB = abPointB ?: abLoopB
+                        val isLoopOn = isAbActive || (isAbLoopActive && dispA != null && dispB != null)
+                        if (isLoopOn && dispA != null && dispB != null) {
                             Text(
-                                text = "🔂 ${formatTime(abLoopA!!)} ➔ ${formatTime(abLoopB!!)}",
+                                text = "🔁 ${formatTime(dispA)} ➔ ${formatTime(dispB)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF10B981)
                             )
-                        } else if (abLoopA != null) {
+                        } else if (dispA != null) {
                             Text(
-                                text = "🅰️ ${formatTime(abLoopA!!)} ➔ [B?]",
+                                text = "🅰️ ${formatTime(dispA)} ➔ [B?]",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFF59E0B)
@@ -1835,6 +1846,82 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Super Booster 200% Chip
+                    FilterChip(
+                        selected = boostPercent > 100,
+                        onClick = { showVolumeBoosterDialog = true },
+                        label = {
+                            Text(
+                                text = if (boostPercent > 100) "🔊 Booster: $boostPercent%" else "🔊 Booster 200%",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFFF5722).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFFF5722),
+                            labelColor = Color(0xFFFF7043)
+                        )
+                    )
+
+                    // Subwoofer Háptico Pro Chip
+                    FilterChip(
+                        selected = hapticIntensity != com.auraplayer.audio.HapticIntensity.OFF,
+                        onClick = {
+                            com.auraplayer.audio.BassHapticManager.instance.toggle()
+                            val curr = com.auraplayer.audio.BassHapticManager.instance.intensity.value
+                            val msg = if (curr != com.auraplayer.audio.HapticIntensity.OFF) "📳 Subwoofer: ${curr.label}" else "Subwoofer Háptico: Apagado"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = {
+                            Text(
+                                text = if (hapticIntensity != com.auraplayer.audio.HapticIntensity.OFF) "📳 Subwoofer: ${hapticIntensity.label}" else "📳 Subwoofer Háptico",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFF59E0B).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFF59E0B),
+                            labelColor = Color(0xFFFBBF24)
+                        )
+                    )
+
+                    // Bucle A-B Pro Chip
+                    FilterChip(
+                        selected = isAbActive || abPointA != null,
+                        onClick = {
+                            val rep = com.auraplayer.audio.ABRepeatManager.instance
+                            if (abPointA == null) {
+                                rep.setPointA(currentPositionMs)
+                                Toast.makeText(context, "🅰️ Punto A marcado en ${formatTime(currentPositionMs)}", Toast.LENGTH_SHORT).show()
+                            } else if (abPointB == null) {
+                                rep.setPointB(currentPositionMs)
+                                Toast.makeText(context, "🅱️ Punto B marcado en ${formatTime(currentPositionMs)} (Bucle Activo)", Toast.LENGTH_SHORT).show()
+                            } else {
+                                rep.clear()
+                                Toast.makeText(context, "Bucle A-B reiniciado", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = when {
+                                    abPointA == null -> "🔁 Bucle A-B"
+                                    abPointB == null -> "🔁 Marcar B (${formatTime(abPointA!!)})"
+                                    isAbActive -> "🔁 [${com.auraplayer.audio.ABRepeatManager.instance.formatTime(abPointA)} - ${com.auraplayer.audio.ABRepeatManager.instance.formatTime(abPointB)}]"
+                                    else -> "🔁 A-B Pausado"
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF10B981).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF10B981),
+                            labelColor = Color(0xFF34D399)
+                        )
+                    )
+
                     // Modo Conducción / Coche Chip
                     FilterChip(
                         selected = false,
@@ -3009,6 +3096,13 @@ fun PlayerScreen(
                 Toast.makeText(context, "Sintonizando Mood Aura: ${mood.title}", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { showMoodAuraDialog = false }
+        )
+    }
+
+    // Super Booster de Volumen 200% Dialog
+    if (showVolumeBoosterDialog) {
+        com.auraplayer.ui.components.VolumeBoosterDialog(
+            onDismiss = { showVolumeBoosterDialog = false }
         )
     }
 }

@@ -1,7 +1,7 @@
 {
-  "versionCode": 97,
-  "versionName": "4.6.1",
+  "versionCode": 98,
+  "versionName": "4.7.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v4.6.1 (Build 97) — ¡Solución WhatsApp & Videos de TikTok!\n• 🎬 Compatibilidad Total con WhatsApp: Descarga directa de videos de TikTok en H.264 AVC estándar sin marca de agua, eliminando el error 'No se puede enviar este video'.\n• 📲 Enviar a WhatsApp en 1 Toque: Nuevo botón directo para enviar a chats y Estados de WhatsApp inmediatamente tras descargar.\n• 🖼️ Indexación en Galería (DCIM): Los videos se guardan en DCIM/DaVEPlayer con duración y metadatos registrados para aparecer al instante en WhatsApp y tu galería.\n• 📤 Compartir Videos desde DaVE: Opciones añadidas en la biblioteca de videos para compartir directamente a WhatsApp y otras aplicaciones.\n• 🚗 Suite Musical v4.6.0: Incluye Modo Coche, Extractor de Voces/Karaoke, Cazador de canciones por micrófono, Linterna rítmica y Transiciones DJ.",
-  "fileSizeMb": 25.6
+  "changelog": "🚀 DaVE Player v4.7.0 (Build 98) — ¡Mega Suite VIP Pro!\n• 🔊 Super Booster de Volumen 200%: Ganancia limpia hasta el 200% con limitador dinámico anti-distorsión y perfiles rápidos (🍿 Cine 3D, 📢 Modo Calle).\n• 📳 Subwoofer Háptico en tu Mano: Tu celular vibra como un subwoofer real al ritmo de los bajos y sub-bass (<100Hz) en tiempo real con 3 niveles de potencia.\n• 🎬 Extractor Instantáneo de Video a MP3 HD: Convierte cualquier video a audio en menos de 1 segundo sin pérdida de calidad y agrégalo directo a tu biblioteca.\n• 🎨 Carátulas Ultra HD (1000x1000): Nuevo buscador oficial de carátulas en alta resolución en 1 toque dentro del Editor de Etiquetas ID3.\n• 🔁 Modo Repetición A-B Pro: Repite el segmento exacto que quieras (rap, coreografías, partes favoritas) con bucle instantáneo continuo.\n• 🌙 Detector Inteligente de Sueño por Movimiento: Temporizador con acelerómetro que detecta cuando te quedas dormido y apaga la música con un suave desvanecimiento.",
+  "fileSizeMb": 25.8
 }
