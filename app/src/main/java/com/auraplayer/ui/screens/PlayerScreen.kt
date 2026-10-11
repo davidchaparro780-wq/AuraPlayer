@@ -435,6 +435,8 @@ fun PlayerScreen(
         }
     }
 
+    val activeAccent = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
+
     // Dynamic Atmospheric Gradient Background (100% Opaque, zero bleed-through)
     val dynamicBg = remember(currentMedia.id, dynamicArtworkColor) {
         val baseColor = dynamicArtworkColor
@@ -846,7 +848,6 @@ fun PlayerScreen(
                             val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
                             val dynamicElevation = if (isPlaying) (18.dp + (22.dp * bassEnergy)) else 12.dp
                             val dynamicGlowAlpha = if (isPlaying) (0.35f + (bassEnergy * 0.55f)).coerceIn(0.2f, 0.95f) else 0.2f
-                            val activeAccent = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary
 
                             Box(
                                 modifier = Modifier
