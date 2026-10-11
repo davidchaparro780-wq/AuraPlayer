@@ -1337,12 +1337,19 @@ fun VaultScreen(
                                                 .aspectRatio(if (inAppPickerIsVideo) 1.25f else 1f)
                                                 .background(Color.Black)
                                         ) {
-                                            AsyncImage(
-                                                model = item.uri,
-                                                contentDescription = item.title,
-                                                contentScale = ContentScale.Crop,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
+                                            if (inAppPickerIsVideo) {
+                                                VideoThumbnail(
+                                                    video = item,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            } else {
+                                                AsyncImage(
+                                                    model = item.uri,
+                                                    contentDescription = item.title,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
 
                                             // Duration pill (if video)
                                             if (inAppPickerIsVideo && item.duration > 0L) {
