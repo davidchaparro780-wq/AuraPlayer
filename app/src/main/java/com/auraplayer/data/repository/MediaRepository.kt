@@ -6,11 +6,16 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class MediaRepository(private val context: Context) {
+
+    companion object {
+        private const val TAG = "MediaRepository"
+    }
 
     val coverArtManager = CoverArtManager(context)
 
@@ -89,7 +94,7 @@ class MediaRepository(private val context: Context) {
                                 finalTitle = fileNameNoExt.substringAfter(" - ").replace("_", " ").trim()
                             }
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { AppLog.d(TAG, "No se pudo interpretar artista/título desde el nombre del archivo", e) }
                 }
 
                 val album = if (rawAlbum.equals("<unknown>", ignoreCase = true) || rawAlbum.equals("Unknown Album", ignoreCase = true) || rawAlbum.isBlank()) {
@@ -134,7 +139,7 @@ class MediaRepository(private val context: Context) {
                 parseCursor(cursor)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al consultar MediaStore para cargar canciones", e)
         }
 
         // Strategy 2 (Fallback): If query returned 0 items (OEM ROM restriction or provider issue), query without selection
@@ -144,7 +149,7 @@ class MediaRepository(private val context: Context) {
                     parseCursor(cursor)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.e(TAG, "Fallo en la consulta de audio sin filtro (fallback)", e)
             }
         }
 
@@ -198,7 +203,7 @@ class MediaRepository(private val context: Context) {
                         try {
                             val staleUri = ContentUris.withAppendedId(collection, id)
                             context.contentResolver.delete(staleUri, null, null)
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) { AppLog.d(TAG, "No se pudo eliminar la entrada obsoleta de video en MediaStore", e) }
                         continue
                     }
 
@@ -228,7 +233,7 @@ class MediaRepository(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al consultar MediaStore para cargar videos", e)
         }
 
         videoList
@@ -276,7 +281,7 @@ class MediaRepository(private val context: Context) {
                         try {
                             val staleUri = ContentUris.withAppendedId(collection, id)
                             context.contentResolver.delete(staleUri, null, null)
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) { AppLog.d(TAG, "No se pudo eliminar la entrada obsoleta de foto en MediaStore", e) }
                         continue
                     }
 
@@ -305,7 +310,7 @@ class MediaRepository(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al consultar MediaStore para cargar fotos", e)
         }
 
         photoList
@@ -326,7 +331,7 @@ class MediaRepository(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo al eliminar el archivo físico del audio", e)
         }
 
         // 2. Try MediaStore content resolver deletion
@@ -348,7 +353,7 @@ class MediaRepository(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.d(TAG, "No se pudo reescanear la ruta en MediaStore tras borrar", e)
         }
 
         // 4. Clean local artwork cache
@@ -362,7 +367,7 @@ class MediaRepository(private val context: Context) {
             val coverById = File(context.filesDir, "covers/${song.id}.jpg")
             if (coverById.exists()) coverById.delete()
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.d(TAG, "No se pudo limpiar la caché de carátula de la canción", e)
         }
     }
 
@@ -403,7 +408,7 @@ class MediaRepository(private val context: Context) {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "No se pudo reescanear las carpetas de descargas", e)
         }
     }
 }

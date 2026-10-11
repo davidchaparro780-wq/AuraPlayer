@@ -94,9 +94,12 @@ import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.VaultItem
 import com.auraplayer.data.repository.VaultManager
+import com.auraplayer.util.AppLog
 import com.auraplayer.util.BiometricHelper
 import kotlinx.coroutines.launch
 import java.io.File
+
+private const val TAG = "VaultScreen"
 
 data class PendingVaultDelete(
     val vaultFile: File,
@@ -217,7 +220,9 @@ fun VaultScreen(
                 if (realPath != null) {
                     try {
                         android.media.MediaScannerConnection.scanFile(context, arrayOf(realPath), null, null)
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        AppLog.w(TAG, "No se pudo refrescar el índice multimedia del sistema", e)
+                    }
                 }
             }
             val msg = if (count == 1) "🔒 Archivo ocultado de la galería y protegido en Bóveda" else "🔒 $count archivos ocultados de la galería y protegidos en Bóveda"
@@ -263,7 +268,9 @@ fun VaultScreen(
                         successCount++
                         try {
                             android.media.MediaScannerConnection.scanFile(context, arrayOf(media.path), null, null)
-                        } catch (_: Exception) {}
+                        } catch (e: Exception) {
+                            AppLog.w(TAG, "No se pudo refrescar el índice multimedia del sistema", e)
+                        }
                     } else {
                         pendingDeleteList.add(PendingVaultDelete(copiedVaultFile, media.uri, media.path, isVideo))
                         pendingDeleteUris.add(Pair(media.uri, media.path))
@@ -329,7 +336,9 @@ fun VaultScreen(
                         if (realPath != null) {
                             try {
                                 android.media.MediaScannerConnection.scanFile(context, arrayOf(realPath), null, null)
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {
+                                AppLog.w(TAG, "No se pudo refrescar el índice multimedia del sistema", e)
+                            }
                         }
                     } else {
                         pendingDeleteList.add(PendingVaultDelete(copiedVaultFile, uri, realPath, isVideo))

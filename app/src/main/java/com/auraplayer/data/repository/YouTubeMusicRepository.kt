@@ -2,6 +2,7 @@ package com.auraplayer.data.repository
 
 import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.network.OkHttpDownloader
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class YouTubeMusicRepository {
 
     companion object {
+        private const val TAG = "YouTubeMusicRepository"
         private val isInitialized = AtomicBoolean(false)
         fun initNewPipe() {
             if (isInitialized.compareAndSet(false, true)) {
@@ -27,7 +29,7 @@ class YouTubeMusicRepository {
                     try {
                         NewPipe.init(OkHttpDownloader.instance)
                     } catch (e2: Exception) {
-                        e2.printStackTrace()
+                        AppLog.e(TAG, "Fallo al inicializar NewPipe sin localización", e2)
                     }
                 }
             }
@@ -141,7 +143,7 @@ class YouTubeMusicRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo en la petición de búsqueda de YouTube Music", e)
         }
         list
     }
@@ -190,7 +192,9 @@ class YouTubeMusicRepository {
                     invidiousMirrors = list
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo refrescar la config remota de instancias", e)
+        }
     }
 
     suspend fun resolveAudioStream(videoId: String): String? = withContext(Dispatchers.IO) {
@@ -210,7 +214,7 @@ class YouTubeMusicRepository {
                 return@withContext iosUrl
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo en endpoint InnerTube IOS para videoId=$videoId", e)
         }
 
         // 2. Try NewPipeExtractor (Direct googlevideo audio stream with highest bitrate)
@@ -233,7 +237,7 @@ class YouTubeMusicRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo en NewPipeExtractor para videoId=$videoId", e)
         }
 
         // 3. Try Cobalt API instances
@@ -243,7 +247,7 @@ class YouTubeMusicRepository {
                 return@withContext cobaltUrl
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo en instancia Cobalt de audio para videoId=$videoId", e)
         }
 
         // 4. Try InnerTube WEB_REMIX (YouTube Music Web Client)
@@ -258,7 +262,7 @@ class YouTubeMusicRepository {
                 return@withContext ytmUrl
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo en endpoint InnerTube WEB_REMIX para videoId=$videoId", e)
         }
 
         // 5. Try InnerTube ANDROID_VR direct player endpoint
@@ -272,7 +276,7 @@ class YouTubeMusicRepository {
                 return@withContext vrUrl
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo en endpoint InnerTube ANDROID_VR para videoId=$videoId", e)
         }
 
         // 6. Try Invidious dynamic mirror endpoints
@@ -314,13 +318,17 @@ class YouTubeMusicRepository {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo en mirror Invidious $mirror para videoId=$videoId", e)
+            }
         }
 
         // If all providers failed, YouTube likely updated its cipher/player JS — trigger self-updater check!
         try {
             onYouTubeApiChangedDetected?.invoke()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Fallo al invocar detector de cambio de API de YouTube", e)
+        }
 
         null
     }
@@ -348,7 +356,9 @@ class YouTubeMusicRepository {
                     return@withContext directUrl
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Fallo al resolver vídeo MP4 para videoId=$videoId", e)
+        }
 
         // 2. Try Invidious formatStreams (muxed MP4 video+audio)
         for (mirror in invidiousMirrors) {
@@ -375,7 +385,9 @@ class YouTubeMusicRepository {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo en mirror Invidious de vídeo $mirror para videoId=$videoId", e)
+            }
         }
 
         // 3. Try Cobalt Video mode
@@ -384,7 +396,9 @@ class YouTubeMusicRepository {
             if (!cobaltUrl.isNullOrBlank()) {
                 return@withContext cobaltUrl
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Fallo en Cobalt Video para videoId=$videoId", e)
+        }
 
         null
     }
@@ -417,7 +431,9 @@ class YouTubeMusicRepository {
                         return streamUrl
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo en instancia Cobalt de vídeo $instance", e)
+            }
         }
         return null
     }
@@ -451,7 +467,9 @@ class YouTubeMusicRepository {
                         return streamUrl
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo en instancia Cobalt de audio $instance", e)
+            }
         }
         return null
     }
@@ -651,7 +669,7 @@ class YouTubeMusicRepository {
                 findVideoRenderers(root)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al extraer playlist $playlistId vía InnerTube", e)
         }
 
         if (list.isNotEmpty()) {
@@ -700,7 +718,9 @@ class YouTubeMusicRepository {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo en playlist de mirror Invidious $mirror", e)
+            }
         }
 
         list.distinctBy { it.id }
@@ -744,7 +764,7 @@ class YouTubeMusicRepository {
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo en oEmbed de YouTube para videoId=$cleanId", e)
         }
 
         // Fallback without oEmbed

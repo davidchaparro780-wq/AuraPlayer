@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -14,6 +15,10 @@ import java.net.URL
 import java.net.URLEncoder
 
 class CoverArtManager(private val context: Context) {
+
+    companion object {
+        private const val TAG = "CoverArtManager"
+    }
 
     private val coversDir = File(context.filesDir, "covers").apply {
         if (!exists()) mkdirs()
@@ -58,7 +63,7 @@ class CoverArtManager(private val context: Context) {
                 prefs.edit().putString("cover_term_$searchKey", namedFile.absolutePath).apply()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo guardar la carátula de forma persistente", e)
         }
     }
 
@@ -140,7 +145,7 @@ class CoverArtManager(private val context: Context) {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudo listar la caché de carátulas para coincidencia difusa", e) }
 
         return null
     }
@@ -250,7 +255,7 @@ class CoverArtManager(private val context: Context) {
                 return Uri.fromFile(targetFile)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo guardar la carátula personalizada desde la galería", e)
         }
         return null
     }
@@ -268,7 +273,7 @@ class CoverArtManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "No se pudo descargar la carátula desde la API en línea", e)
         }
     }
 

@@ -8,10 +8,13 @@ import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.PresetReverb
 import android.media.audiofx.Virtualizer
 import android.os.Build
+import com.auraplayer.util.AppLog
 
 class EqualizerManager private constructor() {
 
     companion object {
+        private const val TAG = "EqualizerManager"
+
         val instance: EqualizerManager by lazy { EqualizerManager() }
 
         val TEN_BAND_FREQUENCIES = listOf(
@@ -121,7 +124,7 @@ class EqualizerManager private constructor() {
             }
             applyBandsToHardware()
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "El ecualizador no se pudo aplicar a la sesión de audio", e)
         }
     }
 
@@ -144,7 +147,9 @@ class EqualizerManager private constructor() {
                 loudnessEnhancer?.setTargetGain(loudnessGain)
                 loudnessEnhancer?.enabled = loudnessGain > 0 && isEnabled
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.e(TAG, "No se pudo aplicar la ganancia de reproducción (ReplayGain)", e)
+        }
     }
 
     fun setSpatial8DEnabled(enabled: Boolean) {
@@ -167,7 +172,7 @@ class EqualizerManager private constructor() {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo cambiar el modo Spatial 8D del ecualizador", e)
         }
         persistSettings()
     }
@@ -193,7 +198,9 @@ class EqualizerManager private constructor() {
                 val mb = (bandLevels[i] * 100).toInt().coerceIn(minMb.toInt(), maxMb.toInt()).toShort()
                 try {
                     eq.setBandLevel(i.toShort(), mb)
-                } catch (e: Exception) { }
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "No se pudo aplicar la banda del ecualizador", e)
+                }
             }
         } else if (hwBands > 0) {
             // Map 10 bands down into available hardware bands (typically 5)
@@ -211,7 +218,9 @@ class EqualizerManager private constructor() {
                 val mb = (avg * 100).toInt().coerceIn(minMb.toInt(), maxMb.toInt()).toShort()
                 try {
                     eq.setBandLevel(hw.toShort(), mb)
-                } catch (e: Exception) { }
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "No se pudo aplicar la banda mapeada del ecualizador", e)
+                }
             }
         }
     }
@@ -223,7 +232,7 @@ class EqualizerManager private constructor() {
                 bassBoost?.setStrength(bassStrength)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo aplicar la intensidad de graves", e)
         }
         persistSettings()
     }
@@ -235,7 +244,7 @@ class EqualizerManager private constructor() {
                 virtualizer?.setStrength(virtualizerStrength)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo aplicar la intensidad del virtualizador", e)
         }
         persistSettings()
     }
@@ -245,7 +254,7 @@ class EqualizerManager private constructor() {
         try {
             loudnessEnhancer?.setTargetGain(loudnessGain)
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo aplicar la sonoridad (Loudness Enhancer)", e)
         }
         persistSettings()
     }
@@ -369,7 +378,7 @@ class EqualizerManager private constructor() {
             virtualizer?.release()
             loudnessEnhancer?.release()
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.d(TAG, "No se pudo liberar algún efecto del ecualizador", e)
         } finally {
             presetReverb?.release()
             presetReverb = null

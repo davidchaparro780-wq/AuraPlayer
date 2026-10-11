@@ -5,6 +5,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import com.auraplayer.util.AppLog
+
+private const val TAG = "HapticBassManager"
 
 class HapticBassManager(private val context: Context) {
 
@@ -34,6 +37,8 @@ class HapticBassManager(private val context: Context) {
                 @Suppress("DEPRECATION")
                 vibrator.vibrate(30)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Fallo al emitir el pulso háptico de graves", e)
+        }
     }
 }

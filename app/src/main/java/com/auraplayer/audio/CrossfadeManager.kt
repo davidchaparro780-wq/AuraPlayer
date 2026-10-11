@@ -2,6 +2,7 @@ package com.auraplayer.audio
 
 import android.content.Context
 import androidx.media3.session.MediaController
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,12 +58,16 @@ class CrossfadeManager(context: Context) {
                 currentVol = (currentVol + volumeDelta).coerceIn(0f, 1f)
                 try {
                     controller.volume = currentVol
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.w(TAG, "Fallo al ajustar el volumen durante el crossfade", e)
+                }
                 delay(stepDelay)
             }
             try {
                 controller.volume = toVolume
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo al fijar el volumen final del crossfade", e)
+            }
             onEnd?.invoke()
         }
     }
@@ -89,6 +94,8 @@ class CrossfadeManager(context: Context) {
     }
 
     companion object {
+        private const val TAG = "CrossfadeManager"
+
         @Volatile
         private var instance: CrossfadeManager? = null
 

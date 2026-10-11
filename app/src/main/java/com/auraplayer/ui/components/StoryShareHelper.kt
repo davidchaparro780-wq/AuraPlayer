@@ -11,9 +11,12 @@ import android.graphics.Shader
 import android.graphics.Typeface
 import androidx.core.content.FileProvider
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.sin
+
+private const val TAG = "StoryShareHelper"
 
 object StoryShareHelper {
 
@@ -170,7 +173,7 @@ object StoryShareHelper {
             }
             context.startActivity(Intent.createChooser(shareIntent, "Compartir en Estado o Historia"))
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo compartir la story", e)
         }
     }
 }

@@ -2,6 +2,7 @@ package com.auraplayer.data.repository
 
 import android.content.Context
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -23,6 +24,7 @@ data class LrcLine(
  */
 class SyncedLyricsManager(private val context: Context) {
 
+    private val TAG = "SyncedLyricsManager"
     private val lyricsDir: File = File(context.filesDir, "synced_lyrics").apply { mkdirs() }
 
     fun parseLrc(lrcText: String): List<LrcLine> {
@@ -98,7 +100,9 @@ class SyncedLyricsManager(private val context: Context) {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo leer el archivo .lrc compañero offline", e)
+        }
 
         // 2. Consultar API pública de LRCLIB
         try {

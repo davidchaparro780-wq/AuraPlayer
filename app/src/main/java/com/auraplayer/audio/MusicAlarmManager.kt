@@ -10,9 +10,12 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.auraplayer.service.PlaybackService
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+
+private const val TAG = "MusicAlarmManager"
 
 data class MusicAlarm(
     val id: Int = 0,
@@ -166,10 +169,14 @@ class MusicAlarmReceiver : BroadcastReceiver() {
                     player.play()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "La alarma no pudo iniciar la reproducción automática", e)
+        }
 
         try {
             context.startActivity(launchIntent)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "La alarma no pudo abrir la app al sonar", e)
+        }
     }
 }

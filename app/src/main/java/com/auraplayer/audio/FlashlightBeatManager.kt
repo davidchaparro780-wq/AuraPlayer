@@ -10,6 +10,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.auraplayer.util.AppLog
+
+private const val TAG = "FlashlightBeatManager"
 
 class FlashlightBeatManager(private val context: Context) {
 
@@ -50,11 +53,14 @@ class FlashlightBeatManager(private val context: Context) {
                     // Gap between beats (approx 125 BPM = 480ms period)
                     delay(435)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                AppLog.w(TAG, "El estrobo de linterna se detuvo inesperadamente", e)
             } finally {
                 try {
                     cameraManager?.setTorchMode(camId, false)
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.d(TAG, "No se pudo apagar la linterna tras el estrobo", e)
+                }
             }
         }
     }
@@ -68,7 +74,9 @@ class FlashlightBeatManager(private val context: Context) {
         if (camId != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
                 cameraManager?.setTorchMode(camId, false)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo apagar la linterna al detener el beat", e)
+            }
         }
     }
 

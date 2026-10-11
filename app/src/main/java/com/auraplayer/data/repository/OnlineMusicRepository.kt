@@ -1,6 +1,7 @@
 package com.auraplayer.data.repository
 
 import com.auraplayer.data.model.OnlineTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -9,6 +10,10 @@ import java.net.URL
 import java.net.URLEncoder
 
 class OnlineMusicRepository {
+
+    companion object {
+        private const val TAG = "OnlineMusicRepository"
+    }
 
     suspend fun searchTracks(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
@@ -79,7 +84,7 @@ class OnlineMusicRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo obtener la música en línea de Deezer", e)
         }
         return trackList
     }

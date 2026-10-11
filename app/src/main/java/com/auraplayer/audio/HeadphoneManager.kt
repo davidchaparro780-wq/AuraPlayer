@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -26,6 +27,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+private const val TAG = "HeadphoneManager"
 
 data class AudioDeviceModel(
     val id: Int,
@@ -114,7 +117,9 @@ class HeadphoneManager(private val context: Context) {
             } else {
                 context.registerReceiver(broadcastReceiver, filter)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo registrar el detector de auriculares", e)
+        }
     }
 
     fun stopListening() {
@@ -129,7 +134,9 @@ class HeadphoneManager(private val context: Context) {
         broadcastReceiver?.let {
             try {
                 context.unregisterReceiver(it)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "Error al anular el registro del detector de auriculares", e)
+            }
             broadcastReceiver = null
         }
     }
@@ -260,10 +267,14 @@ class HeadphoneManager(private val context: Context) {
                         if (level != null && level in 0..100) {
                             return level
                         }
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) {
+                        AppLog.d(TAG, "No se pudo leer la batería por reflexión del auricular", e)
+                    }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "Fallo al consultar la batería de dispositivos Bluetooth", e)
+        }
         return null
     }
 
@@ -335,7 +346,7 @@ class HeadphoneManager(private val context: Context) {
                 audioTrack.stop()
                 audioTrack.release()
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.w(TAG, "Fallo al reproducir el tono de prueba estéreo", e)
             }
         }
     }

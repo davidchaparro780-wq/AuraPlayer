@@ -2,6 +2,7 @@ package com.auraplayer.data.repository
 
 import android.media.MediaMetadataRetriever
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -18,6 +19,8 @@ data class AudioQualityInfo(
 )
 
 object AudioQualityAnalyzer {
+
+    private const val TAG = "AudioQualityAnalyzer"
 
     suspend fun analyze(song: MediaModel): AudioQualityInfo = withContext(Dispatchers.IO) {
         val retriever = MediaMetadataRetriever()
@@ -65,7 +68,7 @@ object AudioQualityAnalyzer {
         } catch (e: Exception) {
             AudioQualityInfo(0, 0, 0, "Desconocido", 0f, 0L, "Desconocido", 0xFF888888)
         } finally {
-            try { retriever.release() } catch (_: Exception) {}
+            try { retriever.release() } catch (e: Exception) { AppLog.d(TAG, "No se pudo liberar el MediaMetadataRetriever", e) }
         }
     }
 

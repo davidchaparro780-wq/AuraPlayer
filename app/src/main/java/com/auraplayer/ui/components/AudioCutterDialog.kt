@@ -70,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -77,6 +78,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.ByteBuffer
+
+private const val TAG = "AudioCutterDialog"
 
 @Composable
 fun AudioCutterDialog(
@@ -104,7 +107,9 @@ fun AudioCutterDialog(
                 previewPlayer?.stop()
                 previewPlayer?.release()
                 previewPlayer = null
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo liberar el reproductor de vista previa", e)
+            }
         }
     }
 
@@ -546,7 +551,9 @@ private fun trimAudioFile(
         try {
             muxer.stop()
             muxer.release()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo cerrar el muxer al finalizar el corte", e)
+        }
         extractor.release()
     }
 }

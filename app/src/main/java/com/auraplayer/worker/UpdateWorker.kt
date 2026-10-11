@@ -1,7 +1,6 @@
 package com.auraplayer.worker
 
 import android.content.Context
-import android.util.Log
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -10,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.auraplayer.data.repository.UpdateManager
+import com.auraplayer.util.AppLog
 import java.util.concurrent.TimeUnit
 
 class UpdateWorker(
@@ -19,17 +19,17 @@ class UpdateWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            Log.d(TAG, "Ejecutando comprobación de actualización periódica en segundo plano...")
+            AppLog.d(TAG, "Ejecutando comprobación de actualización periódica en segundo plano...")
             val updateManager = UpdateManager(applicationContext)
             val info = updateManager.checkForUpdate()
             if (info != null) {
-                Log.d(TAG, "¡Actualización encontrada! Notificación enviada: ${info.versionName}")
+                AppLog.d(TAG, "¡Actualización encontrada! Notificación enviada: ${info.versionName}")
             } else {
-                Log.d(TAG, "La aplicación está en la última versión.")
+                AppLog.d(TAG, "La aplicación está en la última versión.")
             }
             Result.success()
         } catch (e: Exception) {
-            Log.e(TAG, "Error durante la comprobación de actualización: ${e.message}")
+            AppLog.e(TAG, "Error durante la comprobación de actualización: ${e.message}", e)
             Result.retry()
         }
     }
@@ -56,9 +56,9 @@ class UpdateWorker(
                     ExistingPeriodicWorkPolicy.KEEP,
                     periodicWork
                 )
-                Log.d(TAG, "Trabajo periódico de actualización configurado (cada 4h con conexión)")
+                AppLog.d(TAG, "Trabajo periódico de actualización configurado (cada 4h con conexión)")
             } catch (e: Exception) {
-                Log.e(TAG, "Error configurando WorkManager: ${e.message}")
+                AppLog.e(TAG, "Error configurando WorkManager: ${e.message}", e)
             }
         }
     }

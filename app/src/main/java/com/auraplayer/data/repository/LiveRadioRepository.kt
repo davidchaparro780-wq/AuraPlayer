@@ -1,6 +1,7 @@
 package com.auraplayer.data.repository
 
 import com.auraplayer.data.model.OnlineTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -9,6 +10,8 @@ import java.net.URL
 import java.net.URLEncoder
 
 class LiveRadioRepository {
+
+    private val TAG = "LiveRadioRepository"
 
     suspend fun searchStations(query: String): List<OnlineTrack> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
@@ -69,7 +72,7 @@ class LiveRadioRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al consultar la API de Radio Browser", e)
         }
         return list
     }

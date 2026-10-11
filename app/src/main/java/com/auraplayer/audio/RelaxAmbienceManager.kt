@@ -3,6 +3,7 @@ package com.auraplayer.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +24,8 @@ enum class AmbienceSound(val title: String, val emoji: String, val description: 
 class RelaxAmbienceManager private constructor() {
 
     companion object {
+        private const val TAG = "RelaxAmbienceManager"
+
         val instance: RelaxAmbienceManager by lazy { RelaxAmbienceManager() }
         private const val SAMPLE_RATE = 44100
     }
@@ -162,7 +165,9 @@ class RelaxAmbienceManager private constructor() {
         try {
             audioTrack?.stop()
             audioTrack?.release()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo detener la pista de ambiente relajante", e)
+        }
         audioTrack = null
     }
 }

@@ -42,9 +42,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private const val TAG = "BatchCoverFetcherDialog"
 
 /**
  * Descargador Masivo de Carátulas Oficiales en Segundo Plano.
@@ -208,7 +211,9 @@ fun BatchCoverFetcherDialog(
                                 }
                                 try {
                                     onFetchSingleCover(song)
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) {
+                                    AppLog.e(TAG, "No se pudo descargar la carátula de la canción", e)
+                                }
                             }
                             withContext(Dispatchers.Main) {
                                 isDownloading = false

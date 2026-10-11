@@ -12,6 +12,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.provider.Settings
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -29,6 +30,8 @@ data class VaultItem(
 )
 
 class VaultManager(private val context: Context) {
+
+    private const val TAG = "VaultManager"
 
     private val prefs = context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE)
     private val legacyPrefs = context.getSharedPreferences("aura_vault_prefs", Context.MODE_PRIVATE)
@@ -64,7 +67,9 @@ class VaultManager(private val context: Context) {
             try {
                 if (!exists()) mkdirs()
                 ensureNoMedia(this)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo preparar el vault persistente externo", e)
+            }
         }
     }
 
@@ -73,7 +78,9 @@ class VaultManager(private val context: Context) {
             try {
                 if (!exists()) mkdirs()
                 ensureNoMedia(this)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo preparar el vault persistente de videos", e)
+            }
         }
     }
 
@@ -82,7 +89,9 @@ class VaultManager(private val context: Context) {
             try {
                 if (!exists()) mkdirs()
                 ensureNoMedia(this)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo preparar el vault persistente de fotos", e)
+            }
         }
     }
 
@@ -92,14 +101,20 @@ class VaultManager(private val context: Context) {
             try {
                 if (!exists()) mkdirs()
                 ensureNoMedia(this)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo preparar el vault externo de la app", e)
+            }
         }
     }
 
     init {
         migrateLegacyPrefs()
         ensureNoMedia(vaultDir)
-        try { ensureNoMedia(persistentVaultDir) } catch (_: Exception) {}
+        try {
+            ensureNoMedia(persistentVaultDir)
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo preparar el vault persistente al iniciar", e)
+        }
     }
 
     private fun migrateLegacyPrefs() {
@@ -116,7 +131,9 @@ class VaultManager(private val context: Context) {
                     prefs.edit().putStringSet(hiddenPathsKey, legacyPaths).apply()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Fallo al migrar las preferencias legacy del vault", e)
+        }
     }
 
     private fun ensureNoMedia(dir: File) {
@@ -124,7 +141,9 @@ class VaultManager(private val context: Context) {
             if (!dir.exists()) dir.mkdirs()
             val noMedia = File(dir, ".nomedia")
             if (!noMedia.exists()) noMedia.createNewFile()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo crear el archivo .nomedia", e)
+        }
     }
 
     fun hasAllFilesAccess(): Boolean {
@@ -143,7 +162,8 @@ class VaultManager(private val context: Context) {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 ctx.startActivity(intent)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo al abrir los ajustes de todos los archivos", e)
                 val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
@@ -210,7 +230,10 @@ class VaultManager(private val context: Context) {
         if (path.isNullOrBlank()) return
         val current = prefs.getStringSet(hiddenPathsKey, emptySet())?.toMutableSet() ?: mutableSetOf()
         current.add(path)
-        val name = try { File(path).name } catch (_: Exception) { "" }
+        val name = try { File(path).name } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo obtener el nombre del archivo oculto", e)
+            ""
+        }
         if (name.isNotBlank()) current.add(name)
         prefs.edit().putStringSet(hiddenPathsKey, current).apply()
     }
@@ -218,7 +241,10 @@ class VaultManager(private val context: Context) {
     fun unmarkPathAsHidden(path: String?) {
         if (path.isNullOrBlank()) return
         val current = prefs.getStringSet(hiddenPathsKey, emptySet())?.toMutableSet() ?: mutableSetOf()
-        val name = try { File(path).name } catch (_: Exception) { "" }
+        val name = try { File(path).name } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo obtener el nombre del archivo oculto", e)
+            ""
+        }
         current.removeAll { it == path || (name.isNotBlank() && (it == name || it.endsWith(name))) }
         prefs.edit().putStringSet(hiddenPathsKey, current).apply()
     }
@@ -228,7 +254,10 @@ class VaultManager(private val context: Context) {
         if (path.contains(".secure_vault")) return true
         val set = prefs.getStringSet(hiddenPathsKey, emptySet()) ?: emptySet()
         if (set.contains(path)) return true
-        val name = try { File(path).name } catch (_: Exception) { "" }
+        val name = try { File(path).name } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo obtener el nombre del archivo oculto", e)
+            ""
+        }
         if (name.isNotBlank() && set.contains(name)) return true
         return if (name.isNotBlank()) set.any { it.endsWith(name) } else false
     }
@@ -250,7 +279,9 @@ class VaultManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo al consultar la columna DATA del MediaStore", e)
+            }
 
             // 2. DocumentsContract parsing (e.g., com.android.providers.media.documents)
             try {
@@ -282,7 +313,9 @@ class VaultManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo al interpretar el URI de documento", e)
+            }
 
             // 3. Fallback for PhotoPicker: query MediaStore by Display Name and Size
             try {
@@ -326,8 +359,12 @@ class VaultManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
-        } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "Fallo al buscar el archivo por nombre y tamaño", e)
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo resolver la ruta real del URI", e)
+        }
         return null
     }
 
@@ -352,7 +389,9 @@ class VaultManager(private val context: Context) {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo resolver el nombre del archivo del URI", e)
+        }
         return uri.lastPathSegment?.substringAfterLast("/")
     }
 
@@ -394,7 +433,9 @@ class VaultManager(private val context: Context) {
                                     FileInputStream(f).use { input ->
                                         FileOutputStream(internalTarget).use { output -> input.copyTo(output) }
                                     }
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) {
+                                    AppLog.w(TAG, "Fallo al replicar el archivo en el vault interno", e)
+                                }
                             }
                             val persistentTarget = File(if (isVideo) persistentVideoVaultDir else persistentPhotoVaultDir, f.name)
                             if (!persistentTarget.exists() && f.absolutePath != persistentTarget.absolutePath) {
@@ -402,12 +443,16 @@ class VaultManager(private val context: Context) {
                                     FileInputStream(f).use { input ->
                                         FileOutputStream(persistentTarget).use { output -> input.copyTo(output) }
                                     }
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) {
+                                    AppLog.w(TAG, "Fallo al replicar el archivo en el vault persistente", e)
+                                }
                             }
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Fallo al listar el directorio del vault", e)
+            }
         }
 
         itemsMap.values.sortedByDescending { it.dateAdded }
@@ -484,14 +529,16 @@ class VaultManager(private val context: Context) {
                             input.copyTo(output)
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.w(TAG, "Fallo al replicar el archivo en el vault persistente", e)
+                }
 
                 markPathAsHidden(realSourcePath ?: sourcePath)
                 markPathAsHidden(targetFile.name)
                 targetFile
             } else null
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al mover el archivo al vault", e)
             null
         }
     }
@@ -499,7 +546,9 @@ class VaultManager(private val context: Context) {
     fun cleanVaultFile(file: File?) {
         try {
             file?.delete()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo limpiar el archivo del vault", e)
+        }
     }
 
     fun isCanonicalExternalMediaUri(uri: Uri?): Boolean {
@@ -532,7 +581,9 @@ class VaultManager(private val context: Context) {
                         return ContentUris.withAppendedId(baseUri, idLong)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "Fallo al interpretar el documento de MediaStore", e)
+            }
         }
 
         // 3. Query MediaStore by physical file path
@@ -554,7 +605,9 @@ class VaultManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "Fallo al buscar el ID de MediaStore por ruta", e)
+            }
 
             try {
                 val f = File(path)
@@ -579,7 +632,9 @@ class VaultManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "Fallo al buscar el ID de MediaStore por nombre", e)
+            }
         }
 
         // 4. Query MediaStore by Display Name and Size (supports Android 13+ PhotoPicker URIs)
@@ -623,7 +678,9 @@ class VaultManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "Fallo al consultar el nombre y tamaño del archivo", e)
+            }
         }
 
         return uri
@@ -647,7 +704,9 @@ class VaultManager(private val context: Context) {
             if (file.exists()) {
                 try {
                     physicallyDeleted = file.delete()
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Fallo al borrar el archivo original de la galería", e)
+                }
             } else {
                 physicallyDeleted = true
             }
@@ -658,7 +717,9 @@ class VaultManager(private val context: Context) {
             try {
                 val count = ctx.contentResolver.delete(canonicalUri, null, null)
                 if (count > 0) physicallyDeleted = true
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Fallo al borrar el original vía ContentResolver", e)
+            }
         }
 
         // 3. Direct path delete in MediaStore
@@ -666,12 +727,16 @@ class VaultManager(private val context: Context) {
             try {
                 val count = ctx.contentResolver.delete(baseUri, "${MediaStore.MediaColumns.DATA} = ?", arrayOf(resolvedPath))
                 if (count > 0) physicallyDeleted = true
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Fallo al borrar el original por ruta en MediaStore", e)
+            }
 
             // 4. Force MediaScanner to update gallery
             try {
                 MediaScannerConnection.scanFile(ctx, arrayOf(resolvedPath), null, null)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Fallo al refrescar la galería tras borrar el original", e)
+            }
         }
 
         // Check if file is actually gone
@@ -696,7 +761,7 @@ class VaultManager(private val context: Context) {
                 return try {
                     MediaStore.createDeleteRequest(ctx.contentResolver, listOf(canonicalUri))
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    AppLog.e(TAG, "Fallo al crear la petición de borrado", e)
                     null
                 }
             }
@@ -716,7 +781,7 @@ class VaultManager(private val context: Context) {
                 return try {
                     MediaStore.createDeleteRequest(ctx.contentResolver, canonicalUris)
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    AppLog.e(TAG, "Fallo al crear la petición de borrado múltiple", e)
                     null
                 }
             }
@@ -763,9 +828,13 @@ class VaultManager(private val context: Context) {
             if (destFile.exists()) {
                 item.file.delete()
                 val persistentCopy = if (item.isVideo) File(persistentVideoVaultDir, item.file.name) else File(persistentPhotoVaultDir, item.file.name)
-                try { persistentCopy.delete() } catch (_: Exception) {}
+                try { persistentCopy.delete() } catch (e: Exception) {
+                    AppLog.e(TAG, "Fallo al eliminar la copia persistente al restaurar", e)
+                }
                 val externalCopy = File(File(externalAppVaultDir, if (item.isVideo) "videos" else "photos"), item.file.name)
-                try { externalCopy.delete() } catch (_: Exception) {}
+                try { externalCopy.delete() } catch (e: Exception) {
+                    AppLog.e(TAG, "Fallo al eliminar la copia externa al restaurar", e)
+                }
 
                 unmarkPathAsHidden(destFile.absolutePath)
                 unmarkPathAsHidden(item.file.name)
@@ -776,7 +845,7 @@ class VaultManager(private val context: Context) {
                 false
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al restaurar el archivo desde el vault", e)
             false
         }
     }
@@ -786,12 +855,16 @@ class VaultManager(private val context: Context) {
             unmarkPathAsHidden(item.file.name)
             item.file.delete()
             val persistentCopy = if (item.isVideo) File(persistentVideoVaultDir, item.file.name) else File(persistentPhotoVaultDir, item.file.name)
-            try { persistentCopy.delete() } catch (_: Exception) {}
+            try { persistentCopy.delete() } catch (e: Exception) {
+                AppLog.e(TAG, "Fallo al eliminar la copia persistente del vault", e)
+            }
             val externalCopy = File(File(externalAppVaultDir, if (item.isVideo) "videos" else "photos"), item.file.name)
-            try { externalCopy.delete() } catch (_: Exception) {}
+            try { externalCopy.delete() } catch (e: Exception) {
+                AppLog.e(TAG, "Fallo al eliminar la copia externa del vault", e)
+            }
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al eliminar el archivo del vault", e)
             false
         }
     }

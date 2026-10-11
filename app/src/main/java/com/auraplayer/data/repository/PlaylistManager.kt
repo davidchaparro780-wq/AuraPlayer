@@ -3,6 +3,7 @@ package com.auraplayer.data.repository
 import android.content.Context
 import android.content.SharedPreferences
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,6 +22,10 @@ data class TagOverride(
 )
 
 class PlaylistManager(context: Context) {
+
+    companion object {
+        private const val TAG = "PlaylistManager"
+    }
 
     private val prefs: SharedPreferences = context.getSharedPreferences("aura_playlists_store", Context.MODE_PRIVATE)
 
@@ -230,7 +235,7 @@ class PlaylistManager(context: Context) {
             editor.apply()
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo importar el respaldo de la app", e)
             false
         }
     }

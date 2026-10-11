@@ -16,8 +16,11 @@ import androidx.core.content.ContextCompat
 import com.auraplayer.MainActivity
 import com.auraplayer.data.repository.SettingsManager
 import com.auraplayer.data.repository.UpdateInfo
+import com.auraplayer.util.AppLog
 
 object UpdateNotificationHelper {
+
+    private const val TAG = "UpdateNotificationHelper"
 
     const val CHANNEL_ID = "dave_updates_channel"
     const val NOTIFICATION_ID = 2026
@@ -41,7 +44,9 @@ object UpdateNotificationHelper {
                             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build()
                     )
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.d(TAG, "No se pudo configurar el sonido del canal de avisos", e)
+                }
             }
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -119,6 +124,8 @@ object UpdateNotificationHelper {
 
         try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
-        } catch (_: SecurityException) {}
+        } catch (e: SecurityException) {
+            AppLog.w(TAG, "No se pudo mostrar la notificación de actualización", e)
+        }
     }
 }

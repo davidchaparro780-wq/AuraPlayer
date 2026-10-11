@@ -3,8 +3,8 @@ package com.auraplayer.service
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
-import android.util.Log
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,6 +36,10 @@ data class ServerController(
 
 class LocalMusicServer {
 
+    companion object {
+        private const val TAG = "LocalMusicServer"
+    }
+
     private var serverSocket: ServerSocket? = null
     private var serverScope: CoroutineScope? = null
     private var songList: List<MediaModel> = emptyList()
@@ -63,7 +67,7 @@ class LocalMusicServer {
                     bind(InetSocketAddress(port))
                 }
                 isRunning = true
-                Log.d("LocalMusicServer", "DaVE WiFi Server running on port $port")
+                AppLog.d(TAG, "Servidor WiFi DaVE iniciado en el puerto $port")
                 while (isActive && isRunning) {
                     val client = try {
                         serverSocket?.accept() ?: break
@@ -73,7 +77,7 @@ class LocalMusicServer {
                     launch { handleClient(client) }
                 }
             } catch (e: Exception) {
-                Log.e("LocalMusicServer", "Server socket error: ${e.message}", e)
+                AppLog.e(TAG, "Error en el socket del servidor WiFi: ${e.message}", e)
             } finally {
                 isRunning = false
             }
@@ -82,12 +86,12 @@ class LocalMusicServer {
 
     fun updateSongList(newSongs: List<MediaModel>) {
         songList = newSongs
-        Log.d("LocalMusicServer", "Song list updated with ${newSongs.size} tracks")
+        AppLog.d(TAG, "Lista de canciones actualizada con ${newSongs.size} pistas")
     }
 
     fun stop() {
         isRunning = false
-        try { serverSocket?.close() } catch (_: Exception) {}
+        try { serverSocket?.close() } catch (e: Exception) { AppLog.d(TAG, "No se pudo cerrar el socket del servidor al detener", e) }
         serverScope?.cancel()
         serverScope = null
         serverSocket = null
@@ -116,7 +120,7 @@ class LocalMusicServer {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudo obtener la IP por ConnectivityManager", e) }
 
         // 2. Try WifiManager
         try {
@@ -135,7 +139,7 @@ class LocalMusicServer {
                     result.add(ip)
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudo obtener la IP por WifiManager", e) }
 
         // 3. Network Interfaces iteration
         try {
@@ -175,7 +179,7 @@ class LocalMusicServer {
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudieron enumerar las interfaces de red", e) }
 
         // Order results so 192.168.x.x comes first, then 10.x.x.x, then others
         result.sortWith(Comparator { a, b ->
@@ -258,9 +262,10 @@ class LocalMusicServer {
                 }
                 else -> serve404(socket)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Error atendiendo la petición del cliente WiFi", e)
         } finally {
-            try { socket.close() } catch (_: Exception) {}
+            try { socket.close() } catch (e: Exception) { AppLog.d(TAG, "No se pudo cerrar el socket del cliente", e) }
         }
     }
 
@@ -279,7 +284,7 @@ class LocalMusicServer {
         out.write(headers.toByteArray(Charsets.ISO_8859_1))
         out.write(body)
         out.flush()
-        try { socket.shutdownOutput() } catch (_: Exception) {}
+        try { socket.shutdownOutput() } catch (e: Exception) { AppLog.d(TAG, "No se pudo hacer shutdownOutput del socket", e) }
     }
 
     private fun sendNoContent(socket: Socket) {
@@ -289,7 +294,7 @@ class LocalMusicServer {
         val out = socket.getOutputStream()
         out.write(headers.toByteArray(Charsets.ISO_8859_1))
         out.flush()
-        try { socket.shutdownOutput() } catch (_: Exception) {}
+        try { socket.shutdownOutput() } catch (e: Exception) { AppLog.d(TAG, "No se pudo hacer shutdownOutput del socket", e) }
     }
 
     private fun sendOptionsResponse(socket: Socket) {
@@ -301,7 +306,7 @@ class LocalMusicServer {
         val out = socket.getOutputStream()
         out.write(headers.toByteArray(Charsets.ISO_8859_1))
         out.flush()
-        try { socket.shutdownOutput() } catch (_: Exception) {}
+        try { socket.shutdownOutput() } catch (e: Exception) { AppLog.d(TAG, "No se pudo hacer shutdownOutput del socket", e) }
     }
 
     private fun serveSongsApi(socket: Socket) {
@@ -733,7 +738,7 @@ checkSong();
             try {
                 fileSize = song.size
                 inputStream = appContext?.contentResolver?.openInputStream(song.uri)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { AppLog.e(TAG, "No se pudo abrir el stream desde el ContentResolver", e) }
         }
 
         if (inputStream == null) {
@@ -767,7 +772,7 @@ checkSong();
                     }
                     isPartial = true
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { AppLog.d(TAG, "No se pudo interpretar la cabecera Range", e) }
         }
 
         val out = socket.getOutputStream()
@@ -818,7 +823,7 @@ checkSong();
         }
 
         out.flush()
-        try { socket.shutdownOutput() } catch (_: Exception) {}
+        try { socket.shutdownOutput() } catch (e: Exception) { AppLog.d(TAG, "No se pudo hacer shutdownOutput del socket", e) }
     }
 
     private fun serve404(socket: Socket) {

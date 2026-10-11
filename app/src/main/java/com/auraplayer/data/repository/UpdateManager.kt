@@ -6,8 +6,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import android.util.Log
 import androidx.core.content.FileProvider
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -76,7 +76,7 @@ class UpdateManager(private val context: Context) {
                 val downloadUrl = root.optString("downloadUrl", "")
                 val fileSizeMb = root.optDouble("fileSizeMb", 23.0)
 
-                Log.d(tag, "version.json check: Remote $remoteVersion (code $remoteVersionCode) vs Current $currentVersion (code $currentVersionCode)")
+                AppLog.d(tag, "version.json: Remota $remoteVersion (cód. $remoteVersionCode) vs Actual $currentVersion (cód. $currentVersionCode)")
 
                 val isNewer = (remoteVersionCode > 0 && remoteVersionCode > currentVersionCode) || isVersionNewer(remoteVersion, currentVersion)
                 if (isNewer && downloadUrl.isNotBlank()) {
@@ -91,7 +91,7 @@ class UpdateManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.w(tag, "version.json check failed, trying GitHub Releases API: ${e.message}")
+                AppLog.w(tag, "Falló la comprobación vía version.json, se prueba GitHub API: ${e.message}")
         }
 
         // 2. Fallback to GitHub Releases API
@@ -113,7 +113,7 @@ class UpdateManager(private val context: Context) {
                 val remoteVersion = rawTagName.removePrefix("v").trim()
                 val body = root.optString("body", "Mejoras de rendimiento y nuevas funciones.")
 
-                Log.d(tag, "GitHub API: Remote $remoteVersion vs Current $currentVersion")
+                AppLog.d(tag, "GitHub API: Remota $remoteVersion vs Actual $currentVersion")
 
                 if (isVersionNewer(remoteVersion, currentVersion)) {
                     val assets = root.optJSONArray("assets")
@@ -145,7 +145,7 @@ class UpdateManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            Log.e(tag, "Error checking for update on GitHub: ${e.message}")
+            AppLog.e(tag, "Error al comprobar actualizaciones en GitHub: ${e.message}", e)
         }
         null
     }
@@ -241,7 +241,7 @@ class UpdateManager(private val context: Context) {
             }
 
         } catch (e: Exception) {
-            Log.e(tag, "Download failed: ${e.message}")
+            AppLog.e(tag, "Error al descargar la actualización: ${e.message}", e)
             withContext(Dispatchers.Main) {
                 onError("Error al descargar actualización: ${e.localizedMessage}")
             }
@@ -254,7 +254,7 @@ class UpdateManager(private val context: Context) {
     fun installApk(apkFile: File) {
         try {
             if (!apkFile.exists()) {
-                Log.e(tag, "APK file does not exist at ${apkFile.absolutePath}")
+                AppLog.e(tag, "El APK no existe en ${apkFile.absolutePath}")
                 android.widget.Toast.makeText(context, "El archivo descargado no existe", android.widget.Toast.LENGTH_SHORT).show()
                 return
             }
@@ -302,7 +302,9 @@ class UpdateManager(private val context: Context) {
             ).forEach { pkg ->
                 try {
                     context.grantUriPermission(pkg, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.d(tag, "No se pudo conceder permiso de URI a $pkg", e)
+                }
             }
 
             val resInfoList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -321,12 +323,14 @@ class UpdateManager(private val context: Context) {
                 val pkgName = resolveInfo.activityInfo.packageName
                 try {
                     context.grantUriPermission(pkgName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.d(tag, "No se pudo conceder permiso de URI a $pkgName", e)
+                }
             }
 
             context.startActivity(installIntent)
         } catch (e: Exception) {
-            Log.e(tag, "Error triggering install: ${e.message}", e)
+            AppLog.e(tag, "Error al abrir el instalador: ${e.message}", e)
             android.widget.Toast.makeText(
                 context,
                 "Error al abrir instalador: ${e.localizedMessage}",

@@ -3,6 +3,7 @@ package com.auraplayer.audio
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +24,8 @@ enum class BinauralMode(val title: String, val desc: String, val baseFreq: Float
 class BinauralNoiseManager private constructor() {
 
     companion object {
+        private const val TAG = "BinauralNoiseManager"
+
         val instance: BinauralNoiseManager by lazy { BinauralNoiseManager() }
         private const val SAMPLE_RATE = 44100
     }
@@ -121,7 +124,9 @@ class BinauralNoiseManager private constructor() {
             audioTrack?.pause()
             audioTrack?.flush()
             audioTrack?.release()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo detener la pista de sonido binaural", e)
+        }
         audioTrack = null
     }
 }

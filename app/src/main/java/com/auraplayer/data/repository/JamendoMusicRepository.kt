@@ -1,6 +1,7 @@
 package com.auraplayer.data.repository
 
 import com.auraplayer.data.model.OnlineTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -10,6 +11,7 @@ import java.net.URLEncoder
 
 class JamendoMusicRepository {
 
+    private val TAG = "JamendoMusicRepository"
     private val clientId = "3dce8b55"
     private val baseUrl = "https://api.jamendo.com/v3.0/tracks/"
 
@@ -87,7 +89,7 @@ class JamendoMusicRepository {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "Fallo al consultar la API de Jamendo", e)
         }
         return list
     }

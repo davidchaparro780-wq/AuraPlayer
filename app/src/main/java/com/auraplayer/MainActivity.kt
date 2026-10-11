@@ -152,6 +152,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.auraplayer.util.AppLog
+
+private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
 
@@ -176,7 +179,7 @@ class MainActivity : ComponentActivity() {
                             try {
                                 val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
                                 vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { AppLog.d(TAG, "No se pudo vibrar al cambiar a la siguiente canción", e) }
                             Toast.makeText(this, "⏭ Siguiente canción", Toast.LENGTH_SHORT).show()
                             return true
                         } else if (event.repeatCount == 0) {
@@ -188,7 +191,7 @@ class MainActivity : ComponentActivity() {
                                 try {
                                     val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
                                     vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) { AppLog.d(TAG, "No se pudo vibrar al cambiar a la siguiente canción", e) }
                                 Toast.makeText(this, "⏭ Siguiente canción", Toast.LENGTH_SHORT).show()
                                 return true
                             }
@@ -207,7 +210,7 @@ class MainActivity : ComponentActivity() {
                             try {
                                 val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
                                 vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { AppLog.d(TAG, "No se pudo vibrar al cambiar a la canción anterior", e) }
                             Toast.makeText(this, "⏮ Canción anterior", Toast.LENGTH_SHORT).show()
                             return true
                         } else if (event.repeatCount == 0) {
@@ -219,7 +222,7 @@ class MainActivity : ComponentActivity() {
                                 try {
                                     val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
                                     vib?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                                } catch (_: Exception) {}
+                                } catch (e: Exception) { AppLog.d(TAG, "No se pudo vibrar al cambiar a la canción anterior", e) }
                                 Toast.makeText(this, "⏮ Canción anterior", Toast.LENGTH_SHORT).show()
                                 return true
                             }
@@ -256,7 +259,7 @@ class MainActivity : ComponentActivity() {
                     params.preferredDisplayModeId = maxMode.modeId
                     window.attributes = params
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { AppLog.w(TAG, "No se pudo forzar la frecuencia de refresco máxima", e) }
         }
 
         setContent {
@@ -721,7 +724,7 @@ fun AuraApp(
                     vibrator?.vibrate(50)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.d(TAG, "No se pudo vibrar al saltar canción por agitado", e)
             }
         }
     }
@@ -745,7 +748,7 @@ fun AuraApp(
                     vibrator?.vibrate(45)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.d(TAG, "No se pudo vibrar al saltar canción por gesto de mano", e)
             }
         }
     }
@@ -816,7 +819,7 @@ fun AuraApp(
                 pending?.let { (video, _) ->
                     try {
                         android.media.MediaScannerConnection.scanFile(context, arrayOf(video.path), null, null)
-                    } catch (_: Exception) {}
+                    } catch (e: Exception) { AppLog.d(TAG, "No se pudo reescanear la galería tras ocultar el video", e) }
                 }
                 videos = mediaRepository.loadVideoFiles()
             }
@@ -876,7 +879,7 @@ fun AuraApp(
                             IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        AppLog.w(TAG, "No se pudo abrir el diálogo del sistema para borrar, usando borrado directo", e)
                         val success = mediaRepository.deleteAudioFile(song)
                         if (success) {
                             songs = songs.filter { it.id != song.id }
@@ -997,7 +1000,7 @@ fun AuraApp(
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    error.printStackTrace()
+                    AppLog.e(TAG, "Error de reproducción de la pista actual", error)
                     val media = currentMedia
                     if (media != null && media.id == -1L) {
                         // Attempt automatic stream self-healing before failing
@@ -2300,7 +2303,7 @@ fun AuraApp(
                             Toast.makeText(context, "🔒 Video ocultado de la galería y protegido en Bóveda", Toast.LENGTH_SHORT).show()
                             try {
                                 android.media.MediaScannerConnection.scanFile(context, arrayOf(videoToHide.path), null, null)
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { AppLog.d(TAG, "No se pudo reescanear la galería tras borrar el original", e) }
                             videos = mediaRepository.loadVideoFiles()
                         } else {
                             val pendingIntent = vaultManager.getDeleteRequestPendingIntent(
@@ -2719,7 +2722,7 @@ fun AuraApp(
                             try {
                                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo!!.downloadUrl))
                                 context.startActivity(browserIntent)
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) { AppLog.w(TAG, "No se pudo abrir el navegador para descargar la actualización", e) }
                         }) {
                             Text("Navegador")
                         }

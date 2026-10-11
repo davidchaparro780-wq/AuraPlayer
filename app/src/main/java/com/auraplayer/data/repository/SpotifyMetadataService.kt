@@ -1,7 +1,7 @@
 package com.auraplayer.data.repository
 
 import android.util.Base64
-import android.util.Log
+import com.auraplayer.util.AppLog
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -54,7 +54,7 @@ class SpotifyMetadataService(
                     }
                 }
             } catch (e: Exception) {
-                Log.e(tag, "Spotify fetch error: ${e.message}")
+                AppLog.w(tag, "Fallo en Spotify Web API, se usará Deezer HD", e)
             }
         }
 
@@ -65,7 +65,7 @@ class SpotifyMetadataService(
                 return deezerMeta
             }
         } catch (e: Exception) {
-            Log.e(tag, "Deezer HD fallback error: ${e.message}")
+            AppLog.w(tag, "Fallo en fallback Deezer HD, se probará iTunes HD", e)
         }
 
         // 3. High-Res Fallback: iTunes Search API (1000x1000 HD cover, no API key required)
@@ -75,7 +75,7 @@ class SpotifyMetadataService(
                 return itunesMeta
             }
         } catch (e: Exception) {
-            Log.e(tag, "iTunes HD fallback error: ${e.message}")
+            AppLog.e(tag, "Fallo en fallback iTunes HD de metadatos", e)
         }
 
         return null

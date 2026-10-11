@@ -22,6 +22,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.auraplayer.MainActivity
+import com.auraplayer.util.AppLog
 
 class FloatingBubbleService : Service() {
 
@@ -30,6 +31,7 @@ class FloatingBubbleService : Service() {
     private var isExpanded = false
 
     companion object {
+        private const val TAG = "FloatingBubbleService"
         const val ACTION_START = "ACTION_START_BUBBLE"
         const val ACTION_STOP = "ACTION_STOP_BUBBLE"
         const val CHANNEL_ID = "dave_bubble_channel"
@@ -189,7 +191,9 @@ class FloatingBubbleService : Service() {
         floatingView = container
         try {
             windowManager?.addView(floatingView, params)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.e(TAG, "No se pudo añadir la vista flotante al WindowManager", e)
+        }
     }
 
     override fun onDestroy() {
@@ -198,7 +202,9 @@ class FloatingBubbleService : Service() {
         if (floatingView != null) {
             try {
                 windowManager?.removeView(floatingView)
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo quitar la vista flotante al destruir", e)
+            }
             floatingView = null
         }
     }

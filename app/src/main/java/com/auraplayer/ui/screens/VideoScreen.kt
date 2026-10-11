@@ -66,9 +66,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+
+private const val TAG = "VideoScreen"
 
 object VideoThumbnailCache {
     private val maxMemory = (Runtime.getRuntime().maxMemory() / 1024).toInt()
@@ -92,7 +95,9 @@ private suspend fun loadVideoThumbnail(context: Context, video: MediaModel): Bit
         try {
             val thumb = context.contentResolver.loadThumbnail(video.uri, Size(512, 384), null)
             if (thumb != null) return@withContext thumb
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "ContentResolver.loadThumbnail no disponible para el vídeo", e)
+        }
     }
 
     // 2. Try MediaMetadataRetriever
@@ -107,7 +112,9 @@ private suspend fun loadVideoThumbnail(context: Context, video: MediaModel): Bit
             ?: retriever.frameAtTime
         retriever.release()
         if (frame != null) return@withContext frame
-    } catch (_: Exception) {}
+    } catch (e: Exception) {
+        AppLog.d(TAG, "MediaMetadataRetriever no pudo extraer un fotograma", e)
+    }
 
     // 3. Fallback: ThumbnailUtils
     try {
@@ -116,7 +123,9 @@ private suspend fun loadVideoThumbnail(context: Context, video: MediaModel): Bit
             val thumb = ThumbnailUtils.createVideoThumbnail(video.path, MediaStore.Images.Thumbnails.MINI_KIND)
             if (thumb != null) return@withContext thumb
         }
-    } catch (_: Exception) {}
+    } catch (e: Exception) {
+        AppLog.d(TAG, "ThumbnailUtils no pudo crear la miniatura del vídeo", e)
+    }
 
     null
 }

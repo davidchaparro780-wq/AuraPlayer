@@ -7,9 +7,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.OnlineTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +37,10 @@ class DownloadEngine(
     private val lyricsManager: LyricsManager,
     val youtubeRepo: YouTubeMusicRepository = YouTubeMusicRepository()
 ) {
+
+    companion object {
+        private const val TAG = "DownloadEngine"
+    }
 
     var onUpdateNeeded: (() -> Unit)? = null
 
@@ -118,11 +122,11 @@ class DownloadEngine(
                         val fullStream = youtubeRepo.resolveAudioStream(videoId)
                         if (!fullStream.isNullOrBlank()) {
                             resolvedAudioUrl = fullStream
-                            Log.d("DownloadEngine", "Upgraded Deezer preview to full YouTube HQ stream for ${track.title}")
+                            AppLog.d(TAG, "Preview de Deezer actualizado a stream HQ de YouTube para ${track.title}")
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w("DownloadEngine", "Could not upgrade Deezer preview: ${e.message}")
+                    AppLog.w(TAG, "No se pudo actualizar el preview de Deezer: ${e.message}", e)
                 }
             }
 
@@ -137,7 +141,7 @@ class DownloadEngine(
                 resolvedAudioUrl.contains("music.youtube.com", ignoreCase = true))
 
             if (needsYouTubeResolution) {
-                Log.d("DownloadEngine", "YouTube URL detected, resolving stream for: ${track.title}")
+                AppLog.d(TAG, "URL de YouTube detectada, resolviendo stream para: ${track.title}")
                 val videoId = when {
                     track.id.startsWith("yt_") -> track.id.removePrefix("yt_")
                     resolvedAudioUrl.contains("v=") -> resolvedAudioUrl.substringAfter("v=").substringBefore("&")
@@ -157,7 +161,7 @@ class DownloadEngine(
                 }
                 resolvedAudioUrl = directUrl
             } else if (isAlreadyDirectStream) {
-                Log.d("DownloadEngine", "URL already a direct stream, skipping re-resolution: ${resolvedAudioUrl.take(80)}...")
+                AppLog.d(TAG, "La URL ya es un stream directo, se omite re-resolución: ${resolvedAudioUrl.take(80)}...")
             }
 
             // 2. Download with retry (max 2 attempts for transient network failures)
@@ -173,7 +177,7 @@ class DownloadEngine(
                     return@withContext // SUCCESS - exit
                 } catch (e: Exception) {
                     lastException = e
-                    Log.w("DownloadEngine", "Download attempt $attempt failed: ${e.message}")
+                    AppLog.w(TAG, "Intento de descarga $attempt falló: ${e.message}", e)
 
                     // On first failure for YouTube tracks, try re-resolving the stream URL
                     if (attempt == 1 && (track.source == "YouTube" || track.id.startsWith("yt_"))) {
@@ -182,7 +186,7 @@ class DownloadEngine(
                             val freshUrl = youtubeRepo.resolveAudioStream(videoId)
                             if (!freshUrl.isNullOrBlank() && freshUrl != resolvedAudioUrl) {
                                 resolvedAudioUrl = freshUrl
-                                Log.d("DownloadEngine", "Re-resolved YouTube stream for retry")
+                                AppLog.d(TAG, "Stream de YouTube re-resuelto para el reintento")
                                 continue
                             }
                         }
@@ -190,7 +194,7 @@ class DownloadEngine(
                         val deezerUrl = searchFallbackAudioUrl(track.artist, track.title)
                         if (!deezerUrl.isNullOrBlank()) {
                             resolvedAudioUrl = deezerUrl
-                            Log.d("DownloadEngine", "Using Deezer fallback for retry")
+                            AppLog.d(TAG, "Usando fallback de Deezer para el reintento")
                             continue
                         }
                     }
@@ -201,7 +205,7 @@ class DownloadEngine(
             throw lastException ?: IllegalStateException("Error de descarga desconocido")
 
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo descargar la canción ${track.title}", e)
             val userMsg = when {
                 e.message?.contains("403") == true -> "YouTube bloqueó el acceso. Intenta de nuevo."
                 e.message?.contains("410") == true -> "El enlace de audio expiró. Intenta de nuevo."
@@ -309,7 +313,7 @@ class DownloadEngine(
                 val selectionArgs = arrayOf(safeFileName, "Music/DaVEPlayer/")
                 try {
                     context.contentResolver.delete(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, selection, selectionArgs)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { AppLog.d(TAG, "No se pudo borrar el archivo existente en MediaStore antes de insertar", e) }
 
                 val values = ContentValues().apply {
                     put(MediaStore.Audio.Media.DISPLAY_NAME, safeFileName)
@@ -335,7 +339,7 @@ class DownloadEngine(
                     context.contentResolver.update(uri, updateValues, null, null)
                 }
             } catch (e: Exception) {
-                Log.e("DownloadEngine", "MediaStore write failed, falling back to direct public storage: ${e.message}")
+                AppLog.e(TAG, "Escritura en MediaStore falló, se usa almacenamiento público directo: ${e.message}", e)
                 savedFileUri = null
             }
         }
@@ -366,10 +370,10 @@ class DownloadEngine(
 
         try {
             inputStream.close()
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudo cerrar el flujo de entrada de la descarga", e) }
         try {
             connection.disconnect()
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudo cerrar la conexión HTTP de la descarga", e) }
 
         updateState(track.id, DownloadStatus.Tagging)
 
@@ -393,7 +397,7 @@ class DownloadEngine(
         )
         try {
             lyricsManager.getLyrics(dummyMedia)
-        } catch (_: Exception) {}
+        } catch (e: Exception) { AppLog.d(TAG, "No se pudo pre-cachear la letra de la canción", e) }
     }
 
     private fun searchFallbackAudioUrl(artist: String, title: String): String? {
@@ -416,7 +420,7 @@ class DownloadEngine(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "No se pudo buscar una URL de audio alternativa en Deezer", e)
         }
         return null
     }
@@ -489,7 +493,7 @@ class DownloadEngine(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "No se pudo descargar la carátula durante la descarga", e)
         }
     }
 
@@ -537,7 +541,7 @@ class DownloadEngine(
                 onComplete?.invoke()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.e(TAG, "No se pudo descargar el video ${track.title}", e)
             val userMsg = e.localizedMessage ?: "Error al descargar el video"
             updateState(downloadId, DownloadStatus.Error(userMsg))
             withContext(Dispatchers.Main) {
@@ -596,7 +600,7 @@ class DownloadEngine(
                 val selectionArgs = arrayOf(fileName, "Movies/DaVEPlayer/")
                 try {
                     context.contentResolver.delete(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, selection, selectionArgs)
-                } catch (_: Exception) {}
+                } catch (e: Exception) { AppLog.d(TAG, "No se pudo borrar el video existente en MediaStore antes de insertar", e) }
 
                 val values = ContentValues().apply {
                     put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
@@ -619,7 +623,7 @@ class DownloadEngine(
                     context.contentResolver.update(uri, updateValues, null, null)
                 }
             } catch (e: Exception) {
-                Log.e("DownloadEngine", "MediaStore video write error, fallback to files: ${e.message}")
+                AppLog.e(TAG, "Error de escritura de video en MediaStore, se usan archivos: ${e.message}", e)
                 savedUri = null
             }
         }
@@ -648,7 +652,7 @@ class DownloadEngine(
         } else {
             try {
                 MediaScannerConnection.scanFile(context, arrayOf(savedPath ?: fileName), arrayOf("video/mp4"), null)
-            } catch (_: Exception) {}
+            } catch (e: Exception) { AppLog.d(TAG, "No se pudo reescanear el video guardado en MediaStore", e) }
         }
     }
 

@@ -19,11 +19,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+
+private const val TAG = "StickerGeneratorDialog"
 
 @Composable
 fun StickerGeneratorDialog(
@@ -198,7 +201,7 @@ private fun generateStickerBitmap(context: Context, song: MediaModel, emoji: Str
 
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     } catch (e: Exception) {
-        e.printStackTrace()
+        AppLog.e(TAG, "Fallo al generar el sticker compartible", e)
         null
     }
 }

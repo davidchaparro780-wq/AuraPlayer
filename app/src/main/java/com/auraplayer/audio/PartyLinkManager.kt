@@ -2,6 +2,7 @@ package com.auraplayer.audio
 
 import android.content.Context
 import android.net.wifi.WifiManager
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,7 +49,9 @@ class PartyLinkManager private constructor(private val context: Context) {
                     ipInt shr 24 and 0xff
                 )
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo obtener la IP local por Wi-Fi", e)
+        }
         return "192.168.1.100"
     }
 
@@ -79,7 +82,8 @@ class PartyLinkManager private constructor(private val context: Context) {
                     socket.send(packet)
                     kotlinx.coroutines.delay(1000)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Se cortó la transmisión de sincronización Party Link", e)
             } finally {
                 socket?.close()
             }
@@ -110,7 +114,8 @@ class PartyLinkManager private constructor(private val context: Context) {
                         onSyncReceived(title, posMs, isPlaying)
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                AppLog.w(TAG, "Se cortó la recepción de la sincronización Party Link", e)
             } finally {
                 socket?.close()
             }
@@ -128,6 +133,8 @@ class PartyLinkManager private constructor(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "PartyLinkManager"
+
         @Volatile
         private var instance: PartyLinkManager? = null
 

@@ -2,6 +2,7 @@ package com.auraplayer.audio
 
 import android.media.audiofx.Visualizer
 import android.os.SystemClock
+import com.auraplayer.util.AppLog
 import kotlin.math.abs
 import kotlin.math.hypot
 import kotlin.math.sin
@@ -14,6 +15,8 @@ import kotlin.math.sin
 class RealtimeVisualizerManager private constructor() {
 
     companion object {
+        private const val TAG = "RealtimeVisualizerManager"
+
         val instance: RealtimeVisualizerManager by lazy { RealtimeVisualizerManager() }
         const val NUM_BANDS = 32
         const val WAVEFORM_POINTS = 64
@@ -227,7 +230,9 @@ class RealtimeVisualizerManager private constructor() {
             visualizer?.enabled = false
             visualizer?.setDataCaptureListener(null, 0, false, false)
             visualizer?.release()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo liberar el visualizador de audio", e)
+        }
         visualizer = null
         currentSessionId = -1
     }

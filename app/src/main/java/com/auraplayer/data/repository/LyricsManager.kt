@@ -2,6 +2,7 @@ package com.auraplayer.data.repository
 
 import android.content.Context
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -24,6 +25,7 @@ data class SongLyrics(
 
 class LyricsManager(private val context: Context) {
 
+    private val TAG = "LyricsManager"
     private val cacheDir = File(context.filesDir, "lyrics").apply { mkdirs() }
     private val lrcPattern = Pattern.compile("\\[(\\d{2}):(\\d{2})\\.(\\d{2,3})\\]\\s*(.*)")
 
@@ -50,7 +52,9 @@ class LyricsManager(private val context: Context) {
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo leer el archivo .lrc local de la pista", e)
+            }
         }
 
         // 2. Query LRCLIB API
@@ -83,7 +87,7 @@ class LyricsManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "Fallo al consultar la API de LRCLIB", e)
         }
 
         null
@@ -145,7 +149,7 @@ class LyricsManager(private val context: Context) {
         try {
             File(cacheDir, "$songId.json").writeText(jsonStr)
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(TAG, "No se pudo guardar la letra en caché local", e)
         }
     }
 

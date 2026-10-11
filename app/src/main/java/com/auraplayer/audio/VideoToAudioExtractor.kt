@@ -7,6 +7,7 @@ import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Environment
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -18,6 +19,8 @@ import java.nio.ByteBuffer
  * a un archivo .m4a/.aac de alta fidelidad sin pérdida de calidad y en segundos.
  */
 object VideoToAudioExtractor {
+
+    private const val TAG = "VideoToAudioExtractor"
 
     suspend fun extractAudioFromVideo(
         context: Context,
@@ -109,19 +112,26 @@ object VideoToAudioExtractor {
                     arrayOf("audio/mp4", "audio/m4a"),
                     null
                 )
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo registrar el audio extraído en MediaStore", e)
+            }
 
             outputFile
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Fallo al extraer el audio del vídeo", e)
             null
         } finally {
             try {
                 muxer?.stop()
                 muxer?.release()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo liberar el muxer de audio", e)
+            }
             try {
                 extractor?.release()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo liberar el extractor del vídeo", e)
+            }
         }
     }
 }

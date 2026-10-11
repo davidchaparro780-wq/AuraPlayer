@@ -66,7 +66,10 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.delay
+
+private const val TAG = "VideoPlayerScreen"
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -164,7 +167,9 @@ fun VideoPlayerScreen(
                 } else if (currentPos > 3000L) {
                     resumePrefs.edit().putLong(resumeKey, currentPos).apply()
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo guardar la posición de reproducción", e)
+            }
         }
     }
 
@@ -186,7 +191,9 @@ fun VideoPlayerScreen(
                 } else if (currentPos > 3000L) {
                     resumePrefs.edit().putLong(resumeKey, currentPos).apply()
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                AppLog.w(TAG, "No se pudo guardar la posición al salir del vídeo", e)
+            }
             exoPlayer.stop()
             exoPlayer.release()
         }

@@ -38,9 +38,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.auraplayer.util.AppLog
 import kotlin.concurrent.thread
 import kotlin.math.PI
 import kotlin.math.sin
+
+private const val TAG = "SoundboardDialog"
 
 object DjSynthSoundPlayer {
 
@@ -67,7 +70,7 @@ object DjSynthSoundPlayer {
                     Thread.sleep(if (honk == 2) 40 else 60)
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.e(TAG, "Fallo al reproducir el sonido airhorn", e)
             }
         }
     }
@@ -88,7 +91,7 @@ object DjSynthSoundPlayer {
                 }
                 playBuffer(buffer, sampleRate)
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.e(TAG, "Fallo al reproducir el sonido scratch", e)
             }
         }
     }
@@ -110,7 +113,7 @@ object DjSynthSoundPlayer {
                 }
                 playBuffer(buffer, sampleRate)
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.e(TAG, "Fallo al reproducir el sonido bass drop", e)
             }
         }
     }
@@ -132,7 +135,7 @@ object DjSynthSoundPlayer {
                 }
                 playBuffer(buffer, sampleRate)
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.e(TAG, "Fallo al reproducir el sonido applause", e)
             }
         }
     }

@@ -187,10 +187,13 @@ import coil.compose.AsyncImage
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.RepeatMode
 import com.auraplayer.data.repository.SongLyrics
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.io.File
 import kotlin.math.sin
+
+private const val TAG = "PlayerScreen"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -375,7 +378,9 @@ fun PlayerScreen(
                             dynamicArtworkColor = color
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (e: Exception) {
+                    AppLog.d(TAG, "No se pudo extraer el color de acento de la carátula", e)
+                }
             }
         } else {
             dynamicArtworkColor = null

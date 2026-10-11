@@ -6,6 +6,7 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -26,6 +27,8 @@ data class AudioQualityReport(
  * si un archivo es verdaderamente Hi-Res Lossless o un audio comprimido inflado.
  */
 object AudioQualityInspector {
+
+    private const val TAG = "AudioQualityInspector"
 
     suspend fun inspectQuality(context: Context, song: MediaModel): AudioQualityReport = withContext(Dispatchers.IO) {
         var format = "Desconocido"
@@ -49,9 +52,10 @@ object AudioQualityInspector {
                 mime.contains("opus", ignoreCase = true) -> "Opus"
                 else -> mime.removePrefix("audio/").uppercase().ifBlank { "MP3" }
             }
-        } catch (_: Exception) {}
-        finally {
-            try { retriever.release() } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo leer la metadata opcional del audio", e)
+        } finally {
+            try { retriever.release() } catch (e: Exception) { AppLog.d(TAG, "No se pudo liberar el MediaMetadataRetriever", e) }
         }
 
         var extractor: MediaExtractor? = null
@@ -70,9 +74,10 @@ object AudioQualityInspector {
                     break
                 }
             }
-        } catch (_: Exception) {}
-        finally {
-            try { extractor?.release() } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudieron leer los tracks del audio con MediaExtractor", e)
+        } finally {
+            try { extractor?.release() } catch (e: Exception) { AppLog.d(TAG, "No se pudo liberar el MediaExtractor", e) }
         }
 
         val estimatedBytes = (bitrate * 1000L / 8L) * (song.duration / 1000L)

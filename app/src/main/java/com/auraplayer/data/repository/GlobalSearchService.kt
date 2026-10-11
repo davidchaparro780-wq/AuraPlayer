@@ -1,7 +1,7 @@
 package com.auraplayer.data.repository
 
-import android.util.Log
 import com.auraplayer.data.model.OnlineTrack
+import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -71,7 +71,7 @@ class GlobalSearchService(
                 list.addAll(jamendoTracks)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(tag, "Fallo en charts en vivo de Deezer/Jamendo, se usa catálogo local", e)
         }
 
         if (list.isEmpty()) {
@@ -105,7 +105,7 @@ class GlobalSearchService(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(tag, "Fallo al obtener preview fresco de Deezer para $title", e)
         }
         return null
     }
@@ -113,7 +113,7 @@ class GlobalSearchService(
     suspend fun resolveValidAudioUrl(track: OnlineTrack): String = withContext(Dispatchers.IO) {
         // If already a direct audio stream URL, return immediately
         if (track.audioUrl.contains("googlevideo.com", ignoreCase = true)) {
-            Log.d(tag, "resolveValidAudioUrl: Already a direct googlevideo stream")
+            AppLog.d(tag, "resolveValidAudioUrl: ya es stream directo de googlevideo")
             return@withContext track.audioUrl
         }
 
@@ -124,13 +124,13 @@ class GlobalSearchService(
                 else -> ""
             }
             if (videoId.isNotBlank()) {
-                Log.d(tag, "resolveValidAudioUrl: Resolving YouTube stream for videoId=$videoId")
+                AppLog.d(tag, "resolveValidAudioUrl: resolviendo stream de YouTube videoId=$videoId")
                 val streamUrl = youtubeRepo.resolveAudioStream(videoId)
                 if (!streamUrl.isNullOrBlank()) {
-                    Log.d(tag, "resolveValidAudioUrl: Got direct stream URL (${streamUrl.take(60)}...)")
+                    AppLog.d(tag, "resolveValidAudioUrl: URL de stream directo obtenida (${streamUrl.take(60)}...)")
                     return@withContext streamUrl
                 }
-                Log.w(tag, "resolveValidAudioUrl: YouTube resolution failed for videoId=$videoId")
+                AppLog.w(tag, "resolveValidAudioUrl: falló resolución de YouTube videoId=$videoId")
             }
         }
         if (track.audioUrl.contains("hdnea=") || track.audioUrl.contains("jamendo") || track.audioUrl.contains("tikwm") || track.audioUrl.contains("radio-browser") || track.audioUrl.contains("googlevideo.com")) {
@@ -138,7 +138,7 @@ class GlobalSearchService(
         }
         val fresh = fetchFreshDeezerPreview(track.artist, track.title)
         if (!fresh.isNullOrBlank()) {
-            Log.d(tag, "resolveValidAudioUrl: Using Deezer preview fallback")
+            AppLog.d(tag, "resolveValidAudioUrl: usando preview de Deezer como alternativa")
             return@withContext fresh
         }
         track.audioUrl
@@ -278,7 +278,7 @@ class GlobalSearchService(
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.w(tag, "Fallo al extraer álbum o playlist de Deezer desde URL", e)
             }
         }
 
@@ -302,7 +302,7 @@ class GlobalSearchService(
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.w(tag, "Fallo al resolver metadatos de Spotify vía oEmbed", e)
             }
         }
 
@@ -362,7 +362,7 @@ class GlobalSearchService(
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                AppLog.w(tag, "Fallo al extraer audio de TikTok desde URL", e)
             }
         } else if (urlStr.endsWith(".mp3", true) || urlStr.endsWith(".m4a", true) ||
                    urlStr.endsWith(".aac", true) || urlStr.endsWith(".ogg", true)) {
@@ -490,7 +490,7 @@ class GlobalSearchService(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(tag, "Fallo al buscar en Deezer la query=$query", e)
         }
         return list
     }
@@ -545,7 +545,7 @@ class GlobalSearchService(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(tag, "Fallo al consultar charts globales de Deezer", e)
         }
         return list
     }
@@ -606,7 +606,7 @@ class GlobalSearchService(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            AppLog.w(tag, "Fallo al buscar en Jamendo la query=$query", e)
         }
         return list
     }

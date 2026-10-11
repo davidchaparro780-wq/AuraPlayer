@@ -9,7 +9,10 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import com.auraplayer.util.AppLog
 import kotlin.math.sqrt
+
+private const val TAG = "ShakeDetector"
 
 class ShakeDetector(
     private val context: Context,
@@ -76,7 +79,9 @@ class ShakeDetector(
                 @Suppress("DEPRECATION")
                 v?.vibrate(50)
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Fallo al vibrar la confirmación de agitado", e)
+        }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

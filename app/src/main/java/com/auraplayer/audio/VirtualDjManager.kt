@@ -3,8 +3,11 @@ package com.auraplayer.audio
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.util.AppLog
 import java.util.Locale
 import kotlin.random.Random
+
+private const val TAG = "VirtualDjManager"
 
 class VirtualDjManager(private val context: Context) : TextToSpeech.OnInitListener {
 
@@ -17,7 +20,9 @@ class VirtualDjManager(private val context: Context) : TextToSpeech.OnInitListen
     init {
         try {
             tts = TextToSpeech(context.applicationContext, this)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo iniciar la voz del modo DJ virtual", e)
+        }
     }
 
     override fun onInit(status: Int) {
@@ -57,7 +62,9 @@ class VirtualDjManager(private val context: Context) : TextToSpeech.OnInitListen
         try {
             tts?.stop()
             tts?.shutdown()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            AppLog.d(TAG, "No se pudo liberar el motor de voz del DJ virtual", e)
+        }
         tts = null
         isInitialized = false
     }

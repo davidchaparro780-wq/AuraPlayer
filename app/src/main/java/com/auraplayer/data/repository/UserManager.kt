@@ -6,6 +6,7 @@ import android.util.Patterns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.auraplayer.util.AppLog
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.SimpleDateFormat
@@ -23,6 +24,10 @@ data class UserProfile(
 )
 
 class UserManager(private val context: Context) {
+
+    companion object {
+        private const val TAG = "UserManager"
+    }
 
     private val authPrefs: SharedPreferences = context.getSharedPreferences("dave_user_auth", Context.MODE_PRIVATE)
     private val cloudBackupPrefs: SharedPreferences = context.getSharedPreferences("dave_cloud_sync", Context.MODE_PRIVATE)
@@ -234,7 +239,7 @@ class UserManager(private val context: Context) {
                 for (i in 0 until arr.length()) {
                     favSet.add(arr.getLong(i))
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { AppLog.e(TAG, "No se pudo restaurar los favoritos del respaldo", e) }
         }
 
         val plList = mutableListOf<Playlist>()
@@ -252,7 +257,7 @@ class UserManager(private val context: Context) {
                     }
                     plList.add(Playlist(id, name, songIds))
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) { AppLog.e(TAG, "No se pudo restaurar las listas del respaldo", e) }
         }
 
         return Pair(favSet, plList)
