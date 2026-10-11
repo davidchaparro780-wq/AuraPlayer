@@ -189,6 +189,7 @@ fun VideoScreen(
     onPlayDownloadedUri: (Uri) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var videoForMenu by remember { mutableStateOf<MediaModel?>(null) }
     var showTikTokDialog by remember { mutableStateOf(false) }
 
