@@ -1,5 +1,6 @@
 package com.auraplayer.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,13 +26,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.ScreenLockPortrait
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.material.icons.filled.Vibration
@@ -49,6 +54,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,7 +69,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.auraplayer.audio.AuraHaptic
+import com.auraplayer.audio.CrossfadeManager
+import com.auraplayer.data.repository.PlaylistManager
 import com.auraplayer.data.repository.SettingsManager
+import com.auraplayer.data.repository.VaultManager
 
 @Composable
 fun SettingsScreen(
@@ -75,6 +84,14 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val settings = remember { SettingsManager.getInstance(context) }
+    val playlistManager = remember { PlaylistManager.getInstance(context) }
+    val crossfadeManager = remember { CrossfadeManager.getInstance(context) }
+    val vaultManager = remember { VaultManager(context) }
+
+    var currentCrossfadeSec by remember { mutableIntStateOf(playlistManager.getCrossfadeSeconds()) }
+    var showCrossfadeDialog by remember { mutableStateOf(false) }
+    var isBiometricVaultEnabled by remember { mutableStateOf(vaultManager.isBiometricEnabled()) }
+
     var showShortAudioDialog by remember { mutableStateOf(false) }
     var showSensitivityDialog by remember { mutableStateOf(false) }
 
@@ -149,6 +166,19 @@ fun SettingsScreen(
                 // Section 1: Audio & Reproducción
                 item {
                     SettingsSectionHeader(title = "AUDIO & REPRODUCCIÓN", icon = Icons.Default.Audiotrack)
+                }
+
+                item {
+                    SettingsActionCard(
+                        title = "Fundido Cruzado (Crossfade)",
+                        subtitle = if (currentCrossfadeSec == 0) "Desactivado (Reproducción directa)" else "Transición suave de ${currentCrossfadeSec}s entre canciones",
+                        icon = Icons.Default.GraphicEq,
+                        actionText = if (currentCrossfadeSec == 0) "OFF" else "${currentCrossfadeSec}s",
+                        onClick = {
+                            AuraHaptic.click(null)
+                            showCrossfadeDialog = true
+                        }
+                    )
                 }
 
                 item {
@@ -297,7 +327,49 @@ fun SettingsScreen(
                     )
                 }
 
-                // Section 5: Notificaciones & Actualizaciones
+                // Section 5: Seguridad & Bóveda
+                item {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SettingsSectionHeader(title = "SEGURIDAD & BÓVEDA", icon = Icons.Default.Security)
+                }
+
+                item {
+                    SettingsToggleCard(
+                        title = "Desbloqueo Biométrico (Huella Digital)",
+                        subtitle = "Acceso instantáneo a tu bóveda con lector de huella o biometría",
+                        icon = Icons.Default.Fingerprint,
+                        checked = isBiometricVaultEnabled,
+                        onCheckedChange = {
+                            AuraHaptic.click(null)
+                            vaultManager.setBiometricEnabled(it)
+                            isBiometricVaultEnabled = it
+                            Toast.makeText(
+                                context,
+                                if (it) "Huella digital habilitada para la Bóveda" else "Huella digital deshabilitada",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
+                }
+
+                item {
+                    SettingsActionCard(
+                        title = "Bóveda Señuelo (Decoy PIN)",
+                        subtitle = "El PIN 0000 abre una bóveda camuflada vacía para máxima privacidad",
+                        icon = Icons.Default.Shield,
+                        actionText = "PIN: 0000",
+                        onClick = {
+                            AuraHaptic.click(null)
+                            Toast.makeText(
+                                context,
+                                "Si alguien te obliga a abrir la bóveda, introduce '0000' para mostrarla completamente vacía.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    )
+                }
+
+                // Section 6: Notificaciones & Actualizaciones
                 item {
                     Spacer(modifier = Modifier.height(6.dp))
                     SettingsSectionHeader(title = "NOTIFICACIONES & ACTUALIZACIONES", icon = Icons.Default.Notifications)
@@ -547,6 +619,88 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showSensitivityDialog = false }) {
+                    Text("Cerrar", color = Color(0xFF38BDF8))
+                }
+            },
+            containerColor = Color(0xFF101626),
+            tonalElevation = 8.dp
+        )
+    }
+
+    // Modal para seleccionar tiempo de Crossfade (Fundido Cruzado)
+    if (showCrossfadeDialog) {
+        val crossfadeOptions = listOf(
+            0 to "🚫 Desactivado (Reproducción directa)",
+            2 to "🎵 2 segundos (Transición suave)",
+            4 to "✨ 4 segundos (Recomendado)",
+            6 to "🔥 6 segundos (Estilo DJ)",
+            8 to "🌊 8 segundos (Fundido profundo)",
+            10 to "🎧 10 segundos (Máxima transición)"
+        )
+
+        AlertDialog(
+            onDismissRequest = { showCrossfadeDialog = false },
+            title = {
+                Text(
+                    text = "🎛️ Fundido Cruzado (Crossfade)",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Elige cuántos segundos se mezclarán el final de la canción actual con el inicio de la siguiente:",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 13.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    crossfadeOptions.forEach { (seconds, label) ->
+                        val isSelected = currentCrossfadeSec == seconds
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) Color(0xFF38BDF8).copy(alpha = 0.15f) else Color(0xFF131A2A))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) Color(0xFF38BDF8) else Color(0xFF1E293B),
+                                    RoundedCornerShape(10.dp)
+                                )
+                                .clickable {
+                                    AuraHaptic.click(null)
+                                    currentCrossfadeSec = seconds
+                                    playlistManager.setCrossfadeSeconds(seconds)
+                                    crossfadeManager.crossfadeSeconds = seconds.coerceIn(1, 10)
+                                    crossfadeManager.isCrossfadeEnabled = seconds > 0
+                                    showCrossfadeDialog = false
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (isSelected) Color(0xFF38BDF8) else Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCrossfadeDialog = false }) {
                     Text("Cerrar", color = Color(0xFF38BDF8))
                 }
             },

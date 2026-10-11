@@ -493,6 +493,165 @@ class DownloadEngine(
         }
     }
 
+    /**
+     * Downloads a full video MP4 (video + audio muxed) to Movies/DaVEPlayer gallery with progress.
+     */
+    suspend fun downloadVideo(
+        track: OnlineTrack,
+        onComplete: (() -> Unit)? = null,
+        onError: ((String) -> Unit)? = null
+    ) = withContext(Dispatchers.IO) {
+        val downloadId = "vid_${track.id}"
+        updateState(downloadId, DownloadStatus.Downloading(0))
+
+        try {
+            val videoId = when {
+                track.id.startsWith("yt_") -> track.id.removePrefix("yt_")
+                track.audioUrl.contains("v=") -> track.audioUrl.substringAfter("v=").substringBefore("&")
+                track.audioUrl.contains("youtu.be/") -> track.audioUrl.substringAfter("youtu.be/").substringBefore("?")
+                else -> ""
+            }
+
+            var videoStreamUrl: String? = null
+            if (videoId.isNotBlank()) {
+                videoStreamUrl = youtubeRepo.resolveVideoStream(videoId)
+            }
+
+            if (videoStreamUrl.isNullOrBlank()) {
+                if (track.audioUrl.contains(".mp4", ignoreCase = true)) {
+                    videoStreamUrl = track.audioUrl
+                }
+            }
+
+            if (videoStreamUrl.isNullOrBlank()) {
+                throw IllegalStateException("No se pudo obtener el stream de video MP4 de YouTube.")
+            }
+
+            val safeTitle = sanitize(track.title).ifBlank { "DaVE_Video_${System.currentTimeMillis()}" }
+            val fileName = "$safeTitle.mp4"
+
+            performVideoDownload(videoStreamUrl, downloadId, fileName, track.title)
+
+            updateState(downloadId, DownloadStatus.Completed)
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val userMsg = e.localizedMessage ?: "Error al descargar el video"
+            updateState(downloadId, DownloadStatus.Error(userMsg))
+            withContext(Dispatchers.Main) {
+                onError?.invoke(userMsg)
+            }
+        }
+    }
+
+    private suspend fun performVideoDownload(
+        videoUrl: String,
+        downloadId: String,
+        fileName: String,
+        videoTitle: String
+    ) = withContext(Dispatchers.IO) {
+        var currentUrl = videoUrl
+        var connection: HttpURLConnection
+        var redirectCount = 0
+        while (true) {
+            val url = URL(currentUrl)
+            connection = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = 25000
+                readTimeout = 30000
+                requestMethod = "GET"
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                setRequestProperty("Range", "bytes=0-")
+            }
+            val code = connection.responseCode
+            if ((code in 301..303 || code == 307 || code == 308) && redirectCount < 8) {
+                val newLocation = connection.getHeaderField("Location")
+                if (!newLocation.isNullOrBlank()) {
+                    currentUrl = newLocation
+                    redirectCount++
+                    connection.disconnect()
+                    continue
+                }
+            }
+            break
+        }
+
+        val responseCode = connection.responseCode
+        if (responseCode !in 200..299) {
+            connection.disconnect()
+            throw IllegalStateException("Servidor de video respondió con código $responseCode")
+        }
+
+        val contentLength = connection.getHeaderField("Content-Length")?.toLongOrNull()?.toInt() ?: connection.contentLength
+        val inputStream = connection.inputStream
+
+        var savedUri: Uri? = null
+        var savedPath: String? = null
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val selection = "${MediaStore.Video.Media.DISPLAY_NAME} = ? AND ${MediaStore.Video.Media.RELATIVE_PATH} = ?"
+                val selectionArgs = arrayOf(fileName, "Movies/DaVEPlayer/")
+                try {
+                    context.contentResolver.delete(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, selection, selectionArgs)
+                } catch (_: Exception) {}
+
+                val values = ContentValues().apply {
+                    put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
+                    put(MediaStore.Video.Media.TITLE, videoTitle)
+                    put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                    put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/DaVEPlayer")
+                    put(MediaStore.Video.Media.IS_PENDING, 1)
+                }
+                val uri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    val outputStream = context.contentResolver.openOutputStream(uri)
+                    if (outputStream != null) {
+                        streamWithProgress(inputStream, outputStream, contentLength, downloadId)
+                        outputStream.close()
+                        savedUri = uri
+                    }
+                    val updateValues = ContentValues().apply {
+                        put(MediaStore.Video.Media.IS_PENDING, 0)
+                    }
+                    context.contentResolver.update(uri, updateValues, null, null)
+                }
+            } catch (e: Exception) {
+                Log.e("DownloadEngine", "MediaStore video write error, fallback to files: ${e.message}")
+                savedUri = null
+            }
+        }
+
+        if (savedUri == null) {
+            val publicMoviesDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "DaVEPlayer")
+            val targetDir = if (publicMoviesDir.exists() || publicMoviesDir.mkdirs()) {
+                publicMoviesDir
+            } else {
+                File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), "DaVEPlayer").apply { mkdirs() }
+            }
+            val targetFile = File(targetDir, fileName)
+            savedPath = targetFile.absolutePath
+            savedUri = Uri.fromFile(targetFile)
+
+            val outputStream = FileOutputStream(targetFile)
+            streamWithProgress(inputStream, outputStream, contentLength, downloadId)
+            outputStream.close()
+
+            MediaScannerConnection.scanFile(
+                context,
+                arrayOf(targetFile.absolutePath),
+                arrayOf("video/mp4"),
+                null
+            )
+        } else {
+            try {
+                MediaScannerConnection.scanFile(context, arrayOf(savedPath ?: fileName), arrayOf("video/mp4"), null)
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun updateState(trackId: String, status: DownloadStatus) {
         val current = _downloadStates.value.toMutableMap()
         current[trackId] = status

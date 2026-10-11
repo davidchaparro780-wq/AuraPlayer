@@ -152,6 +152,29 @@ class VaultManager(private val context: Context) {
         }
     }
 
+    private val biometricEnabledKey = "vault_biometric_enabled"
+    private val decoyPinKey = "vault_decoy_pin"
+    val defaultDecoyPin = "0000"
+
+    var isDecoyMode: Boolean = false
+        private set
+
+    fun isBiometricEnabled(): Boolean {
+        return prefs.getBoolean(biometricEnabledKey, true)
+    }
+
+    fun setBiometricEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(biometricEnabledKey, enabled).apply()
+    }
+
+    fun lock() {
+        isDecoyMode = false
+    }
+
+    fun unlockWithBiometrics() {
+        isDecoyMode = false
+    }
+
     fun isPinSet(): Boolean {
         return prefs.contains(pinKey) && !prefs.getString(pinKey, null).isNullOrBlank()
     }
@@ -162,12 +185,25 @@ class VaultManager(private val context: Context) {
     }
 
     fun verifyPin(pin: String): Boolean {
+        // Check decoy PIN first
+        val configuredDecoy = prefs.getString(decoyPinKey, defaultDecoyPin) ?: defaultDecoyPin
+        if (pin == configuredDecoy) {
+            isDecoyMode = true
+            return true
+        }
+
         val stored = prefs.getString(pinKey, null) ?: return false
-        return stored == hashPin(pin)
+        val matchesReal = stored == hashPin(pin)
+        if (matchesReal) {
+            isDecoyMode = false
+            return true
+        }
+        return false
     }
 
     fun resetPin() {
         prefs.edit().remove(pinKey).apply()
+        isDecoyMode = false
     }
 
     fun markPathAsHidden(path: String?) {
@@ -321,6 +357,9 @@ class VaultManager(private val context: Context) {
     }
 
     suspend fun getVaultItems(): List<VaultItem> = withContext(Dispatchers.IO) {
+        if (isDecoyMode) {
+            return@withContext emptyList<VaultItem>()
+        }
         val itemsMap = mutableMapOf<String, VaultItem>()
 
         val candidateDirs = listOf(

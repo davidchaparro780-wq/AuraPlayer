@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDownload
@@ -51,6 +52,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -131,6 +133,7 @@ fun DiscoverScreen(
 
     val appPrefs = remember { context.getSharedPreferences("dave_app_prefs", Context.MODE_PRIVATE) }
     var downloadQuality by remember { mutableStateOf(appPrefs.getString("download_quality", "320") ?: "320") }
+    var trackForDownloadChoice by remember { mutableStateOf<OnlineTrack?>(null) }
 
     // When searching or viewing specific genre, BackHandler resets to Trending
     BackHandler(enabled = searchQuery.isNotBlank() || selectedGenre != "Trending") {
@@ -695,29 +698,7 @@ fun DiscoverScreen(
                                 if (!track.isDownloadable) {
                                     Toast.makeText(context, "⚠️ Esta pista es una muestra de 30s. Filtra por Jamendo o YouTube para canciones completas.", Toast.LENGTH_LONG).show()
                                 } else {
-                                    Toast.makeText(context, "Iniciando descarga: ${track.title}", Toast.LENGTH_SHORT).show()
-                                    scope.launch {
-                                        try {
-                                            val validUrl = searchService.resolveValidAudioUrl(track)
-                                            val readyTrack = if (validUrl.isNotBlank() && validUrl != track.audioUrl) {
-                                                track.copy(audioUrl = validUrl)
-                                            } else {
-                                                track
-                                            }
-                                            downloadEngine.downloadTrack(
-                                                track = readyTrack,
-                                                onComplete = {
-                                                    Toast.makeText(context, "✓ Canción completa guardada en tu biblioteca: ${track.title}", Toast.LENGTH_LONG).show()
-                                                    onDownloadComplete()
-                                                },
-                                                onError = { errorMsg ->
-                                                    Toast.makeText(context, "Error al descargar: $errorMsg", Toast.LENGTH_LONG).show()
-                                                }
-                                            )
-                                        } catch (e: Exception) {
-                                            Toast.makeText(context, "Error: ${e.localizedMessage ?: "No se pudo descargar"}", Toast.LENGTH_LONG).show()
-                                        }
-                                    }
+                                    trackForDownloadChoice = track
                                 }
                             },
                             onAddToQueue = {
@@ -730,6 +711,145 @@ fun DiscoverScreen(
                 }
             }
         }
+    }
+
+    // Modal de Descarga Dual: Música (M4A/MP3) o Video (MP4 HD)
+    if (trackForDownloadChoice != null) {
+        val targetTrack = trackForDownloadChoice!!
+        AlertDialog(
+            onDismissRequest = { trackForDownloadChoice = null },
+            title = {
+                Text(
+                    text = "📥 Opciones de Descarga",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = targetTrack.title,
+                        color = Color(0xFF38BDF8),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "¿Cómo deseas guardar este contenido en tu dispositivo?",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 12.sp
+                    )
+
+                    // Opción 1: Solo Música
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF131A2A))
+                            .border(1.dp, Color(0xFF38BDF8).copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                val tr = targetTrack
+                                trackForDownloadChoice = null
+                                Toast.makeText(context, "Iniciando descarga de audio: ${tr.title}", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    try {
+                                        val validUrl = searchService.resolveValidAudioUrl(tr)
+                                        val readyTrack = if (validUrl.isNotBlank() && validUrl != tr.audioUrl) {
+                                            tr.copy(audioUrl = validUrl)
+                                        } else {
+                                            tr
+                                        }
+                                        downloadEngine.downloadTrack(
+                                            track = readyTrack,
+                                            onComplete = {
+                                                Toast.makeText(context, "✓ Música guardada en tu biblioteca: ${tr.title}", Toast.LENGTH_LONG).show()
+                                                onDownloadComplete()
+                                            },
+                                            onError = { errorMsg ->
+                                                Toast.makeText(context, "Error al descargar: $errorMsg", Toast.LENGTH_LONG).show()
+                                            }
+                                        )
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.localizedMessage ?: "No se pudo descargar"}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF38BDF8).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Audiotrack, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "🎵 Solo Música (HQ Audio)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(text = "Guarda en Music/DaVEPlayer para escuchar", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        }
+                    }
+
+                    // Opción 2: Video Completo MP4
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF131A2A))
+                            .border(1.dp, Color(0xFF8B5CF6).copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                            .clickable {
+                                val tr = targetTrack
+                                trackForDownloadChoice = null
+                                Toast.makeText(context, "Iniciando descarga de video MP4: ${tr.title}", Toast.LENGTH_SHORT).show()
+                                scope.launch {
+                                    try {
+                                        downloadEngine.downloadVideo(
+                                            track = tr,
+                                            onComplete = {
+                                                Toast.makeText(context, "🎬 Video MP4 guardado en tus Videos: ${tr.title}", Toast.LENGTH_LONG).show()
+                                                onDownloadComplete()
+                                            },
+                                            onError = { errorMsg ->
+                                                Toast.makeText(context, "Error al descargar video: $errorMsg", Toast.LENGTH_LONG).show()
+                                            }
+                                        )
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error: ${e.localizedMessage ?: "No se pudo descargar el video"}", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF8B5CF6).copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF8B5CF6), modifier = Modifier.size(24.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "🎬 Video Completo (MP4 HD)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text(text = "Guarda en Movies/DaVEPlayer para ver offline", color = Color(0xFF94A3B8), fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { trackForDownloadChoice = null }) {
+                    Text("Cancelar", color = Color(0xFF94A3B8))
+                }
+            },
+            containerColor = Color(0xFF101626),
+            tonalElevation = 8.dp
+        )
     }
 }
 

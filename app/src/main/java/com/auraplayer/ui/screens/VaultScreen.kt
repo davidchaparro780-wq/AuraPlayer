@@ -1,5 +1,6 @@
 package com.auraplayer.ui.screens
 
+import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import android.widget.Toast
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.filled.Backspace
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
@@ -92,6 +94,7 @@ import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.VaultItem
 import com.auraplayer.data.repository.VaultManager
+import com.auraplayer.util.BiometricHelper
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -114,21 +117,50 @@ fun VaultScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val activity = context as? Activity
     val scope = rememberCoroutineScope()
 
     var showInAppPicker by remember { mutableStateOf(false) }
 
-    // Smooth Back Navigation: closes picker if open, or returns to previous screen
+    // Smooth Back Navigation: closes picker if open, or returns to previous screen locking vault
     BackHandler {
         if (showInAppPicker) {
             showInAppPicker = false
         } else {
+            vaultManager.lock()
             onBack()
         }
     }
 
     var isUnlocked by remember { mutableStateOf(false) }
     var isPinSet by remember { mutableStateOf(vaultManager.isPinSet()) }
+    val isBiometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
+    var biometricLaunchedOnce by remember { mutableStateOf(false) }
+
+    fun triggerBiometrics() {
+        if (activity != null && isPinSet && vaultManager.isBiometricEnabled() && isBiometricAvailable) {
+            BiometricHelper.authenticate(
+                activity = activity,
+                title = "Bóveda Privada DaVE",
+                subtitle = "Toca el sensor de huella digital para desbloquear",
+                onSuccess = {
+                    vaultManager.unlockWithBiometrics()
+                    isUnlocked = true
+                    errorMessage = null
+                },
+                onError = { err ->
+                    errorMessage = err
+                }
+            )
+        }
+    }
+
+    LaunchedEffect(isPinSet) {
+        if (isPinSet && vaultManager.isBiometricEnabled() && isBiometricAvailable && !biometricLaunchedOnce) {
+            biometricLaunchedOnce = true
+            triggerBiometrics()
+        }
+    }
 
     val vaultPrefs = remember { context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE) }
     var isBannerDismissed by remember { mutableStateOf(vaultPrefs.getBoolean("vault_banner_dismissed", false)) }
@@ -371,7 +403,10 @@ fun VaultScreen(
                     .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    vaultManager.lock()
+                    onBack()
+                }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                 }
                 Spacer(modifier = Modifier.width(4.dp))
@@ -439,7 +474,11 @@ fun VaultScreen(
                         if (setupStep == 0) "Crea una clave de 4 dígitos para proteger tus fotos y videos"
                         else "Confirma tu clave de 4 dígitos"
                     } else {
-                        "Ingresa tu clave de 4 dígitos para desbloquear"
+                        if (isBiometricAvailable && vaultManager.isBiometricEnabled()) {
+                            "Ingresa tu clave de 4 dígitos o usa tu huella dactilar"
+                        } else {
+                            "Ingresa tu clave de 4 dígitos para desbloquear"
+                        }
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF94A3B8),
@@ -489,11 +528,12 @@ fun VaultScreen(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    val useBioKey = isPinSet && isBiometricAvailable && vaultManager.isBiometricEnabled()
                     val keyRows = listOf(
                         listOf("1", "2", "3"),
                         listOf("4", "5", "6"),
                         listOf("7", "8", "9"),
-                        listOf("C", "0", "DEL")
+                        listOf(if (useBioKey) "BIO" else "C", "0", "DEL")
                     )
 
                     keyRows.forEach { row ->
@@ -507,16 +547,19 @@ fun VaultScreen(
                                         .size(68.dp)
                                         .clip(CircleShape)
                                         .background(
-                                            if (digit in listOf("C", "DEL")) Color(0xFF1E1B4B).copy(alpha = 0.5f)
+                                            if (digit in listOf("C", "DEL", "BIO")) Color(0xFF1E1B4B).copy(alpha = 0.5f)
                                             else Color(0xFF13182E)
                                         )
                                         .border(
                                             1.dp,
-                                            Color(0xFF8B5CF6).copy(alpha = 0.35f),
+                                            if (digit == "BIO") Color(0xFF38BDF8).copy(alpha = 0.6f) else Color(0xFF8B5CF6).copy(alpha = 0.35f),
                                             CircleShape
                                         )
                                         .clickable {
                                             when (digit) {
+                                                "BIO" -> {
+                                                    triggerBiometrics()
+                                                }
                                                 "C" -> {
                                                     enteredPin = ""
                                                     errorMessage = null
@@ -566,20 +609,31 @@ fun VaultScreen(
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (digit == "DEL") {
-                                        Icon(
-                                            imageVector = Icons.Default.Backspace,
-                                            contentDescription = "Borrar",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    } else {
-                                        Text(
-                                            text = digit,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
+                                    when (digit) {
+                                        "DEL" -> {
+                                            Icon(
+                                                imageVector = Icons.Default.Backspace,
+                                                contentDescription = "Borrar",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                        "BIO" -> {
+                                            Icon(
+                                                imageVector = Icons.Default.Fingerprint,
+                                                contentDescription = "Huella Digital",
+                                                tint = Color(0xFF38BDF8),
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
+                                        else -> {
+                                            Text(
+                                                text = digit,
+                                                fontSize = 22.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -605,7 +659,10 @@ fun VaultScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = {
+                            vaultManager.lock()
+                            onBack()
+                        }) {
                             Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = Color.White)
                         }
                         Spacer(modifier = Modifier.width(4.dp))

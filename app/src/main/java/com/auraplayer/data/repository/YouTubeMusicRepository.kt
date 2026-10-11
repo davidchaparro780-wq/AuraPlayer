@@ -10,6 +10,7 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.VideoStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.atomic.AtomicBoolean
@@ -322,6 +323,103 @@ class YouTubeMusicRepository {
         } catch (_: Exception) {}
 
         null
+    }
+
+    /**
+     * Resolves high quality video MP4 stream (audio + video muxed) for offline playback in Movies gallery.
+     */
+    suspend fun resolveVideoStream(videoId: String): String? = withContext(Dispatchers.IO) {
+        // 1. Try NewPipeExtractor (direct googlevideo muxed mp4 streams)
+        try {
+            initNewPipe()
+            val watchUrl = "https://www.youtube.com/watch?v=$videoId"
+            val extractor = ServiceList.YouTube.getStreamExtractor(watchUrl)
+            extractor.fetchPage()
+            val videoStreams: List<VideoStream>? = extractor.videoStreams
+            if (!videoStreams.isNullOrEmpty()) {
+                val mp4Streams = videoStreams.filter { it.format?.name?.contains("MP4", ignoreCase = true) == true }
+                val chosen = mp4Streams.firstOrNull { it.resolution?.contains("720") == true }
+                    ?: mp4Streams.firstOrNull { it.resolution?.contains("480") == true }
+                    ?: mp4Streams.firstOrNull { it.resolution?.contains("360") == true }
+                    ?: mp4Streams.firstOrNull()
+                    ?: videoStreams.firstOrNull()
+                val directUrl = chosen?.url
+                if (!directUrl.isNullOrBlank()) {
+                    return@withContext directUrl
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. Try Invidious formatStreams (muxed MP4 video+audio)
+        for (mirror in invidiousMirrors) {
+            try {
+                val invUrl = "$mirror/api/v1/videos/$videoId"
+                val conn = (URL(invUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 3500
+                    readTimeout = 3500
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "Mozilla/5.0")
+                }
+                if (conn.responseCode == 200) {
+                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(resp)
+                    val formats = root.optJSONArray("formatStreams")
+                    if (formats != null && formats.length() > 0) {
+                        for (i in 0 until formats.length()) {
+                            val fmt = formats.getJSONObject(i)
+                            val u = fmt.optString("url", "")
+                            val container = fmt.optString("container", "")
+                            if (u.isNotBlank() && (container.contains("mp4", ignoreCase = true) || u.contains("googlevideo"))) {
+                                return@withContext u
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 3. Try Cobalt Video mode
+        try {
+            val cobaltUrl = queryCobaltVideo(videoId)
+            if (!cobaltUrl.isNullOrBlank()) {
+                return@withContext cobaltUrl
+            }
+        } catch (_: Exception) {}
+
+        null
+    }
+
+    private fun queryCobaltVideo(videoId: String): String? {
+        val targetUrl = "https://www.youtube.com/watch?v=$videoId"
+        for (instance in cobaltMirrors) {
+            try {
+                val url = URL(instance)
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4000
+                    requestMethod = "POST"
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                    setRequestProperty("User-Agent", "DaVE-Player/2.0")
+                    doOutput = true
+                }
+                val payload = JSONObject().apply {
+                    put("url", targetUrl)
+                    put("videoQuality", "720")
+                }
+                conn.outputStream.use { it.write(payload.toString().toByteArray()) }
+
+                if (conn.responseCode in 200..299) {
+                    val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(resp)
+                    val streamUrl = root.optString("url", "")
+                    if (streamUrl.isNotBlank()) {
+                        return streamUrl
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+        return null
     }
 
     private fun queryCobalt(videoId: String): String? {
