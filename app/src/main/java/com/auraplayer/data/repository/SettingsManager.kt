@@ -35,7 +35,7 @@ class SettingsManager private constructor(context: Context) {
     var dynamicPaletteEnabled by mutableStateOf(prefs.getBoolean(KEY_DYNAMIC_PALETTE, true))
         private set
 
-    var dynamicColorEnabled by mutableStateOf(prefs.getBoolean(KEY_DYNAMIC_COLOR, false))
+    var isDynamicColor by mutableStateOf(prefs.getBoolean(KEY_DYNAMIC_COLOR, false))
         private set
 
     var visualizerSensitivity by mutableFloatStateOf(prefs.getFloat(KEY_VISUALIZER_SENSITIVITY, 1.0f))
@@ -79,10 +79,10 @@ class SettingsManager private constructor(context: Context) {
         prefs.edit().putBoolean(KEY_DYNAMIC_PALETTE, enabled).apply()
     }
 
-    fun isDynamicColorEnabled(): Boolean = dynamicColorEnabled
+    fun isDynamicColorEnabled(): Boolean = isDynamicColor
 
     fun setDynamicColorEnabled(enabled: Boolean) {
-        dynamicColorEnabled = enabled
+        isDynamicColor = enabled
         prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
     }
 
