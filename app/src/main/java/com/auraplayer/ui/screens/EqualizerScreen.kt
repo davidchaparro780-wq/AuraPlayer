@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.SurroundSound
@@ -157,6 +158,147 @@ fun EqualizerScreen(
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Karaoke Mode Card (Vocal Attenuation)
+        var isKaraokeEnabled by remember { mutableStateOf(eqManager.isKaraokeMode) }
+        var isSpatial8D by remember { mutableStateOf(eqManager.isSpatial8DEnabled) }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    1.dp,
+                    if (isKaraokeEnabled) Color(0xFFF43F5E).copy(alpha = 0.6f) else Color(0xFF334155),
+                    RoundedCornerShape(18.dp)
+                ),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isKaraokeEnabled) Color(0xFF201322) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(if (isKaraokeEnabled) Color(0xFFF43F5E) else Color(0xFF1E293B)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = if (isKaraokeEnabled) Color.White else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Modo Karaoke (Vocal Remover)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isKaraokeEnabled) Color(0xFFF43F5E) else Color.White
+                        )
+                        Text(
+                            text = if (isKaraokeEnabled) "Voz atenuada y campo estéreo expandido para cantar" else "Atenúa la voz principal para cantar sobre tus canciones",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(
+                    checked = isKaraokeEnabled,
+                    onCheckedChange = {
+                        isKaraokeEnabled = it
+                        eqManager.setKaraokeMode(it)
+                        for (i in 0 until 10) bandLevels[i] = eqManager.bandLevels[i]
+                        virtualizer = eqManager.virtualizerStrength / 10f
+                        bassBoost = eqManager.bassStrength / 10f
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFFF43F5E)
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Spatial 8D Audio Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    1.dp,
+                    if (isSpatial8D) Color(0xFF38BDF8).copy(alpha = 0.6f) else Color(0xFF334155),
+                    RoundedCornerShape(18.dp)
+                ),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isSpatial8D) Color(0xFF0F1E2E) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(if (isSpatial8D) Color(0xFF38BDF8) else Color(0xFF1E293B)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SurroundSound,
+                            contentDescription = null,
+                            tint = if (isSpatial8D) Color.Black else Color(0xFF94A3B8),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Audio Espacial 8D",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSpatial8D) Color(0xFF38BDF8) else Color.White
+                        )
+                        Text(
+                            text = if (isSpatial8D) "Reverb y virtualización 3D envolvente tipo Sala de Conciertos" else "Sonido inmersivo 360° para audífonos",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Switch(
+                    checked = isSpatial8D,
+                    onCheckedChange = {
+                        isSpatial8D = it
+                        eqManager.setSpatial8DEnabled(it)
+                        virtualizer = eqManager.virtualizerStrength / 10f
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF38BDF8)
                     )
                 )
             }

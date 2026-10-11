@@ -24,8 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
+import com.auraplayer.data.repository.BackupManager
+import com.auraplayer.ui.components.BackupLocalDialog
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Headphones
@@ -94,6 +97,8 @@ fun SettingsScreen(
 
     var showShortAudioDialog by remember { mutableStateOf(false) }
     var showSensitivityDialog by remember { mutableStateOf(false) }
+    val backupManager = remember { BackupManager(context) }
+    var showBackupDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -255,6 +260,19 @@ fun SettingsScreen(
                     )
                 }
 
+                item {
+                    SettingsActionCard(
+                        title = "Copia de Seguridad y Restauración",
+                        subtitle = "Exporta o restaura listas, favoritos, cola y ajustes en un archivo .json",
+                        icon = Icons.Default.Backup,
+                        actionText = "Gestionar",
+                        onClick = {
+                            AuraHaptic.click(null)
+                            showBackupDialog = true
+                        }
+                    )
+                }
+
                 // Section 3: Gestos & Pantalla
                 item {
                     Spacer(modifier = Modifier.height(6.dp))
@@ -302,6 +320,21 @@ fun SettingsScreen(
                         onCheckedChange = {
                             AuraHaptic.click(null)
                             settings.setDynamicPalette(it)
+                        }
+                    )
+                }
+
+                item {
+                    val supportsDynamicColor = android.os.Build.VERSION.SDK_INT >= 31
+                    SettingsToggleCard(
+                        title = "Color del sistema (Material You)",
+                        subtitle = if (supportsDynamicColor) "Usa los colores de tu fondo de pantalla. Solo Android 12 o superior." else "No disponible en esta versión de Android",
+                        icon = Icons.Default.ColorLens,
+                        checked = settings.isDynamicColorEnabled(),
+                        enabled = supportsDynamicColor,
+                        onCheckedChange = {
+                            AuraHaptic.click(null)
+                            settings.setDynamicColorEnabled(it)
                         }
                     )
                 }
@@ -708,6 +741,13 @@ fun SettingsScreen(
             tonalElevation = 8.dp
         )
     }
+
+    if (showBackupDialog) {
+        BackupLocalDialog(
+            backupManager = backupManager,
+            onDismiss = { showBackupDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -739,13 +779,14 @@ private fun SettingsToggleCard(
     subtitle: String,
     icon: ImageVector,
     checked: Boolean,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .clickable { onCheckedChange(!checked) },
+            .clickable(enabled = enabled) { onCheckedChange(!checked) },
         colors = CardDefaults.cardColors(containerColor = Color(0xFF101626)),
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1E293B))
     ) {
@@ -792,6 +833,7 @@ private fun SettingsToggleCard(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
+                enabled = enabled,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
                     checkedTrackColor = Color(0xFF38BDF8),

@@ -24,17 +24,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +59,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -74,9 +84,15 @@ fun SyncedLyricsDialog(
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
     var lines by remember { mutableStateOf<List<LrcLine>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isManualSearching by remember { mutableStateOf(false) }
+    var manualError by remember { mutableStateOf(false) }
+    var manualArtist by remember { mutableStateOf(song.artist) }
+    var manualTitle by remember { mutableStateOf(song.title) }
 
     LaunchedEffect(song.id) {
         isLoading = true
@@ -102,6 +118,32 @@ fun SyncedLyricsDialog(
         if (activeIndex >= 0 && activeIndex < lines.size) {
             val target = (activeIndex - 2).coerceAtLeast(0)
             listState.animateScrollToItem(target)
+        }
+    }
+
+    fun runManualSearch() {
+        if (isManualSearching) return
+        isManualSearching = true
+        manualError = false
+        scope.launch {
+            val result = lyricsManager.searchByText(manualArtist.trim(), manualTitle.trim())
+            if (result != null && result.isNotEmpty()) {
+                lines = result
+            } else {
+                manualError = true
+            }
+            isManualSearching = false
+        }
+    }
+
+    fun retryAutoSearch() {
+        if (isLoading) return
+        manualError = false
+        isLoading = true
+        scope.launch {
+            val fetched = lyricsManager.fetchSyncedLyrics(song)
+            lines = fetched ?: emptyList()
+            isLoading = false
         }
     }
 
@@ -228,7 +270,10 @@ fun SyncedLyricsDialog(
                             lines.isEmpty() -> {
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    modifier = Modifier.padding(24.dp)
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(scrollState)
+                                        .padding(24.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.FormatQuote,
@@ -238,11 +283,125 @@ fun SyncedLyricsDialog(
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
-                                        text = "No hay letras sincronizadas disponibles para esta canción.",
-                                        color = Color(0xFF94A3B8),
-                                        fontSize = 15.sp,
+                                        text = "No encontramos la letra automáticamente",
+                                        color = Color.White,
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold,
                                         textAlign = TextAlign.Center
                                     )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Escribe el artista y la canción para buscarla manualmente.",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 14.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    OutlinedTextField(
+                                        value = manualArtist,
+                                        onValueChange = { manualArtist = it },
+                                        label = { Text("Artista") },
+                                        singleLine = true,
+                                        enabled = !isManualSearching,
+                                        keyboardOptions = KeyboardOptions(
+                                            capitalization = KeyboardCapitalization.Words
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = Color.White,
+                                            focusedContainerColor = Color(0xFF131A2B),
+                                            unfocusedContainerColor = Color(0xFF131A2B),
+                                            focusedBorderColor = Color(0xFF38BDF8),
+                                            unfocusedBorderColor = Color(0xFF334155),
+                                            focusedLabelColor = Color(0xFF38BDF8),
+                                            unfocusedLabelColor = Color(0xFF94A3B8),
+                                            cursorColor = Color(0xFF38BDF8)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    OutlinedTextField(
+                                        value = manualTitle,
+                                        onValueChange = { manualTitle = it },
+                                        label = { Text("Canción") },
+                                        singleLine = true,
+                                        enabled = !isManualSearching,
+                                        keyboardOptions = KeyboardOptions(
+                                            capitalization = KeyboardCapitalization.Words
+                                        ),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = Color.White,
+                                            unfocusedTextColor = Color.White,
+                                            focusedContainerColor = Color(0xFF131A2B),
+                                            unfocusedContainerColor = Color(0xFF131A2B),
+                                            focusedBorderColor = Color(0xFF38BDF8),
+                                            unfocusedBorderColor = Color(0xFF334155),
+                                            focusedLabelColor = Color(0xFF38BDF8),
+                                            unfocusedLabelColor = Color(0xFF94A3B8),
+                                            cursorColor = Color(0xFF38BDF8)
+                                        ),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    if (isManualSearching) {
+                                        CircularProgressIndicator(
+                                            color = Color(0xFF38BDF8),
+                                            modifier = Modifier.size(34.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "Buscando letra...",
+                                            color = Color(0xFF94A3B8),
+                                            fontSize = 13.sp
+                                        )
+                                    } else {
+                                        Button(
+                                            onClick = { runManualSearch() },
+                                            enabled = manualArtist.isNotBlank() && manualTitle.isNotBlank(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF38BDF8),
+                                                contentColor = Color.White
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "Buscar letra",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                    }
+
+                                    if (manualError) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = "Sin resultados para esta búsqueda",
+                                            color = Color(0xFFF87171),
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        OutlinedButton(
+                                            onClick = { retryAutoSearch() },
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                contentColor = Color(0xFF38BDF8)
+                                            ),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = "Reintentar",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                             else -> {

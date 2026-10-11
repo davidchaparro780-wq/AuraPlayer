@@ -36,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -173,6 +174,13 @@ fun VaultScreen(
 
     val vaultPrefs = remember { context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE) }
     var isBannerDismissed by remember { mutableStateOf(vaultPrefs.getBoolean("vault_banner_dismissed", false)) }
+    var isCalculatorCamouflage by remember { mutableStateOf(vaultPrefs.getBoolean("vault_calculator_camouflage", false)) }
+
+    // Calculator Camouflage State
+    var calcDisplay by remember { mutableStateOf("0") }
+    var calcExpression by remember { mutableStateOf("") }
+    var calcPendingOp by remember { mutableStateOf<String?>(null) }
+    var calcShouldClearOnNextDigit by remember { mutableStateOf(false) }
 
     // Restore media with PIN confirmation state
     var itemToRestoreWithPin by remember { mutableStateOf<VaultItem?>(null) }
@@ -394,6 +402,241 @@ fun VaultScreen(
     }
 
     if (!isUnlocked) {
+        if (isCalculatorCamouflage && isPinSet) {
+            // CALCULATOR CAMOUFLAGE LOCK SCREEN
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF0B0F19))
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                // Top discreet header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = {
+                        vaultManager.lock()
+                        onBack()
+                    }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Salir", tint = Color(0xFF94A3B8))
+                    }
+                    Text(
+                        text = "Calculadora",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (isBiometricAvailable && vaultManager.isBiometricEnabled()) {
+                            IconButton(onClick = { triggerBiometrics() }) {
+                                Icon(
+                                    imageVector = Icons.Default.Fingerprint,
+                                    contentDescription = "Huella",
+                                    tint = Color(0xFF38BDF8),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        IconButton(onClick = {
+                            isCalculatorCamouflage = false
+                            vaultPrefs.edit().putBoolean("vault_calculator_camouflage", false).apply()
+                            Toast.makeText(context, "Modo Bóveda con PIN", Toast.LENGTH_SHORT).show()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = "Modo PIN Clásico",
+                                tint = Color(0xFF64748B),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Calculator Display
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    if (calcExpression.isNotBlank()) {
+                        Text(
+                            text = calcExpression,
+                            fontSize = 18.sp,
+                            color = Color(0xFF94A3B8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    Text(
+                        text = calcDisplay,
+                        fontSize = if (calcDisplay.length > 8) 36.sp else 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Keypad Grid (5 rows x 4 columns)
+                val calcRows = listOf(
+                    listOf("C", "+/-", "%", "÷"),
+                    listOf("7", "8", "9", "×"),
+                    listOf("4", "5", "6", "-"),
+                    listOf("1", "2", "3", "+"),
+                    listOf("0", ".", "DEL", "=")
+                )
+
+                calcRows.forEach { rowKeys ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        rowKeys.forEach { key ->
+                            val isOperator = key in listOf("÷", "×", "-", "+")
+                            val isEqual = key == "="
+                            val isAction = key in listOf("C", "+/-", "%", "DEL")
+
+                            val btnBg = when {
+                                isEqual -> Color(0xFF8B5CF6)
+                                isOperator -> Color(0xFF0284C7)
+                                isAction -> Color(0xFF334155)
+                                else -> Color(0xFF1E293B)
+                            }
+
+                            val btnTextColor = when {
+                                isEqual || isOperator -> Color.White
+                                isAction -> Color(0xFFE2E8F0)
+                                else -> Color.White
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1.18f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(btnBg)
+                                    .clickable {
+                                        when (key) {
+                                            "C" -> {
+                                                calcDisplay = "0"
+                                                calcExpression = ""
+                                                calcPendingOp = null
+                                                calcShouldClearOnNextDigit = false
+                                            }
+                                            "DEL" -> {
+                                                if (calcDisplay.length > 1) {
+                                                    calcDisplay = calcDisplay.dropLast(1)
+                                                } else {
+                                                    calcDisplay = "0"
+                                                }
+                                            }
+                                            "+/-" -> {
+                                                if (calcDisplay != "0") {
+                                                    calcDisplay = if (calcDisplay.startsWith("-")) {
+                                                        calcDisplay.removePrefix("-")
+                                                    } else {
+                                                        "-$calcDisplay"
+                                                    }
+                                                }
+                                            }
+                                            "%" -> {
+                                                val v = calcDisplay.toDoubleOrNull() ?: 0.0
+                                                val res = v / 100.0
+                                                calcDisplay = if (res % 1.0 == 0.0) res.toLong().toString() else res.toString()
+                                            }
+                                            in listOf("÷", "×", "-", "+") -> {
+                                                calcExpression = "$calcDisplay $key"
+                                                calcPendingOp = key
+                                                calcShouldClearOnNextDigit = true
+                                            }
+                                            "=" -> {
+                                                // SECRET PIN UNLOCK VERIFICATION
+                                                val candidate = calcDisplay.trim()
+                                                if (vaultManager.verifyPin(candidate)) {
+                                                    isUnlocked = true
+                                                    calcDisplay = "0"
+                                                    calcExpression = ""
+                                                    calcPendingOp = null
+                                                    Toast.makeText(context, "🔓 Bóveda Desbloqueada", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    // Evaluate regular math
+                                                    if (calcPendingOp != null && calcExpression.isNotBlank()) {
+                                                        val num1 = calcExpression.split(" ").firstOrNull()?.toDoubleOrNull() ?: 0.0
+                                                        val num2 = calcDisplay.toDoubleOrNull() ?: 0.0
+                                                        val result = when (calcPendingOp) {
+                                                            "+" -> num1 + num2
+                                                            "-" -> num1 - num2
+                                                            "×" -> num1 * num2
+                                                            "÷" -> if (num2 != 0.0) num1 / num2 else Double.NaN
+                                                            else -> num2
+                                                        }
+                                                        calcExpression = "$calcExpression $calcDisplay ="
+                                                        calcDisplay = if (result.isNaN() || result.isInfinite()) "Error"
+                                                        else if (result % 1.0 == 0.0) result.toLong().toString()
+                                                        else String.format(java.util.Locale.US, "%.4f", result).trimEnd('0').trimEnd('.')
+                                                        calcPendingOp = null
+                                                        calcShouldClearOnNextDigit = true
+                                                    }
+                                                }
+                                            }
+                                            "." -> {
+                                                if (calcShouldClearOnNextDigit) {
+                                                    calcDisplay = "0."
+                                                    calcShouldClearOnNextDigit = false
+                                                } else if (!calcDisplay.contains(".")) {
+                                                    calcDisplay += "."
+                                                }
+                                            }
+                                            else -> {
+                                                if (calcShouldClearOnNextDigit || calcDisplay == "0") {
+                                                    calcDisplay = key
+                                                    calcShouldClearOnNextDigit = false
+                                                } else if (calcDisplay.length < 12) {
+                                                    calcDisplay += key
+                                                }
+                                            }
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (key == "DEL") {
+                                    Icon(
+                                        imageVector = Icons.Default.Backspace,
+                                        contentDescription = "Borrar",
+                                        tint = btnTextColor,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = key,
+                                        fontSize = if (key in listOf("÷", "×", "-", "+", "=")) 24.sp else 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = btnTextColor
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+            return
+        }
+
         // PIN LOCK / SETUP SCREEN
         Column(
             modifier = modifier
@@ -405,7 +648,7 @@ fun VaultScreen(
                 )
                 .statusBarsPadding()
         ) {
-            // Top Bar with Back Button and Title
+            // Top Bar with Back Button, Title, and Camouflage Toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -432,6 +675,22 @@ fun VaultScreen(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                if (isPinSet) {
+                    IconButton(
+                        onClick = {
+                            isCalculatorCamouflage = true
+                            vaultPrefs.edit().putBoolean("vault_calculator_camouflage", true).apply()
+                            Toast.makeText(context, "🧮 Camuflaje de Calculadora Activado. Ingresa tu PIN y presiona '=' para entrar.", Toast.LENGTH_LONG).show()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Calculate,
+                            contentDescription = "Activar camuflaje de calculadora",
+                            tint = Color(0xFF38BDF8)
+                        )
+                    }
+                }
             }
 
             // PIN Lock / Setup Content Centered in Remaining Space
@@ -690,15 +949,33 @@ fun VaultScreen(
                         )
                     }
 
-                    // Lock Button to re-lock immediately
-                    IconButton(
-                        onClick = {
-                            isUnlocked = false
-                            enteredPin = ""
-                            Toast.makeText(context, "Bóveda bloqueada", Toast.LENGTH_SHORT).show()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Calculator Camouflage Toggle
+                        IconButton(
+                            onClick = {
+                                isCalculatorCamouflage = !isCalculatorCamouflage
+                                vaultPrefs.edit().putBoolean("vault_calculator_camouflage", isCalculatorCamouflage).apply()
+                                val msg = if (isCalculatorCamouflage) "🧮 Camuflaje de Calculadora ACTIVADO: Se abrirá como calculadora al salir" else "🔓 Modo Bóveda Normal activado"
+                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Calculate,
+                                contentDescription = "Camuflaje de Calculadora",
+                                tint = if (isCalculatorCamouflage) Color(0xFF38BDF8) else Color(0xFF64748B)
+                            )
                         }
-                    ) {
-                        Icon(Icons.Default.Lock, contentDescription = "Bloquear", tint = Color(0xFFEC4899))
+
+                        // Lock Button to re-lock immediately
+                        IconButton(
+                            onClick = {
+                                isUnlocked = false
+                                enteredPin = ""
+                                Toast.makeText(context, "Bóveda bloqueada", Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Icon(Icons.Default.Lock, contentDescription = "Bloquear", tint = Color(0xFFEC4899))
+                        }
                     }
                 }
             },

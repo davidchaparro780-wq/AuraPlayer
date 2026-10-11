@@ -35,6 +35,9 @@ class SettingsManager private constructor(context: Context) {
     var dynamicPaletteEnabled by mutableStateOf(prefs.getBoolean(KEY_DYNAMIC_PALETTE, true))
         private set
 
+    var dynamicColorEnabled by mutableStateOf(prefs.getBoolean(KEY_DYNAMIC_COLOR, false))
+        private set
+
     var visualizerSensitivity by mutableFloatStateOf(prefs.getFloat(KEY_VISUALIZER_SENSITIVITY, 1.0f))
         private set
 
@@ -76,6 +79,13 @@ class SettingsManager private constructor(context: Context) {
         prefs.edit().putBoolean(KEY_DYNAMIC_PALETTE, enabled).apply()
     }
 
+    fun isDynamicColorEnabled(): Boolean = dynamicColorEnabled
+
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        dynamicColorEnabled = enabled
+        prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
+    }
+
     fun setVisualizerSensitivityValue(value: Float) {
         visualizerSensitivity = value
         prefs.edit().putFloat(KEY_VISUALIZER_SENSITIVITY, value).apply()
@@ -94,6 +104,7 @@ class SettingsManager private constructor(context: Context) {
         private const val KEY_HAPTIC_ENABLED = "haptic_enabled"
         private const val KEY_KEEP_SCREEN_ON = "keep_screen_on_player"
         private const val KEY_DYNAMIC_PALETTE = "dynamic_palette_enabled"
+        private const val KEY_DYNAMIC_COLOR = "dynamic_color_enabled"
         private const val KEY_VISUALIZER_SENSITIVITY = "visualizer_sensitivity"
         private const val KEY_NOTIFY_UPDATES = "notify_updates"
 

@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,7 +46,7 @@ import com.auraplayer.data.model.MediaModel
 fun PartyLinkDialog(
     partyManager: PartyLinkManager,
     currentMedia: MediaModel?,
-    currentPosMs: Long,
+    currentPosMs: State<Long>,
     isPlaying: Boolean,
     onSyncPlay: (title: String, posMs: Long, isPlaying: Boolean) -> Unit,
     onDismiss: () -> Unit

@@ -69,6 +69,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import com.auraplayer.ui.components.AudioCutterDialog
@@ -220,6 +221,7 @@ fun MusicScreen(
     onOpenProfile: () -> Unit = {},
     onRefreshLibrary: () -> Unit = {},
     onShuffleAll: (List<MediaModel>) -> Unit = {},
+    onSearchOnline: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -1072,7 +1074,49 @@ fun MusicScreen(
                 when (currentTab) {
                     0 -> { // Canciones
                         if (filteredSongs.isEmpty()) {
-                            EmptyListMessage(if (searchQuery.isEmpty()) "No se encontraron canciones en el dispositivo." else "Sin resultados")
+                            if (searchQuery.isNotBlank()) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(28.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "Sin resultados para \"$searchQuery\"",
+                                        color = Color.White,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "Esta canción aún no está descargada en tu dispositivo",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 13.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(18.dp))
+                                    Button(
+                                        onClick = { onSearchOnline(searchQuery) },
+                                        shape = RoundedCornerShape(14.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF38BDF8),
+                                            contentColor = Color.White
+                                        )
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Buscar y descargar en línea", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            } else {
+                                EmptyListMessage("No se encontraron canciones en el dispositivo.")
+                            }
                         } else {
                             Box(modifier = Modifier.fillMaxSize()) {
                                 LazyColumn(

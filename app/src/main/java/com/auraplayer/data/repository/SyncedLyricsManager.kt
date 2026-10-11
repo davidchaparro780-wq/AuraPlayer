@@ -105,12 +105,25 @@ class SyncedLyricsManager(private val context: Context) {
         }
 
         // 2. Consultar API pública de LRCLIB
+        return@withContext requestLrclib(song.title, song.artist, song.duration / 1000, song.id)
+    }
+
+    /**
+     * Busca libremente letras sincronizadas en LRCLIB usando textos introducidos a mano.
+     * Reutiliza exactamente la misma API y el parseo LRC que la búsqueda automática.
+     */
+    suspend fun searchByText(artist: String, title: String): List<LrcLine>? = withContext(Dispatchers.IO) {
+        return@withContext requestLrclib(title, artist, 0L, null)
+    }
+
+    private fun cleanText(raw: String): String {
+        return raw.replace(Regex("(?i)\\(.*?\\)|\\[.*?\\]"), "").trim()
+    }
+
+    private fun requestLrclib(rawTitle: String, rawArtist: String, durSec: Long, songId: Long?): List<LrcLine>? {
         try {
-            val cleanTitle = song.title.replace(Regex("(?i)\\(.*?\\)|\\[.*?\\]"), "").trim()
-            val cleanArtist = song.artist.replace(Regex("(?i)\\(.*?\\)|\\[.*?\\]"), "").trim()
-            val encTitle = URLEncoder.encode(cleanTitle, "UTF-8")
-            val encArtist = URLEncoder.encode(cleanArtist, "UTF-8")
-            val durSec = song.duration / 1000
+            val encTitle = URLEncoder.encode(cleanText(rawTitle), "UTF-8")
+            val encArtist = URLEncoder.encode(cleanText(rawArtist), "UTF-8")
 
             val urlString = "https://lrclib.net/api/get?track_name=$encTitle&artist_name=$encArtist&duration=$durSec"
             val url = URL(urlString)
@@ -126,8 +139,10 @@ class SyncedLyricsManager(private val context: Context) {
                 if (obj.has("syncedLyrics") && !obj.isNull("syncedLyrics")) {
                     val syncedText = obj.getString("syncedLyrics")
                     if (syncedText.isNotBlank()) {
-                        saveSyncedLyrics(song.id, syncedText)
-                        return@withContext parseLrc(syncedText)
+                        if (songId != null) {
+                            saveSyncedLyrics(songId, syncedText)
+                        }
+                        return parseLrc(syncedText)
                     }
                 } else if (obj.has("plainLyrics") && !obj.isNull("plainLyrics")) {
                     val plain = obj.getString("plainLyrics")
@@ -135,13 +150,13 @@ class SyncedLyricsManager(private val context: Context) {
                     val pseudoLines = plain.lines().filter { it.isNotBlank() }.mapIndexed { idx, txt ->
                         LrcLine(idx * 3500L, txt)
                     }
-                    return@withContext pseudoLines
+                    return pseudoLines
                 }
             }
         } catch (_: Exception) {
             // Error de red ignorado limpiamente
         }
-        null
+        return null
     }
 
     companion object {

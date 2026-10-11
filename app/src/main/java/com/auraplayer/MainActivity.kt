@@ -382,9 +382,10 @@ fun AuraApp(
     var isLoading by remember { mutableStateOf(false) }
 
     var selectedNavTab by rememberSaveable { mutableIntStateOf(0) } // 0: Music, 1: Videos, 2: Equalizer
+    var pendingDiscoverQuery by remember { mutableStateOf<String?>(null) }
     var currentMedia by remember { mutableStateOf<MediaModel?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
-    var currentPositionMs by remember { mutableLongStateOf(0L) }
+    val positionState = remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var isShuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(RepeatMode.OFF) }
@@ -523,18 +524,22 @@ fun AuraApp(
     val savedResumeArtwork = remember { appPrefs.getString("smart_resume_artwork", "") ?: "" }
     var showSmartResumeBanner by remember { mutableStateOf(savedResumeSongId > 0L) }
 
-    // Persist playback position & song info for Smart Resume
-    LaunchedEffect(currentPositionMs, isPlaying) {
+    // Persist playback position & song info for Smart Resume (throttled, off the composition hot path)
+    val saveResumePosition: () -> Unit = {
         val curr = currentMedia
-        if (curr != null && curr.id > 0L && currentPositionMs > 2000L) {
+        if (curr != null && curr.id > 0L && positionState.value > 2000L) {
             appPrefs.edit()
                 .putLong("smart_resume_song_id", curr.id)
-                .putLong("smart_resume_pos_ms", currentPositionMs)
+                .putLong("smart_resume_pos_ms", positionState.value)
                 .putString("smart_resume_title", curr.title)
                 .putString("smart_resume_artist", curr.artist)
                 .putString("smart_resume_artwork", curr.artworkUri?.toString() ?: "")
                 .apply()
         }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) saveResumePosition()
     }
 
     val headphoneManager = remember { com.auraplayer.audio.HeadphoneManager(context) }
@@ -1218,10 +1223,11 @@ fun AuraApp(
     // Position update loop
     LaunchedEffect(isPlaying, currentMedia) {
         var lastStatsTime = System.currentTimeMillis()
+        var lastResumeSaveMs = 0L
         while (isActive && isPlaying) {
             controller?.let {
-                currentPositionMs = it.currentPosition
-                com.auraplayer.audio.AbLooperManager.instance.checkAndLoop(currentPositionMs) { target ->
+                positionState.value = it.currentPosition
+                com.auraplayer.audio.AbLooperManager.instance.checkAndLoop(positionState.value) { target ->
                     it.seekTo(target)
                 }
                 val d = it.duration
@@ -1230,7 +1236,7 @@ fun AuraApp(
                 } else if (durationMs <= 0L && (currentMedia?.duration ?: 0L) > 0L) {
                     durationMs = currentMedia!!.duration
                 }
-                if (currentPositionMs < 800L && durationMs > 20_000L && silenceTrimmerManager.isEnabled) {
+                if (positionState.value < 800L && durationMs > 20_000L && silenceTrimmerManager.isEnabled) {
                     val trimStart = silenceTrimmerManager.getTrimmedStartPositionMs(durationMs)
                     if (trimStart > 0L) {
                         it.seekTo(trimStart)
@@ -1238,6 +1244,10 @@ fun AuraApp(
                 }
             }
             val now = System.currentTimeMillis()
+            if (now - lastResumeSaveMs >= 3000L) {
+                lastResumeSaveMs = now
+                saveResumePosition()
+            }
             if (now - lastStatsTime >= 1000L) {
                 val elapsedSecs = ((now - lastStatsTime) / 1000L).toInt()
                 statsManager.recordListeningTime(currentMedia?.artist ?: "Desconocido", elapsedSecs)
@@ -1744,7 +1754,7 @@ fun AuraApp(
         com.auraplayer.ui.components.PartyLinkDialog(
             partyManager = partyLinkManager,
             currentMedia = currentMedia,
-            currentPosMs = currentPositionMs,
+            currentPosMs = positionState,
             isPlaying = isPlaying,
             onSyncPlay = { title, posMs, playing ->
                 val matchIdx = songs.indexOfFirst { it.title.equals(title, ignoreCase = true) }
@@ -1982,7 +1992,7 @@ fun AuraApp(
 
                 // Mini Player
                 val effectiveDuration = if (durationMs > 0L) durationMs else (currentMedia?.duration ?: 0L)
-                val progress = if (effectiveDuration > 0L) currentPositionMs.toFloat() / effectiveDuration.toFloat() else 0f
+                val progress = if (effectiveDuration > 0L) positionState.value.toFloat() / effectiveDuration.toFloat() else 0f
                 MiniPlayer(
                     currentMedia = currentMedia,
                     isPlaying = isPlaying,
@@ -2331,12 +2341,18 @@ fun AuraApp(
                     onOpenProfile = { showProfileDialog = true },
                     onRefreshLibrary = handleRefreshLibrary,
                     onShuffleAll = handleShuffleAll,
+                    onSearchOnline = { query ->
+                        pendingDiscoverQuery = query
+                        selectedNavTab = 1
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
             1 -> DiscoverScreen(
                 searchService = searchService,
                 downloadEngine = downloadEngine,
+                pendingSearchQuery = pendingDiscoverQuery,
+                onPendingSearchQueryConsumed = { pendingDiscoverQuery = null },
                 currentPlayingTitle = currentMedia?.title,
                 isPlaying = isPlaying,
                 onOpenDownloads = { showDownloadsScreen = true },
@@ -2558,7 +2574,7 @@ fun AuraApp(
             PlayerScreen(
                 currentMedia = media,
                 isPlaying = isPlaying,
-                currentPositionMs = currentPositionMs,
+                currentPositionMs = positionState.value,
                 durationMs = if (durationMs > 0L) durationMs else media.duration,
                 isShuffle = isShuffle,
                 repeatMode = repeatMode,
@@ -2599,13 +2615,13 @@ fun AuraApp(
                 },
                 onSeek = { targetMs ->
                     controller?.seekTo(targetMs)
-                    currentPositionMs = targetMs
+                    positionState.value = targetMs
                 },
                 onSeekRelative = { deltaMs ->
                     controller?.let { c ->
                         val target = (c.currentPosition + deltaMs).coerceIn(0L, durationMs)
                         c.seekTo(target)
-                        currentPositionMs = target
+                        positionState.value = target
                     }
                 },
                 onShuffleToggle = {

@@ -1168,14 +1168,15 @@ fun PlayerScreen(
 
                                         LaunchedEffect(activeIndex) {
                                             if (activeIndex >= 0) {
-                                                listState.animateScrollToItem((activeIndex - 2).coerceAtLeast(0))
+                                                listState.animateScrollToItem(activeIndex)
                                             }
                                         }
 
                                         LazyColumn(
                                             state = listState,
                                             modifier = Modifier.fillMaxSize(),
-                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                            contentPadding = PaddingValues(top = 140.dp, bottom = 180.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
                                         ) {
                                             itemsIndexed(
                                                 items = lyrics.lines,
@@ -1183,19 +1184,39 @@ fun PlayerScreen(
                                                 contentType = { _, _ -> "lyric_line" }
                                             ) { index, line ->
                                                 val isActive = index == activeIndex
-                                                Text(
-                                                    text = line.text,
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontSize = if (isActive) (20 * lyricsFontSizeMultiplier).sp else (15 * lyricsFontSizeMultiplier).sp,
-                                                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (isActive) Color(0xFFEC4899) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                                                    textAlign = TextAlign.Center,
+                                                Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .clickable { onSeek(line.timeMs) }
-                                                        .padding(vertical = 4.dp)
-                                                )
+                                                        .clip(RoundedCornerShape(16.dp))
+                                                        .background(
+                                                            if (isActive) Brush.horizontalGradient(
+                                                                listOf(
+                                                                    Color(0xFF38BDF8).copy(alpha = 0.22f),
+                                                                    Color(0xFF8B5CF6).copy(alpha = 0.22f)
+                                                                )
+                                                            ) else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+                                                        )
+                                                        .border(
+                                                            1.dp,
+                                                            if (isActive) Color(0xFF38BDF8).copy(alpha = 0.45f) else Color.Transparent,
+                                                            RoundedCornerShape(16.dp)
+                                                        )
+                                                        .clickable {
+                                                            AuraHaptic.click(null)
+                                                            onSeek(line.timeMs)
+                                                        }
+                                                        .padding(horizontal = 14.dp, vertical = if (isActive) 12.dp else 6.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = line.text,
+                                                        fontSize = if (isActive) (22 * lyricsFontSizeMultiplier).sp else (15 * lyricsFontSizeMultiplier).sp,
+                                                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal,
+                                                        color = if (isActive) Color.White else Color.White.copy(alpha = 0.38f),
+                                                        textAlign = TextAlign.Center,
+                                                        lineHeight = if (isActive) (28 * lyricsFontSizeMultiplier).sp else (22 * lyricsFontSizeMultiplier).sp
+                                                    )
+                                                }
                                             }
                                         }
                                     } else {
@@ -1738,6 +1759,41 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF38BDF8),
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    // Quick Karaoke Sing-Along Button
+                    val eqManager = remember { com.auraplayer.audio.EqualizerManager.instance }
+                    var isKaraokeActive by remember { mutableStateOf(eqManager.isKaraokeMode) }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (isKaraokeActive) Color(0xFFF43F5E).copy(alpha = 0.35f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                            )
+                            .border(
+                                1.dp,
+                                if (isKaraokeActive) Color(0xFFF43F5E).copy(alpha = 0.8f) else Color.Transparent,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                AuraHaptic.click(null)
+                                val next = !isKaraokeActive
+                                eqManager.setKaraokeMode(next)
+                                isKaraokeActive = next
+                                val msg = if (next) "🎤 Modo Karaoke ACTIVADO: ¡Voz atenuada para cantar!" else "🎤 Modo Karaoke Desactivado"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 9.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = if (isKaraokeActive) "🎤 KARAOKE ON" else "🎙️ KARAOKE",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isKaraokeActive) Color(0xFFF43F5E) else Color(0xFFE2E8F0),
                             fontSize = 11.sp
                         )
                     }

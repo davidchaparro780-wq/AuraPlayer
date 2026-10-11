@@ -117,6 +117,8 @@ fun DiscoverScreen(
     searchService: GlobalSearchService,
     downloadEngine: DownloadEngine,
     onOpenDownloads: () -> Unit = {},
+    pendingSearchQuery: String? = null,
+    onPendingSearchQueryConsumed: () -> Unit = {},
     onPreviewTrack: (OnlineTrack) -> Unit,
     onDownloadComplete: () -> Unit,
     currentPlayingTitle: String? = null,
@@ -208,6 +210,15 @@ fun DiscoverScreen(
         focusManager.clearFocus()
         searchError = null
         runSearch()
+    }
+
+    LaunchedEffect(pendingSearchQuery) {
+        val q = pendingSearchQuery
+        if (!q.isNullOrBlank()) {
+            searchQuery = q
+            executeSearch()
+            onPendingSearchQueryConsumed()
+        }
     }
 
     // Load initial trending tracks

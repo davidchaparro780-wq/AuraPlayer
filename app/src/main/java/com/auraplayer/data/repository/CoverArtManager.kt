@@ -234,6 +234,42 @@ class CoverArtManager(private val context: Context) {
                     }
                 }
             }
+
+            // Fallback: Deezer API (covers Latin, Pop, Urban with 1000x1000 HD artwork)
+            try {
+                val deezerUrl = "https://api.deezer.com/search?q=${URLEncoder.encode(query, "UTF-8")}&limit=1"
+                val dConn = URL(deezerUrl).openConnection() as HttpURLConnection
+                dConn.connectTimeout = 6000
+                dConn.readTimeout = 6000
+                dConn.requestMethod = "GET"
+                dConn.setRequestProperty("User-Agent", "AuraPlayer/1.0")
+                if (dConn.responseCode == 200) {
+                    val dText = dConn.inputStream.bufferedReader().use { it.readText() }
+                    val dJson = JSONObject(dText)
+                    val dData = dJson.optJSONArray("data")
+                    if (dData != null && dData.length() > 0) {
+                        val firstTrack = dData.getJSONObject(0)
+                        val albumObj = firstTrack.optJSONObject("album")
+                        val artUrl = albumObj?.optString("cover_xl")?.takeIf { it.isNotBlank() }
+                            ?: albumObj?.optString("cover_big")?.takeIf { it.isNotBlank() }
+                            ?: firstTrack.optJSONObject("artist")?.optString("picture_xl")
+                        if (!artUrl.isNullOrEmpty()) {
+                            val targetFile = File(coversDir, "$id.jpg")
+                            downloadImageToFile(artUrl, targetFile)
+                            if (targetFile.exists() && targetFile.length() > 0) {
+                                val cleanKey = sanitize("${artist}_${title}")
+                                val namedFile = File(coversDir, "$cleanKey.jpg")
+                                if (!namedFile.exists()) {
+                                    targetFile.copyTo(namedFile, overwrite = true)
+                                }
+                                return Uri.fromFile(targetFile)
+                            }
+                        }
+                    }
+                }
+            } catch (de: Exception) {
+                AppLog.d(TAG, "Deezer cover fetch fallback omitido: ${de.message}")
+            }
             null
         } catch (e: Exception) {
             null

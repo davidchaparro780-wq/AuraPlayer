@@ -36,6 +36,13 @@ class EqualizerManager private constructor() {
     var isSpatial8DEnabled: Boolean = false
         private set
 
+    var isKaraokeMode: Boolean = false
+        private set
+
+    private var preKaraokeBands = FloatArray(10) { 0f }
+    private var preKaraokeVirtualizer: Short = 300
+    private var preKaraokeBass: Short = 400
+
     var bassStrength: Short = 400
         private set
 
@@ -59,6 +66,7 @@ class EqualizerManager private constructor() {
         prefs?.let { p ->
             isEnabled = p.getBoolean("eq_enabled", true)
             isSpatial8DEnabled = p.getBoolean("spatial_8d_enabled", false)
+            isKaraokeMode = p.getBoolean("karaoke_mode_enabled", false)
             bassStrength = p.getInt("bass_strength", 400).toShort()
             virtualizerStrength = p.getInt("virtualizer_strength", 300).toShort()
             loudnessGain = p.getInt("loudness_gain", 0)
@@ -72,6 +80,7 @@ class EqualizerManager private constructor() {
         prefs?.edit()?.apply {
             putBoolean("eq_enabled", isEnabled)
             putBoolean("spatial_8d_enabled", isSpatial8DEnabled)
+            putBoolean("karaoke_mode_enabled", isKaraokeMode)
             putInt("bass_strength", bassStrength.toInt())
             putInt("virtualizer_strength", virtualizerStrength.toInt())
             putInt("loudness_gain", loudnessGain)
@@ -99,7 +108,7 @@ class EqualizerManager private constructor() {
             virtualizer = Virtualizer(0, audioSessionId).apply {
                 enabled = isEnabled
                 if (strengthSupported) {
-                    setStrength(if (isSpatial8DEnabled) 1000.toShort() else virtualizerStrength)
+                    setStrength(if (isKaraokeMode || isSpatial8DEnabled) 1000.toShort() else virtualizerStrength)
                 }
             }
             try {
@@ -173,6 +182,41 @@ class EqualizerManager private constructor() {
             }
         } catch (e: Exception) {
             AppLog.e(TAG, "No se pudo cambiar el modo Spatial 8D del ecualizador", e)
+        }
+        persistSettings()
+    }
+
+    fun setKaraokeMode(enabled: Boolean) {
+        if (isKaraokeMode == enabled) return
+        isKaraokeMode = enabled
+        try {
+            if (enabled) {
+                System.arraycopy(bandLevels, 0, preKaraokeBands, 0, 10)
+                preKaraokeVirtualizer = virtualizerStrength
+                preKaraokeBass = bassStrength
+
+                // DSP Vocal Attenuation curve:
+                // Attenuate voice fundamentals & formants (250Hz - 2kHz)
+                // Boost bass and sparkle, widen stereo field to cancel center-panned vocals
+                bandLevels[0] = 5f   // 31 Hz: sub kick boost
+                bandLevels[1] = 5f   // 62 Hz: bass boost
+                bandLevels[2] = 2f   // 125 Hz: warmth
+                bandLevels[3] = -8f  // 250 Hz: lower chest voice notch
+                bandLevels[4] = -12f // 500 Hz: deep vocal center notch
+                bandLevels[5] = -12f // 1 kHz: deep vocal presence notch
+                bandLevels[6] = -10f // 2 kHz: vocal harmonic notch
+                bandLevels[7] = -6f  // 4 kHz: presence attenuation
+                bandLevels[8] = 4f   // 8 kHz: crisp percussion/instruments
+                bandLevels[9] = 5f   // 16 kHz: airy brilliance
+                setVirtualizerStrength(1000.toShort())
+            } else {
+                System.arraycopy(preKaraokeBands, 0, bandLevels, 0, 10)
+                setVirtualizerStrength(preKaraokeVirtualizer)
+                setBassBoostStrength(preKaraokeBass)
+            }
+            applyBandsToHardware()
+        } catch (e: Exception) {
+            AppLog.e(TAG, "No se pudo cambiar el modo Karaoke del ecualizador", e)
         }
         persistSettings()
     }
