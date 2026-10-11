@@ -1,7 +1,7 @@
 {
-  "versionCode": 80,
-  "versionName": "3.8.0",
+  "versionCode": 81,
+  "versionName": "3.8.1",
   "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "✨ DaVE Player v3.8.0 (Build 80) — Actualización de Experiencia:\n• 🎉 Nueva bienvenida la primera vez que abres la app, con los permisos explicados paso a paso.\n• 🎛️ Cola editable: sube, baja o quita canciones de la cola, y ahora muestra siempre la cola real de reproducción.\n• 🔔 Nuevo botón en ajustes rápidos: pausa o reanuda tu música sin abrir la app.\n• 📤 Comparte a Aura: envía canciones o vídeos desde WhatsApp, el navegador o tu explorador y se reproducen al instante.\n• ♿ Mejor accesibilidad con TalkBack: el mini reproductor, la barra de progreso y el ecualizador ahora se describen con la voz.\n• 💫 Carga más fluida con esqueletos animados en la biblioteca y las búsquedas.\n• 🧭 Al rotar o cambiar de pestaña ya no pierdes tu búsqueda ni tu posición.\n• 🩺 Diagnóstico interno: los errores quedan registrados para corregirlos más rápido.",
-  "fileSizeMb": 24.5
+  "changelog": "🛠️ DaVE Player v3.8.1 (Build 81) — Ajustes:\n• ➖ Se retira la pantalla de bienvenida: la app abre directo a tu música, como siempre.\n• 🔔 El permiso de notificaciones ahora se pide justo después de conceder el de almacenamiento (para avisarte de actualizaciones).\n• 🎛️ Se mantienen todas las mejoras de la v3.8.0: cola editable, tile de ajustes rápidos, compartir a Aura, accesibilidad y carga fluida.",
+  "fileSizeMb": 24.1
 }

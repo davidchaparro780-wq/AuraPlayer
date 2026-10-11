@@ -333,13 +333,6 @@ fun AuraApp(
             listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
-    val onboardingPermissions = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            mediaPermissions + Manifest.permission.POST_NOTIFICATIONS
-        } else {
-            mediaPermissions
-        }
-    }
 
     var hasPermission by remember {
         val hasAnySystemPerm = mediaPermissions.any {
@@ -355,12 +348,17 @@ fun AuraApp(
         hasPermission = granted
         if (granted) {
             appPrefs.edit().putBoolean(permKey, true).apply()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
-    var showOnboarding by remember {
-        mutableStateOf(!appPrefs.getBoolean("onboarding_done", false))
-    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { }
 
     var songs by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
     var videos by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
@@ -2832,21 +2830,6 @@ fun AuraApp(
                     hasPromptedStartupAuth = true
                     showAuthDialog = true
                 }
-            }
-        )
-    }
-
-    // First-run onboarding: value proposition + contextual permissions
-    if (showOnboarding) {
-        com.auraplayer.ui.components.OnboardingScreen(
-            onRequestPermissions = {
-                if (!hasPermission) {
-                    permissionLauncher.launch(onboardingPermissions.toTypedArray())
-                }
-            },
-            onFinish = {
-                appPrefs.edit().putBoolean("onboarding_done", true).apply()
-                showOnboarding = false
             }
         )
     }
