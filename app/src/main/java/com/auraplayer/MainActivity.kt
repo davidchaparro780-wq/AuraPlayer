@@ -453,69 +453,6 @@ fun AuraApp(
         com.auraplayer.widget.DaVEAppWidgetProvider.updateAllWidgets(context, currentMedia, isPlaying)
     }
 
-    // Play audio/video files shared or opened from other apps
-    val sharedUri = MainActivity.pendingSharedUri
-    LaunchedEffect(controller, sharedUri) {
-        if (sharedUri == null) return@LaunchedEffect
-        val ctrl = controller ?: return@LaunchedEffect
-        MainActivity.pendingSharedUri = null
-        try {
-            val displayName = context.contentResolver.query(sharedUri, null, null, null, null)?.use { cursor ->
-                val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
-            } ?: (sharedUri.lastPathSegment ?: "Archivo compartido")
-
-            val isVideoFile = displayName.endsWith(".mp4", true) ||
-                displayName.endsWith(".mkv", true) ||
-                displayName.endsWith(".webm", true) ||
-                displayName.endsWith(".avi", true) ||
-                displayName.endsWith(".3gp", true) ||
-                displayName.endsWith(".mov", true) ||
-                (context.contentResolver.getType(sharedUri)?.startsWith("video/") == true)
-
-            if (isVideoFile) {
-                ctrl.pause()
-                activeVideo = MediaModel(
-                    id = System.currentTimeMillis(),
-                    title = displayName.substringBeforeLast('.'),
-                    artist = "Video",
-                    album = "Externo",
-                    duration = 0L,
-                    uri = sharedUri,
-                    path = sharedUri.path ?: "",
-                    isVideo = true
-                )
-            } else {
-                val sharedItem = MediaItem.Builder()
-                    .setUri(sharedUri)
-                    .setMediaId("shared_${System.currentTimeMillis()}")
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(displayName.substringBeforeLast('.'))
-                            .setArtist("Compartido a DaVE")
-                            .build()
-                    )
-                    .build()
-                ctrl.setMediaItem(sharedItem)
-                ctrl.prepare()
-                ctrl.play()
-                selectedNavTab = 0
-            }
-        } catch (e: Exception) {
-            AppLog.e(TAG, "No se pudo reproducir el archivo compartido", e)
-            Toast.makeText(context, "No se pudo abrir el archivo compartido", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    // Listen to pending update notification click
-    val pendingUpdate = MainActivity.pendingUpdateInfo
-    LaunchedEffect(pendingUpdate) {
-        if (pendingUpdate != null) {
-            updateInfo = pendingUpdate
-            showUpdateDialog = true
-            MainActivity.pendingUpdateInfo = null
-        }
-    }
 
     // Smart Resume State ("Continuar donde lo dejaste")
     val savedResumeSongId = remember { appPrefs.getLong("smart_resume_song_id", -1L) }
@@ -588,6 +525,70 @@ fun AuraApp(
     var showUpdateDialog by remember { mutableStateOf(false) }
     var isDownloadingUpdate by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableIntStateOf(0) }
+
+    // Play audio/video files shared or opened from other apps
+    val sharedUri = MainActivity.pendingSharedUri
+    LaunchedEffect(controller, sharedUri) {
+        if (sharedUri == null) return@LaunchedEffect
+        val ctrl = controller ?: return@LaunchedEffect
+        MainActivity.pendingSharedUri = null
+        try {
+            val displayName = context.contentResolver.query(sharedUri, null, null, null, null)?.use { cursor ->
+                val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
+            } ?: (sharedUri.lastPathSegment ?: "Archivo compartido")
+
+            val isVideoFile = displayName.endsWith(".mp4", true) ||
+                displayName.endsWith(".mkv", true) ||
+                displayName.endsWith(".webm", true) ||
+                displayName.endsWith(".avi", true) ||
+                displayName.endsWith(".3gp", true) ||
+                displayName.endsWith(".mov", true) ||
+                (context.contentResolver.getType(sharedUri)?.startsWith("video/") == true)
+
+            if (isVideoFile) {
+                ctrl.pause()
+                activeVideo = MediaModel(
+                    id = System.currentTimeMillis(),
+                    title = displayName.substringBeforeLast('.'),
+                    artist = "Video",
+                    album = "Externo",
+                    duration = 0L,
+                    uri = sharedUri,
+                    path = sharedUri.path ?: "",
+                    isVideo = true
+                )
+            } else {
+                val sharedItem = MediaItem.Builder()
+                    .setUri(sharedUri)
+                    .setMediaId("shared_${System.currentTimeMillis()}")
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(displayName.substringBeforeLast('.'))
+                            .setArtist("Compartido a DaVE")
+                            .build()
+                    )
+                    .build()
+                ctrl.setMediaItem(sharedItem)
+                ctrl.prepare()
+                ctrl.play()
+                selectedNavTab = 0
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "No se pudo reproducir el archivo compartido", e)
+            Toast.makeText(context, "No se pudo abrir el archivo compartido", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Listen to pending update notification click
+    val pendingUpdate = MainActivity.pendingUpdateInfo
+    LaunchedEffect(pendingUpdate) {
+        if (pendingUpdate != null) {
+            updateInfo = pendingUpdate
+            showUpdateDialog = true
+            MainActivity.pendingUpdateInfo = null
+        }
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
