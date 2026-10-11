@@ -463,11 +463,10 @@ class VaultManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
-    private fun isCanonicalExternalMediaUri(uri: Uri?): Boolean {
+    fun isCanonicalExternalMediaUri(uri: Uri?): Boolean {
         if (uri == null) return false
         val s = uri.toString()
-        return s.startsWith("content://media/external/video/media/") ||
-               s.startsWith("content://media/external/images/media/")
+        return (s.contains("/video/media/") || s.contains("/images/media/") || s.contains("/media/external/")) && s.startsWith("content://media/")
     }
 
     fun resolveCanonicalMediaStoreUri(
@@ -479,14 +478,12 @@ class VaultManager(private val context: Context) {
         val baseUri = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
         // 1. Direct external media URI
-        if (uri != null) {
-            val uriStr = uri.toString()
-            if (uriStr.startsWith("content://media/external/video/media/") ||
-                uriStr.startsWith("content://media/external/images/media/")) {
-                return uri
-            }
+        if (uri != null && isCanonicalExternalMediaUri(uri)) {
+            return uri
+        }
 
-            // 2. DocumentsContract URI (e.g., com.android.providers.media.documents/document/video:1234)
+        // 2. DocumentsContract URI (e.g., com.android.providers.media.documents/document/video:1234)
+        if (uri != null) {
             try {
                 if (DocumentsContract.isDocumentUri(ctx, uri)) {
                     val docId = DocumentsContract.getDocumentId(uri)
@@ -515,6 +512,31 @@ class VaultManager(private val context: Context) {
                         if (idCol >= 0) {
                             val id = cursor.getLong(idCol)
                             return ContentUris.withAppendedId(baseUri, id)
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            try {
+                val f = File(path)
+                val fname = f.name
+                val fsize = f.length()
+                if (fname.isNotBlank()) {
+                    val sel = if (fsize > 0L) "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.SIZE} = ?" else "${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+                    val args = if (fsize > 0L) arrayOf(fname, fsize.toString()) else arrayOf(fname)
+                    ctx.contentResolver.query(
+                        baseUri,
+                        arrayOf(MediaStore.MediaColumns._ID),
+                        sel,
+                        args,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val idCol = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+                            if (idCol >= 0) {
+                                val id = cursor.getLong(idCol)
+                                return ContentUris.withAppendedId(baseUri, id)
+                            }
                         }
                     }
                 }

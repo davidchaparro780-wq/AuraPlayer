@@ -234,6 +234,83 @@ class MediaRepository(private val context: Context) {
         videoList
     }
 
+    suspend fun loadPhotoFiles(): List<MediaModel> = withContext(Dispatchers.IO) {
+        val photoList = mutableListOf<MediaModel>()
+        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.SIZE
+        )
+
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+        val vaultManager = VaultManager(context)
+
+        try {
+            context.contentResolver.query(collection, projection, null, null, sortOrder)?.use { cursor ->
+                val idCol = cursor.getColumnIndex(MediaStore.Images.Media._ID)
+                val titleCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
+                val dataCol = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                val sizeCol = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
+
+                while (cursor.moveToNext()) {
+                    val id = if (idCol >= 0) cursor.getLong(idCol) else 0L
+                    if (id == 0L) continue
+
+                    val title = if (titleCol >= 0) cursor.getString(titleCol) ?: "Foto" else "Foto"
+                    val data = if (dataCol >= 0) cursor.getString(dataCol) ?: "" else ""
+                    val size = if (sizeCol >= 0) cursor.getLong(sizeCol) else 0L
+
+                    if (data.isBlank() || data.contains(".secure_vault") || data.contains(".dave_vault") || vaultManager.isPathHidden(data)) {
+                        continue
+                    }
+
+                    val file = File(data)
+                    if (!file.exists() || file.length() == 0L) {
+                        try {
+                            val staleUri = ContentUris.withAppendedId(collection, id)
+                            context.contentResolver.delete(staleUri, null, null)
+                        } catch (_: Exception) {}
+                        continue
+                    }
+
+                    val contentUri = ContentUris.withAppendedId(collection, id)
+                    val folderName = try {
+                        file.parentFile?.name ?: "Fotos"
+                    } catch (_: Exception) {
+                        "Fotos"
+                    }
+
+                    photoList.add(
+                        MediaModel(
+                            id = id,
+                            title = title,
+                            artist = folderName,
+                            album = "Fotos",
+                            duration = 0L,
+                            uri = contentUri,
+                            artworkUri = contentUri,
+                            isVideo = false,
+                            folderName = folderName,
+                            path = data,
+                            size = size
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        photoList
+    }
+
     val favoritesManager = FavoritesManager(context)
 
     suspend fun deleteAudioFile(song: MediaModel): Boolean = withContext(Dispatchers.IO) {

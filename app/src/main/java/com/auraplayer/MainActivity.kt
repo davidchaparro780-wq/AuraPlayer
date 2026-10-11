@@ -2546,6 +2546,11 @@ fun AuraApp(
             onPlayHiddenVideo = { hiddenVideo ->
                 controller?.pause()
                 activeVideo = hiddenVideo
+            },
+            mediaRepository = mediaRepository,
+            availableVideos = videos,
+            onVideosChanged = { newVideos ->
+                videos = newVideos
             }
         )
     }

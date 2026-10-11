@@ -35,13 +35,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
@@ -82,12 +85,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.VaultItem
 import com.auraplayer.data.repository.VaultManager
 import kotlinx.coroutines.launch
 import java.io.File
+
+data class PendingVaultDelete(
+    val vaultFile: File,
+    val sourceUri: Uri?,
+    val sourcePath: String?,
+    val isVideo: Boolean
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,14 +108,23 @@ fun VaultScreen(
     vaultManager: VaultManager,
     onBack: () -> Unit,
     onPlayHiddenVideo: (MediaModel) -> Unit,
+    mediaRepository: MediaRepository? = null,
+    availableVideos: List<MediaModel> = emptyList(),
+    onVideosChanged: ((List<MediaModel>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Smooth Back Navigation: intercepts hardware/gesture back to return without quitting app
+    var showInAppPicker by remember { mutableStateOf(false) }
+
+    // Smooth Back Navigation: closes picker if open, or returns to previous screen
     BackHandler {
-        onBack()
+        if (showInAppPicker) {
+            showInAppPicker = false
+        } else {
+            onBack()
+        }
     }
 
     var isUnlocked by remember { mutableStateOf(false) }
@@ -144,7 +166,13 @@ fun VaultScreen(
         }
     }
 
-    var pendingVaultItemsToDelete by remember { mutableStateOf<List<Pair<File, Uri?>>>(emptyList()) }
+    var inAppPickerIsVideo by remember { mutableStateOf(true) }
+    var deviceMediaList by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
+    var selectedMediaIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var pickerSearchQuery by remember { mutableStateOf("") }
+    var isDeviceMediaLoading by remember { mutableStateOf(false) }
+
+    var pendingVaultItemsToDelete by remember { mutableStateOf<List<PendingVaultDelete>>(emptyList()) }
     val vaultDeleteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
@@ -153,143 +181,175 @@ fun VaultScreen(
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val count = pendingList.size
             pendingList.forEach { pending ->
-                pending.second?.let { uri ->
-                    val realPath = vaultManager.resolveRealPathFromUri(uri)
-                    if (realPath != null) {
-                        try {
-                            android.media.MediaScannerConnection.scanFile(context, arrayOf(realPath), null, null)
-                        } catch (_: Exception) {}
-                    }
+                val realPath = pending.sourcePath ?: pending.sourceUri?.let { vaultManager.resolveRealPathFromUri(it) }
+                if (realPath != null) {
+                    try {
+                        android.media.MediaScannerConnection.scanFile(context, arrayOf(realPath), null, null)
+                    } catch (_: Exception) {}
                 }
             }
             val msg = if (count == 1) "🔒 Archivo ocultado de la galería y protegido en Bóveda" else "🔒 $count archivos ocultados de la galería y protegidos en Bóveda"
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             refreshItems()
+            scope.launch {
+                val updated = mediaRepository?.loadVideoFiles() ?: emptyList()
+                onVideosChanged?.invoke(updated)
+            }
         } else {
             pendingList.forEach { pending ->
-                pending.second?.let { uri ->
-                    val realPath = vaultManager.resolveRealPathFromUri(uri)
-                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
-                }
-                vaultManager.cleanVaultFile(pending.first)
+                val realPath = pending.sourcePath ?: pending.sourceUri?.let { vaultManager.resolveRealPathFromUri(it) }
+                if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+                vaultManager.cleanVaultFile(pending.vaultFile)
             }
             Toast.makeText(context, "Cancelado: los archivos permanecen en tu galería", Toast.LENGTH_SHORT).show()
         }
     }
 
-    // Media Pickers to hide directly from Vault screen (Supports Single or Multiple Selection)
+    fun hideMediaItems(itemsToHide: List<MediaModel>, isVideo: Boolean) {
+        if (itemsToHide.isEmpty()) return
+        scope.launch {
+            isLoading = true
+            var successCount = 0
+            val pendingDeleteList = mutableListOf<PendingVaultDelete>()
+            val pendingDeleteUris = mutableListOf<Pair<Uri?, String?>>()
+
+            for (media in itemsToHide) {
+                vaultManager.markPathAsHidden(media.path)
+                val copiedVaultFile = vaultManager.copyMediaToVault(
+                    sourcePath = media.path,
+                    sourceUri = media.uri,
+                    isVideo = isVideo
+                )
+                if (copiedVaultFile != null) {
+                    val deleted = vaultManager.deleteOriginalMedia(
+                        context,
+                        filePath = media.path,
+                        uri = media.uri,
+                        isVideo = isVideo
+                    )
+                    if (deleted) {
+                        successCount++
+                        try {
+                            android.media.MediaScannerConnection.scanFile(context, arrayOf(media.path), null, null)
+                        } catch (_: Exception) {}
+                    } else {
+                        pendingDeleteList.add(PendingVaultDelete(copiedVaultFile, media.uri, media.path, isVideo))
+                        pendingDeleteUris.add(Pair(media.uri, media.path))
+                    }
+                } else {
+                    vaultManager.unmarkPathAsHidden(media.path)
+                }
+            }
+
+            isLoading = false
+            if (pendingDeleteList.isNotEmpty()) {
+                val pendingIntent = vaultManager.getMultipleDeleteRequestPendingIntent(
+                    context,
+                    pendingDeleteUris,
+                    isVideo = isVideo
+                )
+                if (pendingIntent != null) {
+                    pendingVaultItemsToDelete = pendingDeleteList
+                    vaultDeleteLauncher.launch(
+                        androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                    )
+                } else {
+                    if (!vaultManager.hasAllFilesAccess()) {
+                        Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                        vaultManager.openAllFilesAccessSettings(context)
+                    } else {
+                        val total = successCount + pendingDeleteList.size
+                        val msg = if (total == 1) "🔒 Archivo protegido en la Bóveda" else "🔒 $total archivos protegidos en la Bóveda"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                    refreshItems()
+                    val updated = mediaRepository?.loadVideoFiles() ?: emptyList()
+                    onVideosChanged?.invoke(updated)
+                }
+            } else if (successCount > 0) {
+                val msg = if (successCount == 1) "🔒 Archivo ocultado de la galería y protegido en Bóveda" else "🔒 $successCount archivos ocultados de la galería y protegidos en Bóveda"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                refreshItems()
+                val updated = mediaRepository?.loadVideoFiles() ?: emptyList()
+                onVideosChanged?.invoke(updated)
+            }
+        }
+    }
+
+    fun hideFromPickerUris(uris: List<Uri>, isVideo: Boolean) {
+        if (uris.isEmpty()) return
+        scope.launch {
+            isLoading = true
+            var successCount = 0
+            val pendingDeleteList = mutableListOf<PendingVaultDelete>()
+            val pendingDeleteUris = mutableListOf<Pair<Uri?, String?>>()
+
+            for (uri in uris) {
+                val realPath = vaultManager.resolveRealPathFromUri(uri)
+                if (realPath != null) {
+                    vaultManager.markPathAsHidden(realPath)
+                }
+                val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = isVideo)
+                if (copiedVaultFile != null) {
+                    val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = isVideo)
+                    if (deleted) {
+                        successCount++
+                        if (realPath != null) {
+                            try {
+                                android.media.MediaScannerConnection.scanFile(context, arrayOf(realPath), null, null)
+                            } catch (_: Exception) {}
+                        }
+                    } else {
+                        pendingDeleteList.add(PendingVaultDelete(copiedVaultFile, uri, realPath, isVideo))
+                        pendingDeleteUris.add(Pair(uri, realPath))
+                    }
+                } else {
+                    if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
+                }
+            }
+
+            isLoading = false
+            if (pendingDeleteList.isNotEmpty()) {
+                val pendingIntent = vaultManager.getMultipleDeleteRequestPendingIntent(context, pendingDeleteUris, isVideo = isVideo)
+                if (pendingIntent != null) {
+                    pendingVaultItemsToDelete = pendingDeleteList
+                    vaultDeleteLauncher.launch(
+                        androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+                    )
+                } else {
+                    if (!vaultManager.hasAllFilesAccess()) {
+                        Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                        vaultManager.openAllFilesAccessSettings(context)
+                    } else {
+                        val total = successCount + pendingDeleteList.size
+                        val msg = if (total == 1) "🔒 Archivo protegido en la Bóveda" else "🔒 $total archivos protegidos en la Bóveda"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    }
+                    refreshItems()
+                    val updated = mediaRepository?.loadVideoFiles() ?: emptyList()
+                    onVideosChanged?.invoke(updated)
+                }
+            } else if (successCount > 0) {
+                val msg = if (successCount == 1) "🔒 Archivo ocultado de la galería y protegido en Bóveda" else "🔒 $successCount archivos ocultados de la galería y protegidos en Bóveda"
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                refreshItems()
+                val updated = mediaRepository?.loadVideoFiles() ?: emptyList()
+                onVideosChanged?.invoke(updated)
+            }
+        }
+    }
+
+    // System Media Pickers (Fallback / secondary option)
     val videoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            scope.launch {
-                isLoading = true
-                var successCount = 0
-                val pendingDeleteList = mutableListOf<Pair<File, Uri?>>()
-                val pendingDeleteItems = mutableListOf<Pair<Uri?, String?>>()
-
-                for (uri in uris) {
-                    val realPath = vaultManager.resolveRealPathFromUri(uri)
-                    if (realPath != null) {
-                        vaultManager.markPathAsHidden(realPath)
-                    }
-                    val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = true)
-                    if (copiedVaultFile != null) {
-                        val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = true)
-                        if (deleted) {
-                            successCount++
-                        } else {
-                            pendingDeleteList.add(Pair(copiedVaultFile, uri))
-                            pendingDeleteItems.add(Pair(uri, realPath))
-                        }
-                    } else {
-                        if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
-                    }
-                }
-
-                isLoading = false
-                if (pendingDeleteList.isNotEmpty()) {
-                    val pendingIntent = vaultManager.getMultipleDeleteRequestPendingIntent(context, pendingDeleteItems, isVideo = true)
-                    if (pendingIntent != null) {
-                        pendingVaultItemsToDelete = pendingDeleteList
-                        vaultDeleteLauncher.launch(
-                            androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
-                        )
-                    } else {
-                        if (!vaultManager.hasAllFilesAccess()) {
-                            Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
-                            vaultManager.openAllFilesAccessSettings(context)
-                        } else {
-                            val total = successCount + pendingDeleteList.size
-                            val msg = if (total == 1) "🔒 Video protegido en la Bóveda" else "🔒 $total videos protegidos en la Bóveda"
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                        refreshItems()
-                    }
-                } else if (successCount > 0) {
-                    val msg = if (successCount == 1) "🔒 Video ocultado de la galería y protegido en Bóveda" else "🔒 $successCount videos ocultados de la galería y protegidos en Bóveda"
-                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    refreshItems()
-                }
-            }
-        }
+        hideFromPickerUris(uris, isVideo = true)
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            scope.launch {
-                isLoading = true
-                var successCount = 0
-                val pendingDeleteList = mutableListOf<Pair<File, Uri?>>()
-                val pendingDeleteItems = mutableListOf<Pair<Uri?, String?>>()
-
-                for (uri in uris) {
-                    val realPath = vaultManager.resolveRealPathFromUri(uri)
-                    if (realPath != null) {
-                        vaultManager.markPathAsHidden(realPath)
-                    }
-                    val copiedVaultFile = vaultManager.copyMediaToVault(sourcePath = realPath, sourceUri = uri, isVideo = false)
-                    if (copiedVaultFile != null) {
-                        val deleted = vaultManager.deleteOriginalMedia(context, filePath = realPath, uri = uri, isVideo = false)
-                        if (deleted) {
-                            successCount++
-                        } else {
-                            pendingDeleteList.add(Pair(copiedVaultFile, uri))
-                            pendingDeleteItems.add(Pair(uri, realPath))
-                        }
-                    } else {
-                        if (realPath != null) vaultManager.unmarkPathAsHidden(realPath)
-                    }
-                }
-
-                isLoading = false
-                if (pendingDeleteList.isNotEmpty()) {
-                    val pendingIntent = vaultManager.getMultipleDeleteRequestPendingIntent(context, pendingDeleteItems, isVideo = false)
-                    if (pendingIntent != null) {
-                        pendingVaultItemsToDelete = pendingDeleteList
-                        vaultDeleteLauncher.launch(
-                            androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
-                        )
-                    } else {
-                        if (!vaultManager.hasAllFilesAccess()) {
-                            Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
-                            vaultManager.openAllFilesAccessSettings(context)
-                        } else {
-                            val total = successCount + pendingDeleteList.size
-                            val msg = if (total == 1) "🔒 Foto protegida en la Bóveda" else "🔒 $total fotos protegidas en la Bóveda"
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                        refreshItems()
-                    }
-                } else if (successCount > 0) {
-                    val msg = if (successCount == 1) "🔒 Foto ocultada de la galería y protegida en Bóveda" else "🔒 $successCount fotos ocultadas de la galería y protegidas en Bóveda"
-                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    refreshItems()
-                }
-            }
-        }
+        hideFromPickerUris(uris, isVideo = false)
     }
 
     if (!isUnlocked) {
@@ -579,10 +639,20 @@ fun VaultScreen(
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
-                        if (selectedTab == 0) {
-                            videoPickerLauncher.launch("video/*")
-                        } else {
-                            photoPickerLauncher.launch("image/*")
+                        val isVideo = (selectedTab == 0)
+                        inAppPickerIsVideo = isVideo
+                        selectedMediaIds = emptySet()
+                        pickerSearchQuery = ""
+                        showInAppPicker = true
+                        scope.launch {
+                            isDeviceMediaLoading = true
+                            val loaded = if (isVideo) {
+                                mediaRepository?.loadVideoFiles() ?: availableVideos
+                            } else {
+                                mediaRepository?.loadPhotoFiles() ?: emptyList()
+                            }
+                            deviceMediaList = loaded
+                            isDeviceMediaLoading = false
                         }
                     },
                     containerColor = Color(0xFF8B5CF6),
@@ -1045,5 +1115,365 @@ fun VaultScreen(
             containerColor = Color.Black,
             shape = RoundedCornerShape(16.dp)
         )
+    }
+
+    // In-App Multi-Selection Media Picker (Direct device access for 100% guaranteed gallery removal)
+    if (showInAppPicker) {
+        Dialog(
+            onDismissRequest = { showInAppPicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            val filteredMedia = remember(deviceMediaList, pickerSearchQuery) {
+                if (pickerSearchQuery.isBlank()) deviceMediaList
+                else deviceMediaList.filter {
+                    it.title.contains(pickerSearchQuery, ignoreCase = true) ||
+                    it.folderName.contains(pickerSearchQuery, ignoreCase = true)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF090D1A))
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Top Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { showInAppPicker = false },
+                            modifier = Modifier
+                                .size(38.dp)
+                                .background(Color(0xFF1E293B), CircleShape)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (inAppPickerIsVideo) "Ocultar Videos en Bóveda" else "Ocultar Fotos en Bóveda",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Elige los archivos que desaparecerán de tu galería",
+                                fontSize = 11.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+
+                    // Search Field
+                    OutlinedTextField(
+                        value = pickerSearchQuery,
+                        onValueChange = { pickerSearchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                        placeholder = {
+                            Text(
+                                if (inAppPickerIsVideo) "Buscar video o carpeta..." else "Buscar foto...",
+                                color = Color(0xFF64748B),
+                                fontSize = 13.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
+                        },
+                        trailingIcon = {
+                            if (pickerSearchQuery.isNotEmpty()) {
+                                IconButton(onClick = { pickerSearchQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Limpiar", tint = Color.White, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF8B5CF6),
+                            unfocusedBorderColor = Color(0xFF1E293B),
+                            focusedContainerColor = Color(0xFF13182E),
+                            unfocusedContainerColor = Color(0xFF13182E),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+
+                    // Selection Controls & System Picker Switcher
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                if (selectedMediaIds.size == filteredMedia.size && filteredMedia.isNotEmpty()) {
+                                    selectedMediaIds = emptySet()
+                                } else {
+                                    selectedMediaIds = filteredMedia.map { it.id }.toSet()
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (selectedMediaIds.size == filteredMedia.size && filteredMedia.isNotEmpty()) Icons.Default.Close else Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (selectedMediaIds.size == filteredMedia.size && filteredMedia.isNotEmpty()) "Deseleccionar todos" else "Seleccionar todos (${filteredMedia.size})",
+                                color = Color(0xFF38BDF8),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                showInAppPicker = false
+                                if (inAppPickerIsVideo) {
+                                    videoPickerLauncher.launch("video/*")
+                                } else {
+                                    photoPickerLauncher.launch("image/*")
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Explorador", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                        }
+                    }
+
+                    // Media Grid
+                    if (isDeviceMediaLoading) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = Color(0xFF8B5CF6), strokeWidth = 3.dp)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Escaneando archivos...", color = Color(0xFF94A3B8), fontSize = 13.sp)
+                            }
+                        }
+                    } else if (filteredMedia.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    if (inAppPickerIsVideo) Icons.Default.Videocam else Icons.Default.Image,
+                                    contentDescription = null,
+                                    tint = Color(0xFF475569),
+                                    modifier = Modifier.size(54.dp)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (pickerSearchQuery.isNotBlank()) "Sin resultados para '$pickerSearchQuery'" else "No se encontraron archivos en la galería",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    } else {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(if (inAppPickerIsVideo) 2 else 3),
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth(),
+                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 90.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(filteredMedia, key = { it.id }) { item ->
+                                val isSelected = selectedMediaIds.contains(item.id)
+                                val sizeFormatted = if (item.size > 1024 * 1024) {
+                                    "%.1f MB".format(item.size / (1024.0 * 1024.0))
+                                } else if (item.size > 0L) {
+                                    "%.0f KB".format(item.size / 1024.0)
+                                } else ""
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(Color(0xFF13182E))
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = if (isSelected) Color(0xFF38BDF8) else Color(0x22FFFFFF),
+                                            shape = RoundedCornerShape(14.dp)
+                                        )
+                                        .clickable {
+                                            selectedMediaIds = if (isSelected) {
+                                                selectedMediaIds - item.id
+                                            } else {
+                                                selectedMediaIds + item.id
+                                            }
+                                        }
+                                ) {
+                                    Column {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .aspectRatio(if (inAppPickerIsVideo) 1.25f else 1f)
+                                                .background(Color.Black)
+                                        ) {
+                                            AsyncImage(
+                                                model = item.uri,
+                                                contentDescription = item.title,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+
+                                            // Duration pill (if video)
+                                            if (inAppPickerIsVideo && item.duration > 0L) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .align(Alignment.BottomEnd)
+                                                        .padding(6.dp)
+                                                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = item.formattedDuration,
+                                                        color = Color.White,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+
+                                            // Checkbox Indicator at top right
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(6.dp)
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (isSelected) Color(0xFF38BDF8) else Color.Black.copy(alpha = 0.55f)
+                                                    )
+                                                    .border(
+                                                        width = 1.5.dp,
+                                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f),
+                                                        shape = CircleShape
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = Color.Black,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // Item info below thumbnail
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = item.title,
+                                                color = Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                if (sizeFormatted.isNotBlank()) {
+                                                    Text(
+                                                        text = sizeFormatted,
+                                                        color = Color(0xFF94A3B8),
+                                                        fontSize = 10.sp
+                                                    )
+                                                }
+                                                if (item.folderName.isNotBlank()) {
+                                                    Text(
+                                                        text = item.folderName,
+                                                        color = Color(0xFF64748B),
+                                                        fontSize = 10.sp,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Sticky Bottom Bar with Action Button
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color(0xFF090D1A).copy(alpha = 0.95f), Color(0xFF090D1A))
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    val count = selectedMediaIds.size
+                    Button(
+                        onClick = {
+                            val selected = deviceMediaList.filter { selectedMediaIds.contains(it.id) }
+                            showInAppPicker = false
+                            hideMediaItems(selected, inAppPickerIsVideo)
+                        },
+                        enabled = count > 0,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .shadow(if (count > 0) 10.dp else 0.dp, shape = RoundedCornerShape(14.dp), ambientColor = Color(0xFF8B5CF6)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF8B5CF6),
+                            disabledContainerColor = Color(0xFF1E293B)
+                        ),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = if (count > 0) Color.White else Color(0xFF64748B))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (count == 0) "Selecciona archivos para ocultar" else "🔒 Ocultar y eliminar de la galería ($count)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = if (count > 0) Color.White else Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

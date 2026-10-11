@@ -1,7 +1,7 @@
 {
-  "versionCode": 75,
-  "versionName": "3.7.5",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.5/app-debug.apk",
-  "changelog": "🛡️ DaVE Player v3.7.5 (Build 75) — Eliminación Efectiva de Galería al Ocultar en Bóveda:\n• 🔒 Los videos seleccionados para la Bóveda desaparecen de tu galería principal de Android de forma real y segura.\n• 🔎 Resolución canónica infalible de URIs del selector de fotos y documentos de Android (MediaStore Display Name & Size lookup).\n• 🗑️ Solicitud de eliminación del sistema (MediaStore Delete Request) totalmente funcional en Android 11+ cuando no se tiene acceso total a archivos.\n• ⚡ Eliminación física instantánea sin diálogos cuando se cuenta con el permiso de archivos.\n• 🔄 Rescaneo automático de MediaScanner para refrescar la galería del teléfono inmediatamente tras guardar.",
+  "versionCode": 76,
+  "versionName": "3.7.6",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.6/app-debug.apk",
+  "changelog": "🛡️ DaVE Player v3.7.6 (Build 76) — Selector Integrado de Bóveda & Eliminación de Galería Garantizada:\n• 🔒 Nuevo Selector Visual en Bóveda: Elige videos o fotos directamente desde la app con miniaturas, duración, tamaño y casillas de selección múltiple.\n• 🗑️ Eliminación Real de Galería: Al ocultar videos desde dentro de la Bóveda, se eliminan inmediatamente de la galería principal de Android usando los URIs canónicos exactos.\n• ✨ Búsqueda y Selección Rápida: Filtra videos por nombre/carpeta, botón de 'Seleccionar todos' y opción de abrir selector del sistema si lo prefieres.\n• ⚡ Sincronización Automática: MediaScanner y la lista de videos de DaVE Player se actualizan al instante.",
   "fileSizeMb": 24.1
 }
