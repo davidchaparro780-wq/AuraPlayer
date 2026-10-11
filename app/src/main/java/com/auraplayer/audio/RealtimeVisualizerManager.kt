@@ -40,8 +40,13 @@ class RealtimeVisualizerManager private constructor() {
         release()
         currentSessionId = audioSessionId
 
+        var createdVis: Visualizer? = null
         try {
-            val captureSizeRange = Visualizer.getCaptureSizeRange()
+            val captureSizeRange = try {
+                Visualizer.getCaptureSizeRange()
+            } catch (_: Throwable) {
+                null
+            }
             val captureSize = if (captureSizeRange != null && captureSizeRange.size >= 2) {
                 // Optimal size: 256 or 512 for fast real-time spectrum analysis
                 256.coerceIn(captureSizeRange[0], captureSizeRange[1])
@@ -71,10 +76,18 @@ class RealtimeVisualizerManager private constructor() {
                     true,
                     true
                 )
-                enabled = true
             }
+            createdVis = vis
+            vis.enabled = true
             visualizer = vis
-        } catch (_: Exception) {
+        } catch (e: Throwable) {
+            AppLog.w(TAG, "No se pudo iniciar el visualizador nativo para sesión $audioSessionId: ${e.message}")
+            try {
+                createdVis?.enabled = false
+            } catch (_: Throwable) {}
+            try {
+                createdVis?.release()
+            } catch (_: Throwable) {}
             visualizer = null
         }
     }
@@ -226,14 +239,21 @@ class RealtimeVisualizerManager private constructor() {
 
     @Synchronized
     fun release() {
-        try {
-            visualizer?.enabled = false
-            visualizer?.setDataCaptureListener(null, 0, false, false)
-            visualizer?.release()
-        } catch (e: Exception) {
-            AppLog.d(TAG, "No se pudo liberar el visualizador de audio", e)
-        }
+        val vis = visualizer
         visualizer = null
         currentSessionId = -1
+        if (vis != null) {
+            try {
+                vis.enabled = false
+            } catch (_: Throwable) {}
+            try {
+                vis.setDataCaptureListener(null, 0, false, false)
+            } catch (_: Throwable) {}
+            try {
+                vis.release()
+            } catch (e: Throwable) {
+                AppLog.d(TAG, "No se pudo liberar el visualizador de audio", e)
+            }
+        }
     }
 }

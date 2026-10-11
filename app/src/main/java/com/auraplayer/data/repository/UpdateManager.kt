@@ -383,7 +383,7 @@ class UpdateManager(private val context: Context) {
 
             // Fallback directo: abrir navegador si falla el instalador nativo
             try {
-                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/davidchaparro780-wq/D4ve/releases/tag/v1.0.0"))
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/davidchaparro780-wq/D4ve/releases/latest"))
                 browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(browserIntent)
             } catch (_: Exception) {}
@@ -392,8 +392,10 @@ class UpdateManager(private val context: Context) {
 
     private fun isVersionNewer(remote: String, current: String): Boolean {
         if (remote.isBlank() || current.isBlank()) return false
-        val remoteParts = remote.split(".").mapNotNull { it.toIntOrNull() }
-        val currentParts = current.split(".").mapNotNull { it.toIntOrNull() }
+        val cleanRemote = remote.removePrefix("v").trim()
+        val cleanCurrent = current.removePrefix("v").trim()
+        val remoteParts = cleanRemote.split(".").mapNotNull { it.replace(Regex("[^0-9]"), "").toIntOrNull() }
+        val currentParts = cleanCurrent.split(".").mapNotNull { it.replace(Regex("[^0-9]"), "").toIntOrNull() }
 
         val length = maxOf(remoteParts.size, currentParts.size)
         for (i in 0 until length) {

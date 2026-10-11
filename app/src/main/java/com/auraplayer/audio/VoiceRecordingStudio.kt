@@ -14,26 +14,35 @@ private const val TAG = "VoiceRecordingStudio"
  * Permite grabar la voz del usuario directamente con micrófono (AAC/M4A a 48kHz HQ)
  * mientras suena la música en segundo plano o en modo Karaoke (para covers o notas de voz).
  */
-class VoiceRecordingStudio(private val context: Context) {
+class VoiceRecordingStudio(context: Context) {
 
+    private val appContext = context.applicationContext
     private var recorder: MediaRecorder? = null
     var isRecording: Boolean = false
         private set
     var currentOutputFile: File? = null
         private set
 
+    private fun getStorageDirectory(): File {
+        val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Recordings")
+        if (!publicDir.exists()) publicDir.mkdirs()
+        return if (publicDir.canWrite()) {
+            publicDir
+        } else {
+            File(appContext.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: appContext.filesDir, "DaVE_Recordings").apply { mkdirs() }
+        }
+    }
+
     fun startRecording(songTitle: String): File? {
         if (isRecording) return currentOutputFile
 
         return try {
-            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Recordings")
-            if (!dir.exists()) dir.mkdirs()
-
-            val safeTitle = songTitle.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(25)
+            val dir = getStorageDirectory()
+            val safeTitle = songTitle.replace(Regex("[^a-zA-Z0-9._-]"), "_").take(25).ifBlank { "Track" }
             val file = File(dir, "Cover_${safeTitle}_${System.currentTimeMillis()}.m4a")
 
             val mr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
+                MediaRecorder(appContext)
             } else {
                 @Suppress("DEPRECATION")
                 MediaRecorder()
@@ -54,9 +63,14 @@ class VoiceRecordingStudio(private val context: Context) {
             isRecording = true
             currentOutputFile = file
             file
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             AppLog.e(TAG, "Error iniciando grabación vocal", e)
-            recorder?.release()
+            try {
+                recorder?.reset()
+            } catch (_: Throwable) {}
+            try {
+                recorder?.release()
+            } catch (_: Throwable) {}
             recorder = null
             isRecording = false
             currentOutputFile = null
@@ -66,25 +80,56 @@ class VoiceRecordingStudio(private val context: Context) {
 
     fun stopRecording(): File? {
         if (!isRecording) return null
+        val mr = recorder
+        val file = currentOutputFile
+        recorder = null
+        isRecording = false
+        currentOutputFile = null
+
         return try {
-            recorder?.apply {
-                stop()
-                release()
+            if (mr != null) {
+                try {
+                    mr.stop()
+                } catch (e: RuntimeException) {
+                    AppLog.w(TAG, "Grabación vocal demasiado corta o detenida abruptamente", e)
+                } finally {
+                    try {
+                        mr.reset()
+                    } catch (_: Throwable) {}
+                    try {
+                        mr.release()
+                    } catch (_: Throwable) {}
+                }
             }
-            recorder = null
-            isRecording = false
-            val file = currentOutputFile
-            if (file != null && file.exists()) {
-                android.media.MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), null, null)
+            if (file != null && file.exists() && file.length() > 1024L) {
+                android.media.MediaScannerConnection.scanFile(appContext, arrayOf(file.absolutePath), null, null)
+                file
+            } else {
+                file?.delete()
+                null
             }
-            file
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             AppLog.e(TAG, "Error deteniendo grabación vocal", e)
-            recorder?.release()
-            recorder = null
-            isRecording = false
             null
         }
+    }
+
+    fun cancelRecording() {
+        val mr = recorder
+        val file = currentOutputFile
+        recorder = null
+        isRecording = false
+        currentOutputFile = null
+
+        try {
+            mr?.reset()
+        } catch (_: Throwable) {}
+        try {
+            mr?.release()
+        } catch (_: Throwable) {}
+        try {
+            file?.delete()
+        } catch (_: Throwable) {}
     }
 
     companion object {

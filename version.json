@@ -1,7 +1,7 @@
 {
-  "versionCode": 94,
-  "versionName": "4.5.1",
+  "versionCode": 95,
+  "versionName": "4.5.2",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v4.5.1 (Build 94) — ¡Perfeccionamiento Visual & Mega Suite!\n• 🎨 Interfaz Pulida: Ajuste responsivo de la barra superior en la pestaña Explorar (pastilla de calidad Hi-Fi 320k y accesos directos TikTok y Radar perfectamente alineados).\n• 🌐 Traductor de Letras Bilingüe en Vivo: Traduce letras verso por verso en tiempo real con 1 toque.\n• ✂️ Story & Reel Maker 9:16: Tarjetas y clips HD con ondas reactivas para WhatsApp.\n• 🎙️ Estudio de Grabación Vocal: Graba tu voz con micrófono sobre pistas para covers.\n• 📳 Subwoofer Háptico en Tiempo Real: Siente el impacto físico de los bajos en tus manos.",
+  "changelog": "🛡️ DaVE Player v4.5.2 (Build 95) — ¡Estabilidad Total & Corrección Crítica de Bugs!\n• 📳 Subwoofer Háptico Blindado: Corregida vibración en pausa; ahora se sincroniza estrictamente con la reproducción activa y detiene el motor vibrador al apagarlo.\n• 🌊 Visualizador Ultra Estable: Blindado contra cierres forzados por AudioFX nativo en dispositivos Xiaomi, Samsung y Tecno con recuperación elegante.\n• 🎙️ Estudio Vocal Sin Pérdida: Manejo seguro de memoria en MediaRecorder, prevención de fallos al cortar pistas cortas y almacenamiento compatible con Android Scoped Storage.\n• 🌐 Traducción Ultrarrápida de Letras: Agrupamiento inteligente por bloques HTTP (10x más veloz sin límite de líneas y con caché LRU anti fugas).\n• ⚡ Búsqueda y Explorar Sin Bloqueos: Cancelación de carreras asíncronas al escribir rápido y tolerancia total ante caídas de red al iniciar.",
   "fileSizeMb": 25.5
 }

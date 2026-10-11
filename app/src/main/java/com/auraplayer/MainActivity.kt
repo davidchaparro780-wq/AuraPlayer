@@ -574,7 +574,7 @@ fun AuraApp(
     val alarmManager = remember { com.auraplayer.audio.MusicAlarmManager(context) }
     val wifiServer = remember { com.auraplayer.service.LocalMusicServer() }
     var isWifiServerRunning by remember { mutableStateOf(false) }
-    val hapticBassManager = remember { com.auraplayer.audio.HapticBassManager(context) }
+    val hapticBassManager = remember { com.auraplayer.audio.HapticBassManager.getInstance(context) }
     var isHapticBass by remember { mutableStateOf(hapticBassManager.isEnabled) }
     var vibeMode by remember { mutableStateOf(com.auraplayer.audio.VibeModeManager.currentVibe) }
 

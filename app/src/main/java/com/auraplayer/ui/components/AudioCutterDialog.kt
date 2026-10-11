@@ -178,10 +178,9 @@ fun AudioCutterDialog(
             try {
                 val isSubRange = startSec > 0.5f || endSec < (totalSec - 0.5f)
                 val targetUri = if (isSubRange) {
-                    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Cuts")
-                    if (!dir.exists()) dir.mkdirs()
-                    val safeName = song.title.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-                    val outExt = if (song.path.endsWith(".m4a", true)) "m4a" else "mp3"
+                    val dir = getCutsDirectory(context)
+                    val safeName = song.title.replace(Regex("[^a-zA-Z0-9._-]"), "_").ifBlank { "Tono" }
+                    val outExt = if (song.path.endsWith(".m4a", true)) "m4a" else "m4a"
                     val outFile = File(dir, "${safeName}_corte_${startSec.toInt()}s_${endSec.toInt()}s.$outExt")
                     if (!outFile.exists() || outFile.length() == 0L) {
                         trimAudioFile(context, song.uri, outFile, (startSec * 1000).toLong(), (endSec * 1000).toLong())
@@ -216,10 +215,9 @@ fun AudioCutterDialog(
         isTrimming = true
         scope.launch(Dispatchers.IO) {
             try {
-                val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Cuts")
-                if (!dir.exists()) dir.mkdirs()
-                val safeName = song.title.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-                val outExt = if (song.path.endsWith(".m4a", true)) "m4a" else "mp3"
+                val dir = getCutsDirectory(context)
+                val safeName = song.title.replace(Regex("[^a-zA-Z0-9._-]"), "_").ifBlank { "Corte" }
+                val outExt = if (song.path.endsWith(".m4a", true)) "m4a" else "m4a"
                 val outFile = File(dir, "${safeName}_corte_${startSec.toInt()}s_${endSec.toInt()}s.$outExt")
 
                 trimAudioFile(context, song.uri, outFile, (startSec * 1000).toLong(), (endSec * 1000).toLong())
@@ -512,6 +510,16 @@ private fun formatSec(seconds: Float): String {
     return String.format("%02d:%02d", mins, secs)
 }
 
+private fun getCutsDirectory(context: Context): File {
+    val publicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Cuts")
+    if (!publicDir.exists()) publicDir.mkdirs()
+    return if (publicDir.canWrite()) {
+        publicDir
+    } else {
+        File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir, "DaVE_Cuts").apply { mkdirs() }
+    }
+}
+
 /**
  * Native hardware-accelerated audio trimming using Android MediaExtractor and MediaMuxer.
  */
@@ -523,78 +531,95 @@ private fun trimAudioFile(
     endMs: Long
 ) {
     val extractor = MediaExtractor()
-    extractor.setDataSource(context, srcUri, null)
-
-    var trackIndex = -1
-    for (i in 0 until extractor.trackCount) {
-        val format = extractor.getTrackFormat(i)
-        val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
-        if (mime.startsWith("audio/")) {
-            trackIndex = i
-            break
-        }
-    }
-
-    if (trackIndex < 0) {
-        extractor.release()
-        // Fallback: simple copy if format unrecognized
-        context.contentResolver.openInputStream(srcUri)?.use { input ->
-            dstFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        }
-        return
-    }
-
-    extractor.selectTrack(trackIndex)
-    val format = extractor.getTrackFormat(trackIndex)
-
-    val muxer = MediaMuxer(dstFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-    val muxerTrack = muxer.addTrack(format)
-    muxer.start()
-
-    val bufferSize = 64 * 1024
-    val buffer = ByteBuffer.allocate(bufferSize)
-    val bufferInfo = MediaCodec.BufferInfo()
-
-    extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
-
-    var lastPresentationTimeUs = 0L
-    var isFirstSample = true
-
     try {
-        while (true) {
-            val sampleSize = extractor.readSampleData(buffer, 0)
-            if (sampleSize < 0) break
+        extractor.setDataSource(context, srcUri, null)
 
-            val sampleTimeUs = extractor.sampleTime
-            if (sampleTimeUs > endMs * 1000) break
-
-            val adjustedTimeUs = (sampleTimeUs - (startMs * 1000)).coerceAtLeast(0L)
-            if (isFirstSample) {
-                lastPresentationTimeUs = 0L
-                isFirstSample = false
-            } else if (adjustedTimeUs > lastPresentationTimeUs) {
-                lastPresentationTimeUs = adjustedTimeUs
-            } else {
-                lastPresentationTimeUs += 1000L
+        var trackIndex = -1
+        for (i in 0 until extractor.trackCount) {
+            val format = extractor.getTrackFormat(i)
+            val mime = format.getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.startsWith("audio/")) {
+                trackIndex = i
+                break
             }
-
-            bufferInfo.offset = 0
-            bufferInfo.size = sampleSize
-            bufferInfo.presentationTimeUs = lastPresentationTimeUs
-            bufferInfo.flags = extractor.sampleFlags
-
-            muxer.writeSampleData(muxerTrack, buffer, bufferInfo)
-            extractor.advance()
         }
+
+        if (trackIndex < 0) {
+            // Fallback: simple copy if format unrecognized
+            context.contentResolver.openInputStream(srcUri)?.use { input ->
+                dstFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            return
+        }
+
+        extractor.selectTrack(trackIndex)
+        val format = extractor.getTrackFormat(trackIndex)
+
+        val muxer = MediaMuxer(dstFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        val muxerTrack = muxer.addTrack(format)
+        muxer.start()
+
+        val maxInput = if (format.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) {
+            try { format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE) } catch (_: Exception) { 64 * 1024 }
+        } else 64 * 1024
+        val bufferSize = maxOf(64 * 1024, maxInput)
+        val buffer = ByteBuffer.allocate(bufferSize)
+        val bufferInfo = MediaCodec.BufferInfo()
+
+        extractor.seekTo(startMs * 1000, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+
+        var lastPresentationTimeUs = 0L
+        var isFirstSample = true
+
+        try {
+            while (true) {
+                val sampleSize = extractor.readSampleData(buffer, 0)
+                if (sampleSize < 0) break
+
+                val sampleTimeUs = extractor.sampleTime
+                if (sampleTimeUs > endMs * 1000) break
+
+                val adjustedTimeUs = (sampleTimeUs - (startMs * 1000)).coerceAtLeast(0L)
+                if (isFirstSample) {
+                    lastPresentationTimeUs = 0L
+                    isFirstSample = false
+                } else if (adjustedTimeUs > lastPresentationTimeUs) {
+                    lastPresentationTimeUs = adjustedTimeUs
+                } else {
+                    lastPresentationTimeUs += 1000L
+                }
+
+                bufferInfo.offset = 0
+                bufferInfo.size = sampleSize
+                bufferInfo.presentationTimeUs = lastPresentationTimeUs
+                bufferInfo.flags = extractor.sampleFlags
+
+                muxer.writeSampleData(muxerTrack, buffer, bufferInfo)
+                extractor.advance()
+            }
+        } finally {
+            try {
+                muxer.stop()
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo detener el muxer al finalizar el corte", e)
+            }
+            try {
+                muxer.release()
+            } catch (e: Exception) {
+                AppLog.d(TAG, "No se pudo liberar el muxer al finalizar el corte", e)
+            }
+        }
+    } catch (e: Exception) {
+        AppLog.e(TAG, "Error recortando audio nativamente: ${e.message}", e)
+        if (dstFile.exists() && dstFile.length() < 1024L) {
+            dstFile.delete()
+        }
+        throw e
     } finally {
         try {
-            muxer.stop()
-            muxer.release()
-        } catch (e: Exception) {
-            AppLog.d(TAG, "No se pudo cerrar el muxer al finalizar el corte", e)
-        }
-        extractor.release()
+            extractor.release()
+        } catch (_: Throwable) {}
     }
 }

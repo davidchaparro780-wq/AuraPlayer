@@ -53,7 +53,7 @@ class UpdateWorker(
 
                 WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP,
+                    ExistingPeriodicWorkPolicy.UPDATE,
                     periodicWork
                 )
                 AppLog.d(TAG, "Trabajo periódico de actualización configurado (cada 4h con conexión)")

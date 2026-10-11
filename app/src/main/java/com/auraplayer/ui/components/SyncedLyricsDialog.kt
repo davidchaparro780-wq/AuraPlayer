@@ -102,7 +102,7 @@ fun SyncedLyricsDialog(
     LaunchedEffect(isTranslationEnabled, lines) {
         if (isTranslationEnabled && lines.isNotEmpty() && translations.isEmpty()) {
             isTranslating = true
-            val uniqueLines = lines.map { it.text }.distinct().take(40)
+            val uniqueLines = lines.map { it.text }.distinct()
             val translatedMap = com.auraplayer.data.repository.LyricsTranslatorService.batchTranslate(uniqueLines)
             translations = translatedMap
             isTranslating = false
@@ -111,6 +111,7 @@ fun SyncedLyricsDialog(
 
     LaunchedEffect(song.id) {
         isLoading = true
+        translations = emptyMap()
         val local = lyricsManager.getLocalSyncedLyrics(song.id)
         if (local != null && local.isNotEmpty()) {
             lines = local

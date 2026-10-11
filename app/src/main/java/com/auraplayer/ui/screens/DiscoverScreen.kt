@@ -109,6 +109,7 @@ import com.auraplayer.data.repository.GlobalSearchService
 import com.auraplayer.ui.components.ShimmerCardPlaceholder
 import com.auraplayer.ui.components.ShimmerSongRow
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -189,8 +190,11 @@ fun DiscoverScreen(
         "Acoustic" to "🌿 Acústico"
     )
 
+    var searchJob by remember { mutableStateOf<Job?>(null) }
+
     fun runSearch() {
-        scope.launch {
+        searchJob?.cancel()
+        searchJob = scope.launch {
             isLoading = true
             try {
                 trackList = searchService.searchOrExtract(searchQuery, selectedSource)
@@ -237,8 +241,15 @@ fun DiscoverScreen(
         if (searchQuery.isBlank()) {
             searchError = null
             isLoading = true
-            trackList = searchService.getTrending(selectedGenre, selectedSource)
-            isLoading = false
+            try {
+                trackList = searchService.getTrending(selectedGenre, selectedSource)
+            } catch (e: Exception) {
+                if (e !is CancellationException) {
+                    searchError = "No se pudieron cargar las tendencias. Revisa tu conexión."
+                }
+            } finally {
+                isLoading = false
+            }
         }
     }
 

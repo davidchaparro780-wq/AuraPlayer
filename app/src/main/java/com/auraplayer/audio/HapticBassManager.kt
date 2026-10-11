@@ -21,17 +21,18 @@ private const val TAG = "HapticBassManager"
  * Vibra de forma proporcional y rítmica al compás de los golpes del bajo (kick/bass),
  * permitiendo sentir físicamente el impacto musical en las manos.
  */
-class HapticBassManager(private val context: Context) {
+class HapticBassManager(context: Context) {
 
+    private val appContext = context.applicationContext
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+        val vm = appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
         vm?.defaultVibrator
     } else {
         @Suppress("DEPRECATION")
-        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        appContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
-    private val prefs = context.getSharedPreferences("aura_haptic_bass", Context.MODE_PRIVATE)
+    private val prefs = appContext.getSharedPreferences("aura_haptic_bass", Context.MODE_PRIVATE)
     private var syncJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default)
 
@@ -54,13 +55,20 @@ class HapticBassManager(private val context: Context) {
             var lastPulseTime = 0L
             while (isActive) {
                 if (!isEnabled) {
-                    delay(500)
+                    delay(400)
+                    continue
+                }
+
+                // Solo vibrar si hay reproducción activa de música en ExoPlayer
+                val isAudioPlaying = com.auraplayer.service.PlaybackService.activePlayer?.isPlaying == true
+                if (!isAudioPlaying) {
+                    delay(250)
                     continue
                 }
 
                 val now = System.currentTimeMillis()
                 // Obtener energía de graves en tiempo real del motor FFT (0.05f .. 1.0f)
-                val bass = RealtimeVisualizerManager.instance.getBassEnergy(true)
+                val bass = RealtimeVisualizerManager.instance.getBassEnergy(isAudioPlaying)
 
                 // Disparo de pulso cuando la energía de graves supera el umbral (punch de bajo)
                 if (bass > 0.65f && (now - lastPulseTime) > 130L) {
@@ -77,6 +85,9 @@ class HapticBassManager(private val context: Context) {
     fun stopRealtimeBassSync() {
         syncJob?.cancel()
         syncJob = null
+        try {
+            vibrator?.cancel()
+        } catch (_: Throwable) {}
     }
 
     private fun triggerDynamicPulse(intensity: Float) {
