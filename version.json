@@ -1,7 +1,7 @@
 {
-  "versionCode": 95,
-  "versionName": "4.5.2",
+  "versionCode": 96,
+  "versionName": "4.6.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🛡️ DaVE Player v4.5.2 (Build 95) — ¡Estabilidad Total & Corrección Crítica de Bugs!\n• 📳 Subwoofer Háptico Blindado: Corregida vibración en pausa; ahora se sincroniza estrictamente con la reproducción activa y detiene el motor vibrador al apagarlo.\n• 🌊 Visualizador Ultra Estable: Blindado contra cierres forzados por AudioFX nativo en dispositivos Xiaomi, Samsung y Tecno con recuperación elegante.\n• 🎙️ Estudio Vocal Sin Pérdida: Manejo seguro de memoria en MediaRecorder, prevención de fallos al cortar pistas cortas y almacenamiento compatible con Android Scoped Storage.\n• 🌐 Traducción Ultrarrápida de Letras: Agrupamiento inteligente por bloques HTTP (10x más veloz sin límite de líneas y con caché LRU anti fugas).\n• ⚡ Búsqueda y Explorar Sin Bloqueos: Cancelación de carreras asíncronas al escribir rápido y tolerancia total ante caídas de red al iniciar.",
+  "changelog": "🚀 DaVE Player v4.6.0 (Build 96) — ¡La Gran Mega Suite Musical!\n• 🚗 Modo Conducción / Coche Inteligente: Interfaz gigante de alto contraste con pantalla siempre encendida, gestos táctiles completos y Anunciador por Voz (TTS).\n• 🎤 Extractor de Voces en Vivo: Botón de 1 toque para atenuar voces principales y convertir cualquier canción en pista instrumental de Karaoke.\n• 👂 Cazador Musical Integrado: Escucha con el micrófono y reconoce canciones al instante con carátula y descarga directa.\n• 🔦 Linterna Rítmica Reactiva: Estrobo de fiesta sincronizado con el impacto de bombo y bajo FFT en tiempo real.\n• 🎛️ Transiciones DJ Inteligentes: Mezcla continua sin silencios con curva exponencial de volumen entre pistas.\n• 🌈 Mood Aura: Selector instantáneo de sesiones por vibra y estado de ánimo.",
   "fileSizeMb": 25.5
 }

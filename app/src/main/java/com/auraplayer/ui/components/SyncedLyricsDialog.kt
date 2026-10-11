@@ -1,6 +1,8 @@
 package com.auraplayer.ui.components
 
 import android.content.Intent
+import android.widget.Toast
+import com.auraplayer.audio.EqualizerManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -240,6 +242,25 @@ fun SyncedLyricsDialog(
                                 color = if (isTranslationEnabled) Color(0xFF10B981) else Color(0xFF94A3B8),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 12.sp
+                            )
+                        }
+
+                        // Botón de Quitar Voz (Karaoke Vocal Attenuation)
+                        var isKaraokeActive by remember { mutableStateOf(EqualizerManager.instance.isKaraokeMode) }
+                        IconButton(
+                            onClick = {
+                                val newState = !isKaraokeActive
+                                isKaraokeActive = newState
+                                EqualizerManager.instance.setKaraokeMode(newState)
+                                val msg = if (newState) "🎤 Voz atenuada para cantar (Karaoke)" else "Voz restaurada"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
+                            Text(
+                                text = if (isKaraokeActive) "🎤 MUTE" else "🎤 VOZ",
+                                color = if (isKaraokeActive) Color(0xFFEC4899) else Color(0xFF94A3B8),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp
                             )
                         }
 

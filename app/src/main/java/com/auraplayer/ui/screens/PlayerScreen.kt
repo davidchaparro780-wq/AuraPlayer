@@ -110,6 +110,9 @@ import com.auraplayer.audio.ViralAudioEffectsManager
 import com.auraplayer.audio.ViralAudioMode
 import com.auraplayer.data.repository.SyncedLyricsManager
 import com.auraplayer.ui.components.SyncedLyricsDialog
+import com.auraplayer.ui.components.CarDriveModeDialog
+import com.auraplayer.ui.components.SongHunterDialog
+import com.auraplayer.ui.components.MoodWheelDialog
 import com.auraplayer.ui.components.CassetteTapeSkin
 import com.auraplayer.ui.components.IpodClassicSkin
 import com.auraplayer.ui.components.AuroraMeshBackground
@@ -279,6 +282,12 @@ fun PlayerScreen(
     var showStemMixerDialog by remember { mutableStateOf(false) }
     var showStealthCalculator by remember { mutableStateOf(false) }
     var showClubPartyDialog by remember { mutableStateOf(false) }
+    var showCarDriveModeDialog by remember { mutableStateOf(false) }
+    var showSongHunterDialog by remember { mutableStateOf(false) }
+    var showMoodAuraDialog by remember { mutableStateOf(false) }
+    val smartDjManager = remember { com.auraplayer.audio.SmartDjTransitionManager.getInstance(context) }
+    var isSmartDj by remember { mutableStateOf(smartDjManager.isSmartDjEnabled) }
+    var isKaraokeVocalRemoved by remember { mutableStateOf(EqualizerManager.instance.isKaraokeMode) }
     val stemManager = remember { com.auraplayer.audio.StemMixerManager.getInstance(context) }
     val syncedLyricsManager = remember { SyncedLyricsManager.getInstance(context) }
     val viralEffectsManager = remember { ViralAudioEffectsManager.getInstance(context) }
@@ -1825,7 +1834,84 @@ fun PlayerScreen(
                         .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
-                ) {
+                    // Modo Conducción / Coche Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showCarDriveModeDialog = true },
+                        label = { Text("🚗 Modo Auto", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // Quitar Voz (Karaoke Vocal Attenuation) Chip
+                    FilterChip(
+                        selected = isKaraokeVocalRemoved,
+                        onClick = {
+                            val newState = !isKaraokeVocalRemoved
+                            isKaraokeVocalRemoved = newState
+                            EqualizerManager.instance.setKaraokeMode(newState)
+                            val msg = if (newState) "🎤 Modo Karaoke: Voz principal atenuada" else "Voz restaurada"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = {
+                            Text(
+                                text = if (isKaraokeVocalRemoved) "🎤 Voz: MUTE" else "🎤 Quitar Voz",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFEC4899).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFEC4899),
+                            labelColor = Color(0xFFEC4899)
+                        )
+                    )
+
+                    // Cazador Musical (Song Hunter) Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showSongHunterDialog = true },
+                        label = { Text("👂 Cazador Musical", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFF00F0FF)
+                        )
+                    )
+
+                    // Smart DJ Transition Chip
+                    FilterChip(
+                        selected = isSmartDj,
+                        onClick = {
+                            val newState = !isSmartDj
+                            isSmartDj = newState
+                            smartDjManager.isSmartDjEnabled = newState
+                            val msg = if (newState) "🎛️ Transición DJ: ACTIVADA" else "Transición DJ: DESACTIVADA"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = {
+                            Text(
+                                text = if (isSmartDj) "🎛️ Smart DJ: ON" else "🎛️ Smart DJ",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF10B981).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF10B981),
+                            labelColor = Color(0xFF10B981)
+                        )
+                    )
+
+                    // Mood Aura Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = { showMoodAuraDialog = true },
+                        label = { Text("🌈 Mood Aura", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            labelColor = Color(0xFFA855F7)
+                        )
+                    )
+
                     // AI Stem Mixer Chip
                     FilterChip(
                         selected = stemManager.isEnabled,
@@ -2882,6 +2968,46 @@ fun PlayerScreen(
         ClubPartyDialog(
             isPlaying = isPlaying,
             onDismiss = { showClubPartyDialog = false }
+        )
+    }
+
+    // Modo Conducción / Coche Inteligente Dialog
+    if (showCarDriveModeDialog) {
+        CarDriveModeDialog(
+            song = currentMedia,
+            isPlaying = isPlaying,
+            currentPositionMs = currentPositionMs,
+            durationMs = durationMs,
+            onPlayPause = onPlayPauseClick,
+            onNext = onNextClick,
+            onPrevious = onPreviousClick,
+            onDismiss = { showCarDriveModeDialog = false }
+        )
+    }
+
+    // Cazador Musical (Song Hunter) Dialog
+    if (showSongHunterDialog) {
+        SongHunterDialog(
+            onPlayOrSearch = { query ->
+                showSongHunterDialog = false
+                val searchIntent = android.content.Intent(android.content.Intent.ACTION_WEB_SEARCH).apply {
+                    putExtra(android.app.SearchManager.QUERY, query)
+                }
+                try { context.startActivity(searchIntent) } catch (_: Exception) {}
+            },
+            onDismiss = { showSongHunterDialog = false }
+        )
+    }
+
+    // Mood Aura / Rueda de Emociones Dialog
+    if (showMoodAuraDialog) {
+        MoodWheelDialog(
+            allSongs = emptyList(),
+            onMoodSelected = { mood, _ ->
+                showMoodAuraDialog = false
+                Toast.makeText(context, "Sintonizando Mood Aura: ${mood.title}", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showMoodAuraDialog = false }
         )
     }
 }

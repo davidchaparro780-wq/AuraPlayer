@@ -43,15 +43,28 @@ class FlashlightBeatManager(private val context: Context) {
         isEnabled = true
 
         strobeJob = scope.launch {
+            var lastFlashTime = 0L
             try {
                 while (isActive && isEnabled) {
-                    // Flash ON (strobe peak: 45ms)
-                    cameraManager?.setTorchMode(camId, true)
-                    delay(45)
-                    // Flash OFF
-                    cameraManager?.setTorchMode(camId, false)
-                    // Gap between beats (approx 125 BPM = 480ms period)
-                    delay(435)
+                    val isPlaying = com.auraplayer.service.PlaybackService.activePlayer?.isPlaying == true
+                    if (!isPlaying) {
+                        try { cameraManager?.setTorchMode(camId, false) } catch (_: Exception) {}
+                        delay(200)
+                        continue
+                    }
+
+                    val now = System.currentTimeMillis()
+                    val bass = RealtimeVisualizerManager.instance.getBassEnergy(true)
+
+                    // Destello reactivo al impacto de bombo/bajo (< 100 Hz)
+                    if (bass > 0.68f && (now - lastFlashTime) > 120L) {
+                        lastFlashTime = now
+                        try { cameraManager?.setTorchMode(camId, true) } catch (_: Exception) {}
+                        delay(45)
+                        try { cameraManager?.setTorchMode(camId, false) } catch (_: Exception) {}
+                    }
+
+                    delay(30)
                 }
             } catch (e: Exception) {
                 AppLog.w(TAG, "El estrobo de linterna se detuvo inesperadamente", e)

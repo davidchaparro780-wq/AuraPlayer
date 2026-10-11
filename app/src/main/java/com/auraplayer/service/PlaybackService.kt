@@ -126,22 +126,9 @@ class PlaybackService : MediaSessionService() {
                 val effectiveFactor = (spatialFactor * sleepFade).coerceIn(0.0f, 1.0f)
 
                 if (crossfadeSec > 0 && player.duration > 0L) {
-                    val fadeWindowMs = crossfadeSec * 1000L
-                    val pos = player.currentPosition
-                    val dur = player.duration
-                    val rem = dur - pos
-
-                    if (rem in 0L..fadeWindowMs) {
-                        // Fade out towards track end
-                        val factor = (rem.toFloat() / fadeWindowMs.toFloat()).coerceIn(0.08f, 1.0f)
-                        player.volume = factor * effectiveFactor
-                    } else if (pos in 0L..(fadeWindowMs / 2)) {
-                        // Fade in at track beginning
-                        val factor = (pos.toFloat() / (fadeWindowMs / 2).toFloat()).coerceIn(0.15f, 1.0f)
-                        player.volume = factor * effectiveFactor
-                    } else {
-                        player.volume = effectiveFactor
-                    }
+                    val djVolume = com.auraplayer.audio.SmartDjTransitionManager.getInstance(this@PlaybackService)
+                        .computeTransitionVolume(player.currentPosition, player.duration, crossfadeSec)
+                    player.volume = djVolume * effectiveFactor
                 } else {
                     player.volume = effectiveFactor
                 }
