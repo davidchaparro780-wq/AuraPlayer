@@ -2,10 +2,12 @@ package com.auraplayer.data.repository
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.auraplayer.util.AppLog
 import kotlinx.coroutines.Dispatchers
@@ -20,13 +22,15 @@ data class UpdateInfo(
     val versionName: String,
     val changelog: String,
     val downloadUrl: String,
-    val fileSizeMb: Double
+    val fileSizeMb: Double,
+    val versionCode: Long = 0L
 )
 
 class UpdateManager(private val context: Context) {
 
-    private val rawVersionJson = "https://raw.githubusercontent.com/davidchaparro780-wq/AuraPlayer/main/version.json"
-    private val repoReleasesApi = "https://api.github.com/repos/davidchaparro780-wq/AuraPlayer/releases/latest"
+    private val rawVersionJson = "https://raw.githubusercontent.com/davidchaparro780-wq/D4ve/main/version.json"
+    private val rawVersionJsonFallback = "https://raw.githubusercontent.com/davidchaparro780-wq/AuraPlayer/main/version.json"
+    private val repoReleasesApi = "https://api.github.com/repos/davidchaparro780-wq/D4ve/releases/latest"
     private val tag = "UpdateManager"
 
     val currentVersionCode: Long
@@ -39,67 +43,70 @@ class UpdateManager(private val context: Context) {
                 pInfo.versionCode.toLong()
             }
         } catch (_: Exception) {
-            56L
+            86L
         }
 
     val currentVersionName: String
         get() = try {
             val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-            pInfo.versionName ?: "2.7.4"
+            pInfo.versionName ?: "4.0.0"
         } catch (_: Exception) {
-            "2.7.4"
+            "4.0.0"
         }
 
     /**
-     * Checks for a newer version of DaVE.
-     * Tries fast version.json endpoint first, then falls back to GitHub Releases API.
-     * Returns UpdateInfo if an update is available, or null if already on the latest version.
+     * Comprueba si hay una nueva versión disponible.
+     * Consulta version.json (en D4ve o AuraPlayer) y como fallback la API de GitHub Releases.
      */
     suspend fun checkForUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
         val currentVersion = currentVersionName.removePrefix("v").trim()
 
-        // 1. Fast, non-rate-limited check via version.json on raw.githubusercontent.com
-        try {
-            val url = URL(rawVersionJson)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 6000
-                readTimeout = 6000
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "DaVE-App/$currentVersionName")
-            }
-            if (conn.responseCode == 200) {
-                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
-                val root = JSONObject(jsonStr)
-                val remoteVersion = root.optString("versionName", "").removePrefix("v").trim()
-                val remoteVersionCode = root.optLong("versionCode", 0L)
-                val changelog = root.optString("changelog", "Nueva versión de DaVE disponible.")
-                val downloadUrl = root.optString("downloadUrl", "")
-                val fileSizeMb = root.optDouble("fileSizeMb", 23.0)
-
-                AppLog.d(tag, "version.json: Remota $remoteVersion (cód. $remoteVersionCode) vs Actual $currentVersion (cód. $currentVersionCode)")
-
-                val isNewer = (remoteVersionCode > 0 && remoteVersionCode > currentVersionCode) || isVersionNewer(remoteVersion, currentVersion)
-                if (isNewer && downloadUrl.isNotBlank()) {
-                    val info = UpdateInfo(
-                        versionName = "v$remoteVersion",
-                        changelog = changelog,
-                        downloadUrl = downloadUrl,
-                        fileSizeMb = fileSizeMb
-                    )
-                    com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
-                    return@withContext info
+        // 1. Consulta directa a version.json
+        val jsonUrls = listOf(rawVersionJson, rawVersionJsonFallback)
+        for (jsonUrl in jsonUrls) {
+            try {
+                val url = URL(jsonUrl)
+                val conn = (url.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 8000
+                    readTimeout = 8000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "DaVE-App/$currentVersionName")
                 }
+                if (conn.responseCode == 200) {
+                    val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                    val root = JSONObject(jsonStr)
+                    val remoteVersion = root.optString("versionName", "").removePrefix("v").trim()
+                    val remoteVersionCode = root.optLong("versionCode", 0L)
+                    val changelog = root.optString("changelog", "Nueva versión de DaVE disponible con mejoras y optimizaciones.")
+                    val downloadUrl = root.optString("downloadUrl", "")
+                    val fileSizeMb = root.optDouble("fileSizeMb", 24.5)
+
+                    AppLog.d(tag, "version.json: Remota $remoteVersion (cód. $remoteVersionCode) vs Actual $currentVersion (cód. $currentVersionCode)")
+
+                    val isNewer = (remoteVersionCode > 0 && remoteVersionCode > currentVersionCode) || isVersionNewer(remoteVersion, currentVersion)
+                    if (isNewer && downloadUrl.isNotBlank()) {
+                        val info = UpdateInfo(
+                            versionName = "v$remoteVersion",
+                            changelog = changelog,
+                            downloadUrl = downloadUrl,
+                            fileSizeMb = fileSizeMb,
+                            versionCode = remoteVersionCode
+                        )
+                        com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
+                        return@withContext info
+                    }
+                }
+            } catch (e: Exception) {
+                AppLog.w(tag, "Fallo al comprobar $jsonUrl: ${e.message}")
             }
-        } catch (e: Exception) {
-                AppLog.w(tag, "Falló la comprobación vía version.json, se prueba GitHub API: ${e.message}")
         }
 
-        // 2. Fallback to GitHub Releases API
+        // 2. Fallback a GitHub Releases API
         try {
             val url = URL(repoReleasesApi)
             val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 10000
+                readTimeout = 10000
                 requestMethod = "GET"
                 setRequestProperty("User-Agent", "DaVE-App/$currentVersionName")
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
@@ -108,12 +115,9 @@ class UpdateManager(private val context: Context) {
             if (conn.responseCode == 200) {
                 val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
                 val root = JSONObject(jsonStr)
-
                 val rawTagName = root.optString("tag_name", "")
                 val remoteVersion = rawTagName.removePrefix("v").trim()
                 val body = root.optString("body", "Mejoras de rendimiento y nuevas funciones.")
-
-                AppLog.d(tag, "GitHub API: Remota $remoteVersion vs Actual $currentVersion")
 
                 if (isVersionNewer(remoteVersion, currentVersion)) {
                     val assets = root.optJSONArray("assets")
@@ -137,7 +141,7 @@ class UpdateManager(private val context: Context) {
                             versionName = rawTagName,
                             changelog = body,
                             downloadUrl = apkUrl,
-                            fileSizeMb = String.format("%.1f", apkSize / (1024.0 * 1024.0)).toDoubleOrNull() ?: 23.0
+                            fileSizeMb = String.format("%.1f", apkSize / (1024.0 * 1024.0)).toDoubleOrNull() ?: 24.5
                         )
                         com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
                         return@withContext info
@@ -145,17 +149,45 @@ class UpdateManager(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            AppLog.e(tag, "Error al comprobar actualizaciones en GitHub: ${e.message}", e)
+            AppLog.e(tag, "Error al comprobar en GitHub Releases: ${e.message}", e)
         }
+
         null
     }
+
+    /**
+     * Retorna la ruta al archivo APK descargado para la versión dada.
+     */
     fun getDownloadedApkFile(updateInfo: UpdateInfo): File {
         val downloadDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
         return File(downloadDir, "DaVE-update-${updateInfo.versionName}.apk")
     }
 
     /**
-     * Downloads the APK file showing progress percentage (0-100), then triggers installation.
+     * Valida si el archivo APK descargado es íntegro, ejecutable y más nuevo que la app actual.
+     */
+    fun isApkValidAndNewer(apkFile: File): Boolean {
+        if (!apkFile.exists() || apkFile.length() < 10_000_000L) return false
+        return try {
+            val pInfo = context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0)
+            if (pInfo != null) {
+                val apkVerCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    pInfo.longVersionCode
+                } else {
+                    @Suppress("DEPRECATION")
+                    pInfo.versionCode.toLong()
+                }
+                apkVerCode > currentVersionCode
+            } else {
+                false
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Descarga atómicamente el APK (usando un .tmp temporal) y lanza la instalación al finalizar.
      */
     suspend fun downloadAndInstall(
         updateInfo: UpdateInfo,
@@ -163,11 +195,12 @@ class UpdateManager(private val context: Context) {
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit
     ) = withContext(Dispatchers.IO) {
-        try {
-            val targetFile = getDownloadedApkFile(updateInfo)
+        val targetFile = getDownloadedApkFile(updateInfo)
+        val tempFile = File(targetFile.parentFile, "${targetFile.name}.tmp")
 
-            // If already fully downloaded (> 15MB), directly launch installer without redownloading
-            if (targetFile.exists() && targetFile.length() > 15_000_000L) {
+        try {
+            // Si ya existe un APK válido y más nuevo que el actual, instalar directamente
+            if (isApkValidAndNewer(targetFile)) {
                 targetFile.setReadable(true, false)
                 withContext(Dispatchers.Main) {
                     onProgress(100)
@@ -175,25 +208,34 @@ class UpdateManager(private val context: Context) {
                     onSuccess()
                 }
                 return@withContext
+            } else if (targetFile.exists()) {
+                // El archivo existente es viejo o corrupto: eliminar para re-descargar
+                targetFile.delete()
+            }
+
+            if (tempFile.exists()) {
+                tempFile.delete()
             }
 
             var currentUrl = updateInfo.downloadUrl
             var conn: HttpURLConnection
             var redirects = 0
 
-            // Follow redirects for GitHub asset CDN
+            // Seguir redirecciones de CDN (GitHub Releases -> AWS S3)
             while (true) {
                 conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 15000
-                    readTimeout = 15000
+                    connectTimeout = 25000
+                    readTimeout = 45000
                     requestMethod = "GET"
                     instanceFollowRedirects = true
-                    setRequestProperty("User-Agent", "DaVE-Updater/1.0")
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) DaVE-Updater")
+                    setRequestProperty("Accept-Encoding", "identity") // Evita compresión para Content-Length exacto
                 }
                 val code = conn.responseCode
-                if (code in 301..308 && redirects < 5) {
+                if (code in 301..308 && redirects < 8) {
                     val loc = conn.getHeaderField("Location")
                     if (!loc.isNullOrBlank()) {
+                        conn.disconnect()
                         currentUrl = loc
                         redirects++
                         continue
@@ -204,24 +246,26 @@ class UpdateManager(private val context: Context) {
 
             if (conn.responseCode !in 200..299) {
                 withContext(Dispatchers.Main) {
-                    onError("El servidor respondió con código ${conn.responseCode}")
+                    onError("El servidor respondió con error ${conn.responseCode}. Intenta descargar desde el navegador.")
                 }
                 return@withContext
             }
 
-            val totalLength = conn.contentLength
+            val totalLength = conn.contentLength.let {
+                if (it > 0) it.toLong() else (updateInfo.fileSizeMb * 1024 * 1024).toLong()
+            }
 
             conn.inputStream.use { input ->
-                FileOutputStream(targetFile).use { output ->
-                    val buffer = ByteArray(16 * 1024)
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(32 * 1024)
                     var bytesRead: Int
                     var totalDownloaded = 0L
 
                     while (input.read(buffer).also { bytesRead = it } != -1) {
                         output.write(buffer, 0, bytesRead)
                         totalDownloaded += bytesRead
-                        if (totalLength > 0) {
-                            val progress = ((totalDownloaded * 100) / totalLength).toInt()
+                        if (totalLength > 0L) {
+                            val progress = ((totalDownloaded * 100) / totalLength).toInt().coerceIn(1, 99)
                             withContext(Dispatchers.Main) {
                                 onProgress(progress)
                             }
@@ -231,9 +275,23 @@ class UpdateManager(private val context: Context) {
                 }
             }
 
+            // Validar que el archivo descargado sea un APK Android íntegro
+            tempFile.setReadable(true, false)
+            val parsedInfo = context.packageManager.getPackageArchiveInfo(tempFile.absolutePath, 0)
+            if (parsedInfo == null || tempFile.length() < 5_000_000L) {
+                tempFile.delete()
+                withContext(Dispatchers.Main) {
+                    onError("La descarga quedó incompleta o corrupta. Por favor intenta descargar directamente desde el navegador.")
+                }
+                return@withContext
+            }
+
+            // Renombrar atómicamente a targetFile
+            if (targetFile.exists()) targetFile.delete()
+            tempFile.renameTo(targetFile)
             targetFile.setReadable(true, false)
 
-            // Launch package installer on Main thread
+            // Abrir instalador de Android en hilo principal
             withContext(Dispatchers.Main) {
                 onProgress(100)
                 installApk(targetFile)
@@ -242,32 +300,32 @@ class UpdateManager(private val context: Context) {
 
         } catch (e: Exception) {
             AppLog.e(tag, "Error al descargar la actualización: ${e.message}", e)
+            if (tempFile.exists()) tempFile.delete()
             withContext(Dispatchers.Main) {
-                onError("Error al descargar actualización: ${e.localizedMessage}")
+                onError("Error de conexión al descargar: ${e.localizedMessage}. Usa el botón 'Navegador' para descargarla directamente.")
             }
         }
     }
 
     /**
-     * Triggers the Android package installer via FileProvider.
+     * Lanza el instalador oficial de Android mediante FileProvider.
      */
     fun installApk(apkFile: File) {
         try {
-            if (!apkFile.exists()) {
-                AppLog.e(tag, "El APK no existe en ${apkFile.absolutePath}")
-                android.widget.Toast.makeText(context, "El archivo descargado no existe", android.widget.Toast.LENGTH_SHORT).show()
+            if (!apkFile.exists() || apkFile.length() < 5_000_000L) {
+                Toast.makeText(context, "El archivo de actualización no es válido", Toast.LENGTH_SHORT).show()
                 return
             }
 
             apkFile.setReadable(true, false)
 
-            // Android 8.0+ unknown sources permission check
+            // Verificación de permiso en Android 8.0+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 if (!context.packageManager.canRequestPackageInstalls()) {
-                    android.widget.Toast.makeText(
+                    Toast.makeText(
                         context,
-                        "Por favor activa 'Permitir desde esta fuente' para instalar DaVE",
-                        android.widget.Toast.LENGTH_LONG
+                        "Por favor activa 'Permitir desde esta fuente' para instalar la actualización de DaVE",
+                        Toast.LENGTH_LONG
                     ).show()
                     val manageIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                         data = Uri.parse("package:${context.packageName}")
@@ -286,56 +344,49 @@ class UpdateManager(private val context: Context) {
 
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
-                clipData = android.content.ClipData.newRawUri("package", apkUri)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
 
-            listOf(
-                "com.google.android.packageinstaller",
-                "com.android.packageinstaller",
-                "com.google.android.permissioncontroller",
-                "com.android.permissioncontroller",
-                "com.transsion.installer",
-                "com.infinix.packageinstaller"
-            ).forEach { pkg ->
-                try {
-                    context.grantUriPermission(pkg, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                } catch (e: Exception) {
-                    AppLog.d(tag, "No se pudo conceder permiso de URI a $pkg", e)
-                }
-            }
-
+            // Conceder permisos explícitos al instalador de paquetes
             val resInfoList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.packageManager.queryIntentActivities(
                     installIntent,
-                    android.content.pm.PackageManager.ResolveInfoFlags.of(android.content.pm.PackageManager.MATCH_DEFAULT_ONLY.toLong())
+                    PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong())
                 )
             } else {
                 @Suppress("DEPRECATION")
                 context.packageManager.queryIntentActivities(
                     installIntent,
-                    android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+                    PackageManager.MATCH_DEFAULT_ONLY
                 )
             }
+
             for (resolveInfo in resInfoList) {
                 val pkgName = resolveInfo.activityInfo.packageName
                 try {
                     context.grantUriPermission(pkgName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (e: Exception) {
-                    AppLog.d(tag, "No se pudo conceder permiso de URI a $pkgName", e)
+                    AppLog.d(tag, "No se pudo otorgar permiso de URI a $pkgName", e)
                 }
             }
 
             context.startActivity(installIntent)
+
         } catch (e: Exception) {
             AppLog.e(tag, "Error al abrir el instalador: ${e.message}", e)
-            android.widget.Toast.makeText(
+            Toast.makeText(
                 context,
-                "Error al abrir instalador: ${e.localizedMessage}",
-                android.widget.Toast.LENGTH_LONG
+                "No se pudo abrir el instalador del sistema: ${e.localizedMessage}",
+                Toast.LENGTH_LONG
             ).show()
+
+            // Fallback directo: abrir navegador si falla el instalador nativo
+            try {
+                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/davidchaparro780-wq/D4ve/releases/tag/v1.0.0"))
+                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(browserIntent)
+            } catch (_: Exception) {}
         }
     }
 

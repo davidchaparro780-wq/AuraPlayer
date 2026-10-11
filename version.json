@@ -1,7 +1,7 @@
 {
-  "versionCode": 87,
-  "versionName": "4.1.0",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "✨ DaVE Player v4.1.0 (Build 87) — ¡Pack Visual Ultra!\n• 🌌 Fondo Líquido Aurora Mesh: Gradiente de malla fluido animado estilo Apple Music iOS 18 que reacciona a los colores del álbum y la música.\n• 💽 Tocadiscos Hi-Fi con Aguja Animada: Brazo fonocaptor realista que desciende suavemente sobre los surcos del vinilo al reproducir y se levanta al pausar.\n• 🌊 Waveform Seekbar Interactiva: Barra de reproducción con 42 ondas de frecuencia, gradiente neón y magnificación táctil tipo lente de aumento.\n• 💥 Explosión de Partículas al dar Like: Animación con anillo de choque, partículas de neón y rebote elástico al marcar favoritos.\n• 🪟 MiniPlayer Glassmorphism Aero: Acabado de vidrio esmerilado translúcido con iluminación de bordes y sombras dinámicas.",
+  "versionCode": 88,
+  "versionName": "4.1.1",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
+  "changelog": "⚡ DaVE Player v4.1.1 (Build 88) — ¡Actualizaciones 100% Garantizadas & Pack Visual Ultra!\n• 🛠️ Corrección Crítica del Actualizador: Descarga atómica en archivo temporal (.tmp), validación forense de integridad del APK para que nunca más se quede atascado ni instale archivos corruptos.\n• 🌌 Fondo Líquido Aurora Mesh: Gradiente de malla vivo animado estilo Apple Music iOS 18 que reacciona a la música.\n• 💽 Tocadiscos Hi-Fi con Aguja Animada: Brazo fonocaptor realista con aguja que desciende al reproducir y se levanta al pausar.\n• 🌊 Waveform Seekbar Interactiva: 42 ondas de audio con efecto lupa de aumento táctil.\n• 💥 Explosión de Partículas al dar Like: Chispas y anillo de choque de neón.\n• 🪟 MiniPlayer Glassmorphism Aero: Cápsula flotante translúcida.",
   "fileSizeMb": 24.5
 }

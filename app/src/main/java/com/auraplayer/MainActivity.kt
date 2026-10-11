@@ -2917,7 +2917,7 @@ fun AuraApp(
             confirmButton = {
                 if (!isDownloadingUpdate) {
                     val downloadedApk = updateInfo?.let { updateManager.getDownloadedApkFile(it) }
-                    val alreadyDownloaded = downloadedApk != null && downloadedApk.exists() && downloadedApk.length() > 15_000_000L
+                    val alreadyDownloaded = downloadedApk != null && updateManager.isApkValidAndNewer(downloadedApk)
 
                     Button(
                         onClick = {
