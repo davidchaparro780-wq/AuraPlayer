@@ -1322,7 +1322,7 @@ fun MusicScreen(
                                         }
                                         TextButton(
                                             onClick = {
-                                                selectedSongs.forEach { onPlayNext(it) }
+                                                selectedSongs.reversed().forEach { onPlayNext(it) }
                                                 Toast.makeText(context, "${selectedSongs.size} canciones se reproducirán a continuación", Toast.LENGTH_SHORT).show()
                                                 isSelectionMode = false
                                                 selectedSongIds = emptySet()

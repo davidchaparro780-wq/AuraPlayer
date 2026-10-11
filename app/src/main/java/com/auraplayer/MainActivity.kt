@@ -486,7 +486,7 @@ fun AuraApp(
                     .build()
             }
             ctrl.setMediaItems(items, saved.currentIndex, saved.positionMs)
-            if (saved.wasPlaying) ctrl.play()
+            ctrl.pause()
         } catch (e: Exception) {
             AppLog.e(TAG, "No se pudo restaurar la cola guardada", e)
         }
