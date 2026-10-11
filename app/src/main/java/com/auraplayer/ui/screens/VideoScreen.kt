@@ -39,6 +39,8 @@ import com.auraplayer.ui.components.TikTokDownloaderDialog
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -400,9 +402,51 @@ fun VideoScreen(
                                             text = {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                                     Icon(
-                                                        imageVector = Icons.Default.Lock,
+                                                        imageVector = Icons.Default.Send,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFF25D366),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Enviar a WhatsApp", color = Color.White, fontSize = 13.sp)
+                                                }
+                                            },
+                                            onClick = {
+                                                val v = videoForMenu
+                                                videoForMenu = null
+                                                if (v != null) {
+                                                    com.auraplayer.data.repository.TikTokDownloader.shareMedia(context, v.uri, true, "com.whatsapp")
+                                                }
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Share,
                                                         contentDescription = null,
                                                         tint = Color(0xFF38BDF8),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Compartir Video", color = Color.White, fontSize = 13.sp)
+                                                }
+                                            },
+                                            onClick = {
+                                                val v = videoForMenu
+                                                videoForMenu = null
+                                                if (v != null) {
+                                                    com.auraplayer.data.repository.TikTokDownloader.shareMedia(context, v.uri, true, null)
+                                                }
+                                            }
+                                        )
+                                        DropdownMenuItem(
+                                            text = {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Lock,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFF59E0B),
                                                         modifier = Modifier.size(16.dp)
                                                     )
                                                     Spacer(modifier = Modifier.width(8.dp))

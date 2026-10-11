@@ -1,7 +1,7 @@
 {
-  "versionCode": 96,
-  "versionName": "4.6.0",
+  "versionCode": 97,
+  "versionName": "4.6.1",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v4.6.0 (Build 96) — ¡La Gran Mega Suite Musical!\n• 🚗 Modo Conducción / Coche Inteligente: Interfaz gigante de alto contraste con pantalla siempre encendida, gestos táctiles completos y Anunciador por Voz (TTS).\n• 🎤 Extractor de Voces en Vivo: Botón de 1 toque para atenuar voces principales y convertir cualquier canción en pista instrumental de Karaoke.\n• 👂 Cazador Musical Integrado: Escucha con el micrófono y reconoce canciones al instante con carátula y descarga directa.\n• 🔦 Linterna Rítmica Reactiva: Estrobo de fiesta sincronizado con el impacto de bombo y bajo FFT en tiempo real.\n• 🎛️ Transiciones DJ Inteligentes: Mezcla continua sin silencios con curva exponencial de volumen entre pistas.\n• 🌈 Mood Aura: Selector instantáneo de sesiones por vibra y estado de ánimo.",
-  "fileSizeMb": 25.5
+  "changelog": "🚀 DaVE Player v4.6.1 (Build 97) — ¡Solución WhatsApp & Videos de TikTok!\n• 🎬 Compatibilidad Total con WhatsApp: Descarga directa de videos de TikTok en H.264 AVC estándar sin marca de agua, eliminando el error 'No se puede enviar este video'.\n• 📲 Enviar a WhatsApp en 1 Toque: Nuevo botón directo para enviar a chats y Estados de WhatsApp inmediatamente tras descargar.\n• 🖼️ Indexación en Galería (DCIM): Los videos se guardan en DCIM/DaVEPlayer con duración y metadatos registrados para aparecer al instante en WhatsApp y tu galería.\n• 📤 Compartir Videos desde DaVE: Opciones añadidas en la biblioteca de videos para compartir directamente a WhatsApp y otras aplicaciones.\n• 🚗 Suite Musical v4.6.0: Incluye Modo Coche, Extractor de Voces/Karaoke, Cazador de canciones por micrófono, Linterna rítmica y Transiciones DJ.",
+  "fileSizeMb": 25.6
 }

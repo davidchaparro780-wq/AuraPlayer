@@ -32,8 +32,11 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Hd
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.VideoFile
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -140,10 +143,12 @@ fun TikTokDownloaderDialog(
         }
     }
 
-    fun startDownload(asAudioOnly: Boolean) {
+    fun startDownload(asAudioOnly: Boolean, useHd: Boolean = false) {
         val details = resolvedDetails ?: return
         val downloadUrl = if (asAudioOnly) {
             details.audioUrl ?: details.videoNoWatermarkUrl
+        } else if (useHd && !details.videoHdUrl.isNullOrBlank()) {
+            details.videoHdUrl
         } else {
             details.videoNoWatermarkUrl
         }
@@ -173,7 +178,7 @@ fun TikTokDownloaderDialog(
                 completedUri = uri
                 Toast.makeText(
                     context,
-                    if (asAudioOnly) "🎵 Audio guardado en Música" else "🎬 Video sin marca guardado en Videos",
+                    if (asAudioOnly) "🎵 Audio guardado en Música" else "🎬 Video guardado en Galería (Listo para WhatsApp)",
                     Toast.LENGTH_LONG
                 ).show()
                 onDownloadCompleted(uri, !asAudioOnly)
@@ -461,18 +466,81 @@ fun TikTokDownloaderDialog(
                                             imageVector = Icons.Default.CheckCircle,
                                             contentDescription = null,
                                             tint = Color(0xFF10B981),
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "¡Descargado con éxito!",
+                                            text = "¡Descargado en Galería (DCIM)!",
                                             color = Color(0xFF10B981),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp
                                         )
                                     }
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "Formato optimizado 100% compatible para subir a WhatsApp y Estados",
+                                        color = Color(0xFF94A3B8),
+                                        fontSize = 10.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // Botón directo a WhatsApp
+                                    Button(
+                                        onClick = {
+                                            completedUri?.let { uri ->
+                                                TikTokDownloader.shareMedia(context, uri, wasVideoDownloaded, "com.whatsapp")
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Send,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Enviar a WhatsApp (Chats / Estados)",
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+
                                     Spacer(modifier = Modifier.height(8.dp))
+
+                                    // Botón compartir en otras apps
+                                    Button(
+                                        onClick = {
+                                            completedUri?.let { uri ->
+                                                TikTokDownloader.shareMedia(context, uri, wasVideoDownloaded, null)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Share,
+                                            contentDescription = null,
+                                            tint = tiktokCyan,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Compartir en otras Apps",
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+
                                     if (wasVideoDownloaded && onPlayDownloadedVideo != null) {
+                                        Spacer(modifier = Modifier.height(8.dp))
                                         Button(
                                             onClick = {
                                                 completedUri?.let { uri ->
@@ -482,18 +550,22 @@ fun TikTokDownloaderDialog(
                                             },
                                             modifier = Modifier.fillMaxWidth(),
                                             shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
                                         ) {
-                                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.PlayArrow,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Reproducir Video Ahora", fontWeight = FontWeight.Bold)
+                                            Text("Reproducir Video Ahora", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                         }
                                     }
                                 }
                             } else {
                                 // Botones de descarga
                                 Column {
-                                    // Botón Video Sin Marca
+                                    // Botón Video Sin Marca (Compatible con WhatsApp)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -501,25 +573,67 @@ fun TikTokDownloaderDialog(
                                             .background(tiktokGradient)
                                             .clickable {
                                                 AuraHaptic.click(view)
-                                                startDownload(asAudioOnly = false)
+                                                startDownload(asAudioOnly = false, useHd = false)
                                             }
-                                            .padding(vertical = 12.dp),
+                                            .padding(vertical = 10.dp, horizontal = 12.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Default.VideoFile,
-                                                contentDescription = null,
-                                                tint = Color.Black,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.VideoFile,
+                                                    contentDescription = null,
+                                                    tint = Color.Black,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Descargar Video Sin Marca (HD)",
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = 13.sp,
+                                                    color = Color.Black
+                                                )
+                                            }
                                             Text(
-                                                text = "Descargar Video Sin Marca (HD)",
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 13.sp,
-                                                color = Color.Black
+                                                text = "H.264 AVC • 100% Compatible con WhatsApp y Redes",
+                                                fontSize = 10.sp,
+                                                color = Color.Black.copy(alpha = 0.8f),
+                                                fontWeight = FontWeight.Medium
                                             )
+                                        }
+                                    }
+
+                                    // Si hay enlace HD separado disponible
+                                    if (!details.videoHdUrl.isNullOrBlank() && details.videoHdUrl != details.videoNoWatermarkUrl) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(Color(0xFF1E293B))
+                                                .border(1.dp, Color(0xFF6366F1).copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                                                .clickable {
+                                                    AuraHaptic.click(view)
+                                                    startDownload(asAudioOnly = false, useHd = true)
+                                                }
+                                                .padding(vertical = 10.dp, horizontal = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Hd,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFA5B4FC),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = "Descargar en Ultra HD (1080p)",
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 12.sp,
+                                                    color = Color.White
+                                                )
+                                            }
                                         }
                                     }
 
