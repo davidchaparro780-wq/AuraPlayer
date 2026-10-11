@@ -201,16 +201,96 @@ class VaultManager(private val context: Context) {
         if (uri == null) return null
         try {
             if (uri.scheme == "file") return uri.path
-            val projection = arrayOf(MediaStore.MediaColumns.DATA)
-            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-                if (cursor.moveToFirst()) {
-                    val idx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
-                    if (idx != -1) {
-                        val path = cursor.getString(idx)
-                        if (!path.isNullOrBlank()) return path
+
+            // 1. Direct DATA column lookup
+            try {
+                val projection = arrayOf(MediaStore.MediaColumns.DATA)
+                context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val idx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                        if (idx != -1) {
+                            val path = cursor.getString(idx)
+                            if (!path.isNullOrBlank() && File(path).exists()) return path
+                        }
                     }
                 }
-            }
+            } catch (_: Exception) {}
+
+            // 2. DocumentsContract parsing (e.g., com.android.providers.media.documents)
+            try {
+                if (DocumentsContract.isDocumentUri(context, uri)) {
+                    val docId = DocumentsContract.getDocumentId(uri)
+                    if (docId.startsWith("raw:")) {
+                        val rawPath = docId.removePrefix("raw:")
+                        if (File(rawPath).exists()) return rawPath
+                    }
+                    val idPart = if (docId.contains(":")) docId.split(":")[1] else docId
+                    val idLong = idPart.toLongOrNull()
+                    if (idLong != null) {
+                        val isVideo = docId.startsWith("video")
+                        val baseUri = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                        context.contentResolver.query(
+                            baseUri,
+                            arrayOf(MediaStore.MediaColumns.DATA),
+                            "${MediaStore.MediaColumns._ID} = ?",
+                            arrayOf(idLong.toString()),
+                            null
+                        )?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val idx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                                if (idx != -1) {
+                                    val path = cursor.getString(idx)
+                                    if (!path.isNullOrBlank() && File(path).exists()) return path
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // 3. Fallback for PhotoPicker: query MediaStore by Display Name and Size
+            try {
+                var displayName: String? = null
+                var fileSize: Long = -1L
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (nameIdx >= 0) displayName = cursor.getString(nameIdx)
+                        val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        if (sizeIdx >= 0) fileSize = cursor.getLong(sizeIdx)
+                    }
+                }
+
+                if (!displayName.isNullOrBlank()) {
+                    for (baseUri in listOf(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)) {
+                        val selection = if (fileSize > 0L) {
+                            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.SIZE} = ?"
+                        } else {
+                            "${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+                        }
+                        val args = if (fileSize > 0L) arrayOf(displayName!!, fileSize.toString()) else arrayOf(displayName!!)
+                        context.contentResolver.query(
+                            baseUri,
+                            arrayOf(MediaStore.MediaColumns.DATA),
+                            selection,
+                            args,
+                            null
+                        )?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                val idx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+                                if (idx != -1) {
+                                    val path = cursor.getString(idx)
+                                    if (!path.isNullOrBlank() && File(path).exists()) return path
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
         } catch (_: Exception) {}
         return null
     }
@@ -383,6 +463,13 @@ class VaultManager(private val context: Context) {
         } catch (_: Exception) {}
     }
 
+    private fun isCanonicalExternalMediaUri(uri: Uri?): Boolean {
+        if (uri == null) return false
+        val s = uri.toString()
+        return s.startsWith("content://media/external/video/media/") ||
+               s.startsWith("content://media/external/images/media/")
+    }
+
     fun resolveCanonicalMediaStoreUri(
         ctx: Context,
         uri: Uri?,
@@ -398,6 +485,7 @@ class VaultManager(private val context: Context) {
                 uriStr.startsWith("content://media/external/images/media/")) {
                 return uri
             }
+
             // 2. DocumentsContract URI (e.g., com.android.providers.media.documents/document/video:1234)
             try {
                 if (DocumentsContract.isDocumentUri(ctx, uri)) {
@@ -409,30 +497,17 @@ class VaultManager(private val context: Context) {
                     }
                 }
             } catch (_: Exception) {}
-
-            // 3. Android Photo Picker URIs (e.g. content://media/picker/0/com.android.providers.media.photopicker/media/1000000001)
-            try {
-                val lastSeg = uri.lastPathSegment
-                val idLong = lastSeg?.toLongOrNull()
-                if (idLong != null) {
-                    val testUri = ContentUris.withAppendedId(baseUri, idLong)
-                    ctx.contentResolver.query(testUri, arrayOf(MediaStore.MediaColumns._ID), null, null, null)?.use { cur ->
-                        if (cur.moveToFirst()) {
-                            return testUri
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
         }
 
-        // 4. Query MediaStore by file path
-        if (!filePath.isNullOrBlank()) {
+        // 3. Query MediaStore by physical file path
+        val path = filePath ?: resolveRealPathFromUri(uri)
+        if (!path.isNullOrBlank()) {
             try {
                 ctx.contentResolver.query(
                     baseUri,
                     arrayOf(MediaStore.MediaColumns._ID),
                     "${MediaStore.MediaColumns.DATA} = ?",
-                    arrayOf(filePath),
+                    arrayOf(path),
                     null
                 )?.use { cursor ->
                     if (cursor.moveToFirst()) {
@@ -440,6 +515,50 @@ class VaultManager(private val context: Context) {
                         if (idCol >= 0) {
                             val id = cursor.getLong(idCol)
                             return ContentUris.withAppendedId(baseUri, id)
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 4. Query MediaStore by Display Name and Size (supports Android 13+ PhotoPicker URIs)
+        if (uri != null) {
+            try {
+                var displayName: String? = null
+                var fileSize: Long = -1L
+                ctx.contentResolver.query(
+                    uri,
+                    arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val nameIdx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                        if (nameIdx >= 0) displayName = cursor.getString(nameIdx)
+                        val sizeIdx = cursor.getColumnIndex(OpenableColumns.SIZE)
+                        if (sizeIdx >= 0) fileSize = cursor.getLong(sizeIdx)
+                    }
+                }
+
+                if (!displayName.isNullOrBlank()) {
+                    val selection = if (fileSize > 0L) {
+                        "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND ${MediaStore.MediaColumns.SIZE} = ?"
+                    } else {
+                        "${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+                    }
+                    val args = if (fileSize > 0L) arrayOf(displayName!!, fileSize.toString()) else arrayOf(displayName!!)
+                    ctx.contentResolver.query(
+                        baseUri,
+                        arrayOf(MediaStore.MediaColumns._ID),
+                        selection,
+                        args,
+                        null
+                    )?.use { cursor ->
+                        if (cursor.moveToFirst()) {
+                            val idCol = cursor.getColumnIndex(MediaStore.MediaColumns._ID)
+                            if (idCol >= 0) {
+                                val id = cursor.getLong(idCol)
+                                return ContentUris.withAppendedId(baseUri, id)
+                            }
                         }
                     }
                 }
@@ -456,10 +575,14 @@ class VaultManager(private val context: Context) {
         isVideo: Boolean
     ): Boolean {
         var physicallyDeleted = false
+        val baseUri = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
-        // 1. If we have the absolute path, attempt physical file deletion
-        if (!filePath.isNullOrBlank()) {
-            val file = File(filePath)
+        val resolvedPath = filePath ?: resolveRealPathFromUri(uri)
+        val canonicalUri = resolveCanonicalMediaStoreUri(ctx, uri, resolvedPath, isVideo)
+
+        // 1. If we have the absolute path, attempt physical file deletion (works with MANAGE_EXTERNAL_STORAGE)
+        if (!resolvedPath.isNullOrBlank()) {
+            val file = File(resolvedPath)
             if (file.exists()) {
                 try {
                     physicallyDeleted = file.delete()
@@ -469,9 +592,8 @@ class VaultManager(private val context: Context) {
             }
         }
 
-        // 2. Resolve canonical URI and attempt MediaStore deletion
-        val canonicalUri = resolveCanonicalMediaStoreUri(ctx, uri, filePath, isVideo)
-        if (canonicalUri != null) {
+        // 2. Direct ContentResolver delete on canonical MediaStore URI
+        if (canonicalUri != null && isCanonicalExternalMediaUri(canonicalUri)) {
             try {
                 val count = ctx.contentResolver.delete(canonicalUri, null, null)
                 if (count > 0) physicallyDeleted = true
@@ -479,21 +601,23 @@ class VaultManager(private val context: Context) {
         }
 
         // 3. Direct path delete in MediaStore
-        if (!filePath.isNullOrBlank()) {
+        if (!resolvedPath.isNullOrBlank()) {
             try {
-                val baseUri = if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                ctx.contentResolver.delete(baseUri, "${MediaStore.MediaColumns.DATA} = ?", arrayOf(filePath))
+                val count = ctx.contentResolver.delete(baseUri, "${MediaStore.MediaColumns.DATA} = ?", arrayOf(resolvedPath))
+                if (count > 0) physicallyDeleted = true
             } catch (_: Exception) {}
 
             // 4. Force MediaScanner to update gallery
             try {
-                MediaScannerConnection.scanFile(ctx, arrayOf(filePath), null, null)
+                MediaScannerConnection.scanFile(ctx, arrayOf(resolvedPath), null, null)
             } catch (_: Exception) {}
         }
 
         // Check if file is actually gone
-        if (!filePath.isNullOrBlank()) {
-            return !File(filePath).exists()
+        if (!resolvedPath.isNullOrBlank()) {
+            if (!File(resolvedPath).exists()) {
+                physicallyDeleted = true
+            }
         }
 
         return physicallyDeleted
@@ -507,7 +631,7 @@ class VaultManager(private val context: Context) {
     ): PendingIntent? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val canonicalUri = resolveCanonicalMediaStoreUri(ctx, uri, filePath, isVideo)
-            if (canonicalUri != null) {
+            if (canonicalUri != null && isCanonicalExternalMediaUri(canonicalUri)) {
                 return try {
                     MediaStore.createDeleteRequest(ctx.contentResolver, listOf(canonicalUri))
                 } catch (e: Exception) {
@@ -526,6 +650,7 @@ class VaultManager(private val context: Context) {
     ): PendingIntent? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val canonicalUris = items.mapNotNull { resolveCanonicalMediaStoreUri(ctx, it.first, it.second, isVideo) }
+                .filter { isCanonicalExternalMediaUri(it) }
             if (canonicalUris.isNotEmpty()) {
                 return try {
                     MediaStore.createDeleteRequest(ctx.contentResolver, canonicalUris)

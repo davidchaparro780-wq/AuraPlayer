@@ -2315,7 +2315,12 @@ fun AuraApp(
                                     androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                                 )
                             } else {
-                                Toast.makeText(context, "🔒 Video protegido en la Bóveda", Toast.LENGTH_SHORT).show()
+                                if (!vaultManager.hasAllFilesAccess()) {
+                                    Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                                    vaultManager.openAllFilesAccessSettings(context)
+                                } else {
+                                    Toast.makeText(context, "🔒 Video protegido en la Bóveda", Toast.LENGTH_SHORT).show()
+                                }
                                 videos = mediaRepository.loadVideoFiles()
                             }
                         }

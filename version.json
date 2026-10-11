@@ -1,7 +1,7 @@
 {
-  "versionCode": 74,
-  "versionName": "3.7.4",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.4/app-debug.apk",
-  "changelog": "⚡ DaVE Player v3.7.4 (Build 74) — Mega Actualización de Corrección de Bugs Forenses:\n• 📱 Controles del widget de escritorio siempre operativos incluso con la app cerrada o en segundo plano.\n• 🔄 Sincronización automática de carátula y estado de reproducción en widgets ante cambios en segundo plano.\n• 🎵 Audio extraído de videos guardado en Música pública con indexación instantánea en MediaStore.\n• ⏱️ Marcas de tiempo monótonas a prueba de fallos al extraer y recortar audio (cero errores en MediaMuxer).\n• 📜 Soporte para archivos locales de letras sincronizadas .lrc offline junto a tus canciones.\n• 🌐 Búsqueda y salto temporal (Range 206 Partial Content) completamente funcional en la consola Wi-Fi web.\n• 🔔 Asignación exacta de segmentos recortados como tono de llamada, alarma o notificación.\n• ⏰ Alarma musical registrada en el sistema con notificación de alta prioridad (Heads-Up) y permisos exactos.\n• 🛡️ Resolución ultra segura de identificadores de medios en bóveda ante cursores personalizados.",
+  "versionCode": 75,
+  "versionName": "3.7.5",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v3.7.5/app-debug.apk",
+  "changelog": "🛡️ DaVE Player v3.7.5 (Build 75) — Eliminación Efectiva de Galería al Ocultar en Bóveda:\n• 🔒 Los videos seleccionados para la Bóveda desaparecen de tu galería principal de Android de forma real y segura.\n• 🔎 Resolución canónica infalible de URIs del selector de fotos y documentos de Android (MediaStore Display Name & Size lookup).\n• 🗑️ Solicitud de eliminación del sistema (MediaStore Delete Request) totalmente funcional en Android 11+ cuando no se tiene acceso total a archivos.\n• ⚡ Eliminación física instantánea sin diálogos cuando se cuenta con el permiso de archivos.\n• 🔄 Rescaneo automático de MediaScanner para refrescar la galería del teléfono inmediatamente tras guardar.",
   "fileSizeMb": 24.1
 }

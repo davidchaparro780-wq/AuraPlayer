@@ -152,6 +152,16 @@ fun VaultScreen(
         pendingVaultItemsToDelete = emptyList()
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val count = pendingList.size
+            pendingList.forEach { pending ->
+                pending.second?.let { uri ->
+                    val realPath = vaultManager.resolveRealPathFromUri(uri)
+                    if (realPath != null) {
+                        try {
+                            android.media.MediaScannerConnection.scanFile(context, arrayOf(realPath), null, null)
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
             val msg = if (count == 1) "🔒 Archivo ocultado de la galería y protegido en Bóveda" else "🔒 $count archivos ocultados de la galería y protegidos en Bóveda"
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
             refreshItems()
@@ -206,13 +216,18 @@ fun VaultScreen(
                             androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
                     } else {
-                        val total = successCount + pendingDeleteList.size
-                        val msg = if (total == 1) "🔒 Video protegido en la Bóveda" else "🔒 $total videos protegidos en la Bóveda"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        if (!vaultManager.hasAllFilesAccess()) {
+                            Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                            vaultManager.openAllFilesAccessSettings(context)
+                        } else {
+                            val total = successCount + pendingDeleteList.size
+                            val msg = if (total == 1) "🔒 Video protegido en la Bóveda" else "🔒 $total videos protegidos en la Bóveda"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
                         refreshItems()
                     }
                 } else if (successCount > 0) {
-                    val msg = if (successCount == 1) "🔒 Video protegido en la Bóveda" else "🔒 $successCount videos protegidos en la Bóveda"
+                    val msg = if (successCount == 1) "🔒 Video ocultado de la galería y protegido en Bóveda" else "🔒 $successCount videos ocultados de la galería y protegidos en Bóveda"
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     refreshItems()
                 }
@@ -258,13 +273,18 @@ fun VaultScreen(
                             androidx.activity.result.IntentSenderRequest.Builder(pendingIntent.intentSender).build()
                         )
                     } else {
-                        val total = successCount + pendingDeleteList.size
-                        val msg = if (total == 1) "🔒 Foto protegida en la Bóveda" else "🔒 $total fotos protegidas en la Bóveda"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        if (!vaultManager.hasAllFilesAccess()) {
+                            Toast.makeText(context, "Para borrar de tu galería, activa el permiso de archivos", Toast.LENGTH_LONG).show()
+                            vaultManager.openAllFilesAccessSettings(context)
+                        } else {
+                            val total = successCount + pendingDeleteList.size
+                            val msg = if (total == 1) "🔒 Foto protegida en la Bóveda" else "🔒 $total fotos protegidas en la Bóveda"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
                         refreshItems()
                     }
                 } else if (successCount > 0) {
-                    val msg = if (successCount == 1) "🔒 Foto protegida en la Bóveda" else "🔒 $successCount fotos protegidas en la Bóveda"
+                    val msg = if (successCount == 1) "🔒 Foto ocultada de la galería y protegida en Bóveda" else "🔒 $successCount fotos ocultadas de la galería y protegidas en Bóveda"
                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     refreshItems()
                 }
