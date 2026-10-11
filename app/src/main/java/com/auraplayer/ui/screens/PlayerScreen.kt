@@ -1834,6 +1834,7 @@ fun PlayerScreen(
                         .padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
+                ) {
                     // Modo Conducción / Coche Chip
                     FilterChip(
                         selected = false,
