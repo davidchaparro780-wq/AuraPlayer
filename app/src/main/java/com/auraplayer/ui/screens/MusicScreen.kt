@@ -11,6 +11,7 @@ import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.ui.components.AlphabetFastScroller
 import com.auraplayer.ui.components.RelaxAmbienceDialog
 import com.auraplayer.ui.components.ShimmerListPlaceholder
+import com.auraplayer.ui.components.TikTokDownloaderDialog
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -241,6 +242,7 @@ fun MusicScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     var showToolsMenu by remember { mutableStateOf(false) }
     var showRelaxDialog by remember { mutableStateOf(false) }
+    var showTikTokDialog by remember { mutableStateOf(false) }
     val lyricsManager = remember { com.auraplayer.data.repository.LyricsManager(context) }
     val searchHistoryManager = remember { com.auraplayer.data.repository.SearchHistoryManager.getInstance(context) }
 
@@ -596,6 +598,10 @@ fun MusicScreen(
                         DropdownMenuItem(
                             text = { Text("🎮 DaVE Music Quiz", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenQuiz() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎬 TikTok Video Sin Marca", color = Color(0xFF00F2FE), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showTikTokDialog = true }
                         )
                         DropdownMenuItem(
                             text = { Text("🏆 Nivel & Logros", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
@@ -2398,6 +2404,16 @@ fun MusicScreen(
     if (showRelaxDialog) {
         RelaxAmbienceDialog(
             onDismiss = { showRelaxDialog = false }
+        )
+    }
+
+    // TikTok No-Watermark Downloader Dialog
+    if (showTikTokDialog) {
+        TikTokDownloaderDialog(
+            onDismiss = { showTikTokDialog = false },
+            onDownloadCompleted = { _, _ ->
+                onRefreshMusic()
+            }
         )
     }
 }

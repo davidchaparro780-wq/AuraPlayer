@@ -30,9 +30,12 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import android.net.Uri
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Lock
+import com.auraplayer.ui.components.TikTokDownloaderDialog
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
@@ -180,12 +183,15 @@ fun VideoScreen(
     onVideoClick: (MediaModel) -> Unit,
     onOpenVault: () -> Unit = {},
     onHideVideo: (MediaModel) -> Unit = {},
+    onRefreshVideos: () -> Unit = {},
+    onPlayDownloadedUri: (Uri) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var videoForMenu by remember { mutableStateOf<MediaModel?>(null) }
+    var showTikTokDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Top Header Bar with Vault Button
+        // Top Header Bar with TikTok and Vault Buttons
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -207,33 +213,67 @@ fun VideoScreen(
                 )
             }
 
-            // Glowing Vault Button
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // TikTok No-Watermark Downloader Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF00F2FE), Color(0xFFFE2C55))
+                            )
                         )
-                    )
-                    .clickable { onOpenVault() }
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Security,
-                        contentDescription = "Bóveda",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "🔒 Bóveda Privada",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = Color.White
-                    )
+                        .clickable { showTikTokDialog = true }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = "TikTok Sin Marca",
+                            tint = Color.Black,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "TikTok",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 11.sp,
+                            color = Color.Black
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Glowing Vault Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF8B5CF6), Color(0xFF38BDF8))
+                            )
+                        )
+                        .clickable { onOpenVault() }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = "Bóveda",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "🔒 Bóveda",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
@@ -430,6 +470,18 @@ fun VideoScreen(
                 }
             }
         }
+    }
+
+    if (showTikTokDialog) {
+        TikTokDownloaderDialog(
+            onDismiss = { showTikTokDialog = false },
+            onDownloadCompleted = { _, _ ->
+                onRefreshVideos()
+            },
+            onPlayDownloadedVideo = { uri ->
+                onPlayDownloadedUri(uri)
+            }
+        )
     }
 }
 

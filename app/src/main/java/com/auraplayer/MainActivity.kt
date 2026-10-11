@@ -2466,6 +2466,24 @@ fun AuraApp(
                 onOpenVault = {
                     showVaultScreen = true
                 },
+                onRefreshVideos = {
+                    scope.launch {
+                        videos = mediaRepository.loadVideoFiles()
+                    }
+                },
+                onPlayDownloadedUri = { uri ->
+                    controller?.pause()
+                    activeVideo = MediaModel(
+                        id = System.currentTimeMillis(),
+                        title = "TikTok Video",
+                        artist = "TikTok",
+                        album = "TikTok",
+                        duration = 0L,
+                        path = uri.path ?: "",
+                        uri = uri,
+                        isVideo = true
+                    )
+                },
                 onHideVideo = { videoToHide ->
                     // Instantly remove from UI and mark in VaultManager so it vanishes immediately
                     vaultManager.markPathAsHidden(videoToHide.path)

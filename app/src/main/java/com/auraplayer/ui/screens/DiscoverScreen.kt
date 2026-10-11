@@ -58,6 +58,8 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import com.auraplayer.data.repository.TikTokDownloader
+import com.auraplayer.ui.components.TikTokDownloaderDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -148,6 +150,8 @@ fun DiscoverScreen(
     val appPrefs = remember { context.getSharedPreferences("dave_app_prefs", Context.MODE_PRIVATE) }
     var downloadQuality by remember { mutableStateOf(appPrefs.getString("download_quality", "320") ?: "320") }
     var trackForDownloadChoice by remember { mutableStateOf<OnlineTrack?>(null) }
+    var showTikTokDialog by remember { mutableStateOf(false) }
+    var tiktokInitialUrl by remember { mutableStateOf("") }
 
     // When searching or viewing specific genre, BackHandler resets to Trending
     BackHandler(enabled = searchQuery.isNotBlank() || selectedGenre != "Trending") {
@@ -209,6 +213,11 @@ fun DiscoverScreen(
         if (searchQuery.isBlank()) return
         focusManager.clearFocus()
         searchError = null
+        if (TikTokDownloader.isTikTokUrl(searchQuery)) {
+            tiktokInitialUrl = searchQuery.trim()
+            showTikTokDialog = true
+            return
+        }
         runSearch()
     }
 
@@ -284,39 +293,67 @@ fun DiscoverScreen(
                     }
                 }
 
-                // Compact Glassmorphic Quality Toggle Pill
-                val is320 = downloadQuality == "320"
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF13182E))
-                        .border(
-                            1.dp,
-                            Brush.horizontalGradient(
-                                if (is320) listOf(Color(0xFF38BDF8).copy(alpha = 0.8f), Color(0xFF8B5CF6).copy(alpha = 0.8f))
-                                else listOf(Color(0xFFF59E0B).copy(alpha = 0.8f), Color(0xFFE11D48).copy(alpha = 0.8f))
-                            ),
-                            RoundedCornerShape(20.dp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // TikTok No-Watermark Shortcut Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFF00F2FE), Color(0xFFFE2C55))
+                                )
+                            )
+                            .clickable {
+                                AuraHaptic.click(view)
+                                tiktokInitialUrl = if (TikTokDownloader.isTikTokUrl(searchQuery)) searchQuery.trim() else ""
+                                showTikTokDialog = true
+                            }
+                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🎬 TikTok HD",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black
                         )
-                        .clickable {
-                            AuraHaptic.tick(view)
-                            val next = if (is320) "160" else "320"
-                            downloadQuality = next
-                            appPrefs.edit().putString("download_quality", next).apply()
-                            val msg = if (next == "320") "💎 Calidad: 320 kbps (Hi-Fi)" else "⚡ Calidad: 160 kbps (Rápido)"
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (is320) "💎 320k Hi-Fi" else "⚡ 160k Rápido",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (is320) Color(0xFF38BDF8) else Color(0xFFF59E0B)
-                    )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Compact Glassmorphic Quality Toggle Pill
+                    val is320 = downloadQuality == "320"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xFF13182E))
+                            .border(
+                                1.dp,
+                                Brush.horizontalGradient(
+                                    if (is320) listOf(Color(0xFF38BDF8).copy(alpha = 0.8f), Color(0xFF8B5CF6).copy(alpha = 0.8f))
+                                    else listOf(Color(0xFFF59E0B).copy(alpha = 0.8f), Color(0xFFE11D48).copy(alpha = 0.8f))
+                                ),
+                                RoundedCornerShape(20.dp)
+                            )
+                            .clickable {
+                                AuraHaptic.tick(view)
+                                val next = if (is320) "160" else "320"
+                                downloadQuality = next
+                                appPrefs.edit().putString("download_quality", next).apply()
+                                val msg = if (next == "320") "💎 Calidad: 320 kbps (Hi-Fi)" else "⚡ Calidad: 160 kbps (Rápido)"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (is320) "💎 320k Hi-Fi" else "⚡ 160k Rápido",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (is320) Color(0xFF38BDF8) else Color(0xFFF59E0B)
+                        )
+                    }
                 }
-            }
 
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -1010,6 +1047,14 @@ fun DiscoverScreen(
             },
             containerColor = Color(0xFF101626),
             tonalElevation = 8.dp
+        )
+    }
+
+    if (showTikTokDialog) {
+        TikTokDownloaderDialog(
+            initialUrl = tiktokInitialUrl,
+            onDismiss = { showTikTokDialog = false },
+            onDownloadCompleted = { _, _ -> }
         )
     }
 }
