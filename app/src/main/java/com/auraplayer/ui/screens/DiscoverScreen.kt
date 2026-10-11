@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Info
@@ -115,6 +116,7 @@ import java.net.UnknownHostException
 fun DiscoverScreen(
     searchService: GlobalSearchService,
     downloadEngine: DownloadEngine,
+    onOpenDownloads: () -> Unit = {},
     onPreviewTrack: (OnlineTrack) -> Unit,
     onDownloadComplete: () -> Unit,
     currentPlayingTitle: String? = null,
@@ -391,6 +393,41 @@ fun DiscoverScreen(
                                         tint = Color(0xFF38BDF8),
                                         modifier = Modifier.size(20.dp)
                                     )
+                                }
+                            }
+
+                            val activeDownloadCount = downloadStates.values.count { status ->
+                                status !is DownloadStatus.Completed && status !is DownloadStatus.Idle
+                            }
+                            IconButton(onClick = {
+                                AuraHaptic.click(view)
+                                onOpenDownloads()
+                            }) {
+                                Box {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = "Descargas",
+                                        tint = Color(0xFF38BDF8),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    if (activeDownloadCount > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(15.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFEF4444))
+                                                .align(Alignment.TopEnd),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = if (activeDownloadCount > 9) "9+" else "$activeDownloadCount",
+                                                color = Color.White,
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

@@ -21,7 +21,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.input.pointer.pointerInput
@@ -252,6 +255,8 @@ fun MusicScreen(
     var selectedSongForTagEdit by remember { mutableStateOf<MediaModel?>(null) }
     var songToAddToPlaylist by remember { mutableStateOf<MediaModel?>(null) }
     var songToCut by remember { mutableStateOf<MediaModel?>(null) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedSongIds by remember { mutableStateOf(setOf<Long>()) }
 
     // Custom Playlist view / create state
     var selectedPlaylistForView by remember { mutableStateOf<Playlist?>(null) }
@@ -1075,6 +1080,63 @@ fun MusicScreen(
                                     modifier = Modifier.fillMaxSize()
                                 ) {
                                     item {
+                                        if (isSelectionMode) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "${selectedSongIds.size} seleccionadas",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                IconButton(
+                                                    onClick = {
+                                                        AuraHaptic.click(view)
+                                                        isSelectionMode = false
+                                                        selectedSongIds = emptySet()
+                                                    },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Salir de la selección",
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                        } else {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 2.dp),
+                                                horizontalArrangement = Arrangement.End,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                IconButton(
+                                                    onClick = {
+                                                        AuraHaptic.click(view)
+                                                        isSelectionMode = true
+                                                        selectedSongIds = emptySet()
+                                                    },
+                                                    modifier = Modifier.size(34.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Checklist,
+                                                        contentDescription = "Seleccionar canciones",
+                                                        tint = Color(0xFFA855F7),
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    item {
                                         // Header Action Bar: Stats, Current Sort, Refresh & Smart Shuffle
                                         Row(
                                             modifier = Modifier
@@ -1178,26 +1240,134 @@ fun MusicScreen(
                                     }
                                     items(filteredSongs, key = { it.id }, contentType = { "song" }) { song ->
                                         val isSelected = currentMedia?.id == song.id
-                                        SongListItem(
-                                            song = song,
-                                            isSelected = isSelected,
-                                            isFavorite = favoritesManager.isFavorite(song.id),
-                                            highlightQuery = searchQuery,
+                                        val isChecked = isSelectionMode && selectedSongIds.contains(song.id)
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(
+                                                    if (isChecked) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                    else Color.Transparent
+                                                )
+                                        ) {
+                                            SongListItem(
+                                                song = song,
+                                                isSelected = isSelected,
+                                                isFavorite = favoritesManager.isFavorite(song.id),
+                                                isSelectionMode = isSelectionMode,
+                                                isChecked = isChecked,
+                                                highlightQuery = searchQuery,
+                                                onClick = {
+                                                    if (isSelectionMode) {
+                                                        selectedSongIds = if (isChecked) {
+                                                            selectedSongIds - song.id
+                                                        } else {
+                                                            selectedSongIds + song.id
+                                                        }
+                                                    } else {
+                                                        if (searchQuery.isNotBlank()) searchHistoryManager.addQuery(searchQuery)
+                                                        onSongClick(song)
+                                                    }
+                                                },
+                                                onLongClick = { selectedSongForMenu = song },
+                                                onOptionsClick = { selectedSongForMenu = song },
+                                                onSwipePlayNext = {
+                                                    onPlayNext(song)
+                                                    Toast.makeText(context, "Se reproducirá a continuación: ${song.title}", Toast.LENGTH_SHORT).show()
+                                                },
+                                                onSwipeToggleFavorite = {
+                                                    val isFav = favoritesManager.toggleFavorite(song.id)
+                                                    Toast.makeText(context, if (isFav) "Añadida a Favoritos ❤️" else "Eliminada de Favoritos", Toast.LENGTH_SHORT).show()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (isSelectionMode && selectedSongIds.isNotEmpty()) {
+                                    Row(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                                            .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                                            .background(Color(0xFF0D1222))
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val selectedSongs = filteredSongs.filter { selectedSongIds.contains(it.id) }
+                                        TextButton(
                                             onClick = {
-                                                if (searchQuery.isNotBlank()) searchHistoryManager.addQuery(searchQuery)
-                                                onSongClick(song)
-                                            },
-                                            onLongClick = { selectedSongForMenu = song },
-                                            onOptionsClick = { selectedSongForMenu = song },
-                                            onSwipePlayNext = {
-                                                onPlayNext(song)
-                                                Toast.makeText(context, "Se reproducirá a continuación: ${song.title}", Toast.LENGTH_SHORT).show()
-                                            },
-                                            onSwipeToggleFavorite = {
-                                                val isFav = favoritesManager.toggleFavorite(song.id)
-                                                Toast.makeText(context, if (isFav) "Añadida a Favoritos ❤️" else "Eliminada de Favoritos", Toast.LENGTH_SHORT).show()
+                                                selectedSongs.forEach { onAddToQueue(it) }
+                                                Toast.makeText(context, "${selectedSongs.size} canciones añadidas a la cola", Toast.LENGTH_SHORT).show()
+                                                isSelectionMode = false
+                                                selectedSongIds = emptySet()
                                             }
-                                        )
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    imageVector = Icons.Default.QueueMusic,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF38BDF8),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Text(
+                                                    text = "Añadir a la cola",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                selectedSongs.forEach { onPlayNext(it) }
+                                                Toast.makeText(context, "${selectedSongs.size} canciones se reproducirán a continuación", Toast.LENGTH_SHORT).show()
+                                                isSelectionMode = false
+                                                selectedSongIds = emptySet()
+                                            }
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    imageVector = Icons.Default.SkipNext,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFA855F7),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Text(
+                                                    text = "Reproducir siguiente",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                selectedSongs.forEach { favoritesManager.toggleFavorite(it.id) }
+                                                Toast.makeText(context, "${selectedSongs.size} canciones actualizadas en Favoritos", Toast.LENGTH_SHORT).show()
+                                                isSelectionMode = false
+                                                selectedSongIds = emptySet()
+                                            }
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Favorite,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFFEC4899),
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Text(
+                                                    text = "Favorito",
+                                                    fontSize = 9.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 
@@ -2385,6 +2555,8 @@ fun SongListItem(
     isFavorite: Boolean,
     highlightQuery: String = "",
     extraBadge: String? = null,
+    isSelectionMode: Boolean = false,
+    isChecked: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onOptionsClick: () -> Unit,
@@ -2510,6 +2682,15 @@ fun SongListItem(
                 .padding(horizontal = 16.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (isSelectionMode) {
+                Icon(
+                    imageVector = if (isChecked) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = if (isChecked) MaterialTheme.colorScheme.primary else Color(0xFF64748B),
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
             Box(
                 modifier = Modifier
                     .size(52.dp)

@@ -53,6 +53,9 @@ class DownloadEngine(
     private val _downloadStates = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadStatus>> = _downloadStates.asStateFlow()
 
+    private val _trackRegistry = MutableStateFlow<Map<String, OnlineTrack>>(emptyMap())
+    val trackRegistry: StateFlow<Map<String, OnlineTrack>> = _trackRegistry.asStateFlow()
+
     fun getStatus(trackId: String): DownloadStatus {
         return _downloadStates.value[trackId] ?: DownloadStatus.Idle
     }
@@ -68,6 +71,10 @@ class DownloadEngine(
         val downloadable = tracks.filter { it.isDownloadable }
         var done = 0
         val total = downloadable.size
+
+        for (track in tracks) {
+            _trackRegistry.value = _trackRegistry.value + (track.id to track)
+        }
 
         for (track in downloadable) {
             onProgress(done, total, track.title)
@@ -98,6 +105,7 @@ class DownloadEngine(
         onComplete: (() -> Unit)? = null,
         onError: ((String) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
+        _trackRegistry.value = _trackRegistry.value + (track.id to track)
         updateState(track.id, DownloadStatus.Downloading(0))
 
         try {
@@ -505,6 +513,7 @@ class DownloadEngine(
         onComplete: (() -> Unit)? = null,
         onError: ((String) -> Unit)? = null
     ) = withContext(Dispatchers.IO) {
+        _trackRegistry.value = _trackRegistry.value + ("vid_${track.id}" to track)
         val downloadId = "vid_${track.id}"
         updateState(downloadId, DownloadStatus.Downloading(0))
 

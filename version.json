@@ -1,7 +1,7 @@
 {
-  "versionCode": 82,
-  "versionName": "3.8.2",
+  "versionCode": 83,
+  "versionName": "3.9.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🛡️ DaVE Player v3.8.2 (Build 82) — Corrección Profunda de Bugs:\n• 🔒 Bóveda Segura: corrección en verificación de clave (evita entrar en modo señuelo si tu clave es 0000) y soporte contra colisiones de nombres de archivos duplicados.\n• 🎵 Biblioteca privada: exclusión de audios protegidos en la bóveda dentro de la lista de canciones públicas.\n• 📲 Compartir y Abrir: soporte completo para ACTION_VIEW y compatibilidad moderna con Android 13+ (abre y reproduce audios/videos compartidos de WhatsApp o el explorador directamente).\n• 🎬 Reproductor de Video Externo: los videos compartidos ahora abren el reproductor de video directamente en lugar de solo reproducir el audio.\n• 🎛️ Tile de Ajustes Rápidos: estado real y apertura inmediata si la cola está vacía.\n• 🚀 Actualizador Inteligente: release dinámico por versión en GitHub y respuesta al pulsar la notificación en segundo plano.",
-  "fileSizeMb": 24.1
+  "changelog": "🎨 DaVE Player v3.9.0 (Build 83) — Gran actualización de experiencia:\n• 🎨 Color dinámico: el reproductor se tiñe con los colores de la carátula de cada canción.\n• 👆 Doble toque en la carátula para retroceder o avanzar 10 segundos.\n• 🎬 Vídeos con gestos: desliza arriba/abajo para brillo (izquierda) o volumen (derecha) y doble toque para saltar 10s.\n• 📋 Selección múltiple: elige varias canciones para añadirlas a la cola, reproducirlas luego o marcarlas como favoritas.\n• 📥 Pantalla de descargas: progreso, reintento de fallidas y todo lo descargado desde un solo sitio.\n• 💾 Cola inteligente: tu cola y posición se guardan al salir y se reanudan al volver.\n• ❤️ Widget con barra de progreso y botón de favorito.\n• 🛡️ Incluye las mejoras de la v3.8.2: bloqueo reforzado de la bóveda señuelo, privacidad de audio y compartir archivos corregido.",
+  "fileSizeMb": 24.2
 }

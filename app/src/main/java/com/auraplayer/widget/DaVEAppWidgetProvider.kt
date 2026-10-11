@@ -16,6 +16,7 @@ import androidx.media3.common.Player
 import com.auraplayer.MainActivity
 import com.auraplayer.R
 import com.auraplayer.data.model.MediaModel
+import com.auraplayer.data.repository.FavoritesManager
 import com.auraplayer.service.PlaybackService
 
 /**
@@ -26,7 +27,7 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
         for (appWidgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, appWidgetId, currentSongCached, isPlayingCached)
+            updateWidget(context, appWidgetManager, appWidgetId, currentSongCached, isPlayingCached, isFavoriteCached)
         }
     }
 
@@ -46,6 +47,13 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
             ACTION_PREV -> {
                 player?.seekToPreviousMediaItem()
             }
+            ACTION_FAVORITE -> {
+                val songId = player?.currentMediaItem?.mediaId?.toLongOrNull()
+                if (songId != null) {
+                    isFavoriteCached = FavoritesManager(context).toggleFavorite(songId)
+                    updateAllWidgets(context, currentSongCached, player?.isPlaying == true, isFavoriteCached)
+                }
+            }
         }
     }
 
@@ -53,9 +61,12 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
         const val ACTION_PLAY_PAUSE = "com.auraplayer.widget.ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "com.auraplayer.widget.ACTION_NEXT"
         const val ACTION_PREV = "com.auraplayer.widget.ACTION_PREV"
+        const val ACTION_FAVORITE = "com.auraplayer.widget.ACTION_FAVORITE"
 
         private var currentSongCached: MediaModel? = null
         private var isPlayingCached: Boolean = false
+        private var isFavoriteCached: Boolean = false
+        private var currentPositionCached: Long = 0L
 
         fun updateWidgetFromPlayer(context: Context, player: Player?) {
             if (player == null) return
@@ -75,19 +86,23 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
                 uri = Uri.EMPTY,
                 artworkUri = artworkUri
             )
-            updateAllWidgets(context, song, isPlaying)
+            currentPositionCached = player.currentPosition
+            val songId = mediaItem?.mediaId?.toLongOrNull()
+            val isFav = songId?.let { FavoritesManager(context).isFavorite(it) } == true
+            updateAllWidgets(context, song, isPlaying, isFav)
         }
 
-        fun updateAllWidgets(context: Context, song: MediaModel?, isPlaying: Boolean) {
+        fun updateAllWidgets(context: Context, song: MediaModel?, isPlaying: Boolean, isFavorite: Boolean = false) {
             currentSongCached = song
             isPlayingCached = isPlaying
+            isFavoriteCached = isFavorite
 
             val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val thisWidget = ComponentName(context, DaVEAppWidgetProvider::class.java)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(thisWidget) ?: return
 
             for (appWidgetId in appWidgetIds) {
-                updateWidget(context, appWidgetManager, appWidgetId, song, isPlaying)
+                updateWidget(context, appWidgetManager, appWidgetId, song, isPlaying, isFavorite)
             }
         }
 
@@ -96,7 +111,8 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int,
             song: MediaModel?,
-            isPlaying: Boolean
+            isPlaying: Boolean,
+            isFavorite: Boolean = false
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_dave_compact)
 
@@ -151,6 +167,19 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(
                 R.id.widget_btn_prev,
                 getBroadcastPendingIntent(context, ACTION_PREV, 3)
+            )
+            views.setOnClickPendingIntent(
+                R.id.widget_btn_favorite,
+                getBroadcastPendingIntent(context, ACTION_FAVORITE, 4)
+            )
+
+            val maxProgress = song?.duration?.takeIf { it > 0 }?.toInt() ?: 100
+            val progress = if (song == null) 0 else currentPositionCached.toInt().coerceIn(0, maxProgress)
+            views.setProgressBar(R.id.widget_progress, maxProgress, progress, false)
+
+            views.setImageViewResource(
+                R.id.widget_btn_favorite,
+                if (isFavorite) R.drawable.ic_widget_favorite else R.drawable.ic_widget_favorite_border
             )
 
             appWidgetManager.updateAppWidget(appWidgetId, views)

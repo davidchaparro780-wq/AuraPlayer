@@ -28,6 +28,7 @@ class PlaybackService : MediaSessionService() {
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var mediaSession: MediaSession? = null
+    private var lastWidgetUpdateMs = 0L
     lateinit var player: ExoPlayer
 
     companion object {
@@ -141,6 +142,14 @@ class PlaybackService : MediaSessionService() {
                     }
                 } else {
                     player.volume = effectiveFactor
+                }
+
+                if (player.isPlaying) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastWidgetUpdateMs >= 1000L) {
+                        lastWidgetUpdateMs = now
+                        com.auraplayer.widget.DaVEAppWidgetProvider.updateWidgetFromPlayer(this@PlaybackService, player)
+                    }
                 }
                 delay(150)
             }

@@ -4,7 +4,9 @@ import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
+import android.os.SystemClock
 import android.util.Rational
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -18,6 +20,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -40,6 +44,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,7 +54,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,8 +73,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.util.AppLog
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 private const val TAG = "VideoPlayerScreen"
@@ -203,6 +214,24 @@ fun VideoPlayerScreen(
         onBack()
     }
 
+    val view = LocalView.current
+    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val volumeMax = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
+
+    var brightness by remember {
+        val current = activity?.window?.attributes?.screenBrightness ?: -1f
+        mutableFloatStateOf(if (current in 0.01f..1f) current else 0.5f)
+    }
+    var volume by remember { mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)) }
+    var hudText by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(hudText) {
+        if (hudText != null) {
+            delay(800)
+            hudText = null
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -218,7 +247,77 @@ fun VideoPlayerScreen(
             update = { playerView ->
                 playerView.useController = !isInPipMode
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(isInPipMode) {
+                    if (isInPipMode) return@pointerInput
+                    var lastTapUptime = 0L
+                    var lastTapWasLeft = false
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val isLeftSide = down.position.x < size.width / 2f
+                        val startY = down.position.y
+                        val startBrightness = brightness
+                        val startVolume = volume.toFloat()
+                        val fullDrag = size.height * 0.7f
+                        val touchSlop = viewConfiguration.touchSlop
+                        var dragStarted = false
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                if (!dragStarted) {
+                                    val now = SystemClock.uptimeMillis()
+                                    val isDoubleTap = lastTapUptime != 0L &&
+                                        now - lastTapUptime <= viewConfiguration.doubleTapTimeoutMillis &&
+                                        isLeftSide == lastTapWasLeft
+                                    if (isDoubleTap) {
+                                        lastTapUptime = 0L
+                                        AuraHaptic.click(view)
+                                        if (isLeftSide) {
+                                            exoPlayer.seekTo((exoPlayer.currentPosition - 10000L).coerceAtLeast(0L))
+                                            hudText = "«10s"
+                                        } else {
+                                            exoPlayer.seekTo(exoPlayer.currentPosition + 10000L)
+                                            hudText = "+10s»"
+                                        }
+                                    } else {
+                                        lastTapUptime = now
+                                        lastTapWasLeft = isLeftSide
+                                    }
+                                }
+                                break
+                            }
+                            val totalDy = change.position.y - startY
+                            if (!dragStarted) {
+                                if (abs(totalDy) < touchSlop) continue
+                                dragStarted = true
+                            }
+                            change.consume()
+                            val fraction = (totalDy / fullDrag).coerceIn(-1f, 1f)
+                            if (isLeftSide) {
+                                val newBrightness = (startBrightness - fraction).coerceIn(0.01f, 1f)
+                                if (newBrightness != brightness) {
+                                    brightness = newBrightness
+                                    activity?.let { act ->
+                                        val lp = act.window.attributes
+                                        lp.screenBrightness = newBrightness
+                                        act.window.attributes = lp
+                                    }
+                                    hudText = "Brillo ${(newBrightness * 100f).toInt()}%"
+                                }
+                            } else {
+                                val newVolume = (startVolume - fraction * volumeMax).roundToInt()
+                                    .coerceIn(0, volumeMax)
+                                if (newVolume != volume) {
+                                    volume = newVolume
+                                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
+                                    hudText = "Volumen $newVolume/$volumeMax"
+                                }
+                            }
+                        }
+                    }
+                }
         )
 
         // Overlay top controls with dark scrim & statusBarsPadding protection (hidden in PiP mode)
@@ -362,6 +461,25 @@ fun VideoPlayerScreen(
                         )
                     }
                 }
+            }
+
+            AnimatedVisibility(
+                visible = hudText != null,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 104.dp)
+            ) {
+                Text(
+                    text = hudText.orEmpty(),
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                )
             }
         }
     }

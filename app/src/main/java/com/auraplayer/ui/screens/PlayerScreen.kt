@@ -193,6 +193,8 @@ import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.RepeatMode
 import com.auraplayer.data.repository.SongLyrics
 import com.auraplayer.util.AppLog
+import com.auraplayer.util.ArtworkPaletteExtractor
+import com.auraplayer.util.DynamicArtworkTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.io.File
@@ -253,6 +255,12 @@ fun PlayerScreen(
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+
+    val artworkPalette = DynamicArtworkTheme.current
+    LaunchedEffect(currentMedia?.artworkUri) {
+        val palette = ArtworkPaletteExtractor.extract(context, currentMedia?.artworkUri)
+        DynamicArtworkTheme.update(palette)
+    }
 
     var isEdgeLightingEnabled by remember { mutableStateOf(false) }
     var isSpatial8D by remember { mutableStateOf(EqualizerManager.instance.isSpatial8DEnabled) }
@@ -447,6 +455,21 @@ fun PlayerScreen(
         }
     }
 
+    val rootBackgroundBrush = remember(artworkPalette, dynamicBg) {
+        val palette = artworkPalette
+        if (palette != null) {
+            Brush.verticalGradient(
+                listOf(
+                    palette.seed.copy(alpha = 0.35f),
+                    Color(0xFF0B0E1A),
+                    palette.accent.copy(alpha = 0.18f)
+                )
+            )
+        } else {
+            Brush.verticalGradient(dynamicBg)
+        }
+    }
+
     // On-Screen HUD for Gestures (Volume & Brightness)
     var hudText by remember { mutableStateOf("") }
     var hudIcon by remember { mutableStateOf(Icons.Default.VolumeUp) }
@@ -571,11 +594,11 @@ fun PlayerScreen(
             accentColor = dynamicArtworkColor ?: MaterialTheme.colorScheme.primary,
             secondaryColor = Color(0xFFEC4899)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(dynamicBg))
-            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(rootBackgroundBrush)
+                ) {
                 FluidAmbilightGlow(
                     primaryColor = dynamicBg.firstOrNull() ?: MaterialTheme.colorScheme.primary,
                     secondaryColor = dynamicBg.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
@@ -923,6 +946,19 @@ fun PlayerScreen(
                                         modifier = Modifier
                                             .fillMaxSize(0.68f)
                                             .clip(CircleShape)
+                                            .pointerInput(Unit) {
+                                                detectTapGestures(
+                                                    onDoubleTap = { offset ->
+                                                        val w = size.width
+                                                        val delta = if (offset.x < w / 2) -10000L else 10000L
+                                                        onSeek((currentPositionMs + delta).coerceAtLeast(0L))
+                                                        seekBadgeText = if (delta < 0) "-10s" else "+10s"
+                                                        seekBadgeIsForward = delta > 0
+                                                        showSeekBadge = true
+                                                        AuraHaptic.click(view)
+                                                    }
+                                                )
+                                            }
                                     )
                                 } else {
                                     Icon(

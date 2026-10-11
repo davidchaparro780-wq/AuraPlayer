@@ -124,6 +124,8 @@ import com.auraplayer.data.repository.LyricsManager
 import com.auraplayer.data.repository.MediaRepository
 import com.auraplayer.data.repository.OnlineMusicRepository
 import com.auraplayer.data.repository.PlaylistManager
+import com.auraplayer.data.repository.QueueStore
+import com.auraplayer.data.repository.SavedQueueEntry
 import com.auraplayer.data.repository.GlobalSearchService
 import com.auraplayer.data.repository.SpotifyMetadataService
 import com.auraplayer.data.repository.UpdateManager
@@ -331,6 +333,7 @@ fun AuraApp(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val mediaRepository = remember { MediaRepository(context) }
+    val queueStore = remember { QueueStore(context) }
     val favoritesManager = remember { FavoritesManager(context) }
     val sleepTimerManager = remember { SleepTimerManager() }
     val lyricsManager = remember { LyricsManager(context) }
@@ -435,6 +438,7 @@ fun AuraApp(
     var showZapDialog by remember { mutableStateOf(false) }
     var showMoodWheelDialog by remember { mutableStateOf(false) }
     var showVideoExtractorDialog by remember { mutableStateOf(false) }
+    var showDownloadsScreen by remember { mutableStateOf(false) }
     var showPartyLinkDialog by remember { mutableStateOf(false) }
 
     val loudnessManager = remember { com.auraplayer.audio.LoudnessNormalizerManager.getInstance(context) }
@@ -451,6 +455,63 @@ fun AuraApp(
 
     LaunchedEffect(currentMedia, isPlaying) {
         com.auraplayer.widget.DaVEAppWidgetProvider.updateAllWidgets(context, currentMedia, isPlaying)
+    }
+
+    // Restore the playback queue saved from the previous session
+    LaunchedEffect(controller) {
+        val ctrl = controller ?: return@LaunchedEffect
+        if (ctrl.mediaItemCount > 0) return@LaunchedEffect
+        val saved = queueStore.load() ?: return@LaunchedEffect
+        try {
+            val items = saved.entries.map { entry ->
+                val known = if (entry.id > 0L) songs.find { it.id == entry.id } else null
+                val extras = android.os.Bundle().apply {
+                    putLong("duration_ms", known?.duration ?: entry.durationMs)
+                }
+                MediaItem.Builder()
+                    .setUri(known?.uri ?: Uri.parse(entry.uri))
+                    .setMediaId(entry.id.takeIf { it > 0L }?.toString() ?: "queue_${entry.uri.hashCode()}")
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(known?.title ?: entry.title)
+                            .setArtist(known?.artist ?: entry.artist)
+                            .setAlbumTitle(known?.album ?: entry.album)
+                            .setArtworkUri(
+                                if (known != null) known.artworkUri
+                                else if (!entry.artworkUri.isNullOrBlank()) Uri.parse(entry.artworkUri) else null
+                            )
+                            .setExtras(extras)
+                            .build()
+                    )
+                    .build()
+            }
+            ctrl.setMediaItems(items, saved.currentIndex, saved.positionMs)
+            if (saved.wasPlaying) ctrl.play()
+        } catch (e: Exception) {
+            AppLog.e(TAG, "No se pudo restaurar la cola guardada", e)
+        }
+    }
+
+    // Persist the playback queue whenever tracks or playback state change
+    LaunchedEffect(queueVersion, isPlaying, currentMedia) {
+        val ctrl = controller ?: return@LaunchedEffect
+        if (ctrl.mediaItemCount == 0) return@LaunchedEffect
+        val entries = (0 until ctrl.mediaItemCount).map { i ->
+            val item = ctrl.getMediaItemAt(i)
+            val songId = item.mediaId.toLongOrNull()
+            val known = if (songId != null) songs.find { it.id == songId } else null
+            val meta = item.mediaMetadata
+            SavedQueueEntry(
+                id = known?.id ?: songId ?: 0L,
+                uri = (known?.uri ?: item.localConfiguration?.uri ?: Uri.EMPTY).toString(),
+                title = known?.title ?: meta.title?.toString() ?: "Canción",
+                artist = known?.artist ?: meta.artist?.toString() ?: "Artista",
+                album = known?.album ?: meta.albumTitle?.toString() ?: "",
+                artworkUri = if (known != null) known.artworkUri?.toString() else meta.artworkUri?.toString(),
+                durationMs = known?.duration ?: meta.extras?.getLong("duration_ms", 0L) ?: 0L
+            )
+        }
+        queueStore.save(entries, ctrl.currentMediaItemIndex, ctrl.currentPosition, ctrl.isPlaying)
     }
 
 
@@ -2278,6 +2339,7 @@ fun AuraApp(
                 downloadEngine = downloadEngine,
                 currentPlayingTitle = currentMedia?.title,
                 isPlaying = isPlaying,
+                onOpenDownloads = { showDownloadsScreen = true },
                 onPreviewTrack = { onlineTrack ->
                     scope.launch {
                         val validUrl = searchService.resolveValidAudioUrl(onlineTrack)
@@ -2694,6 +2756,18 @@ fun AuraApp(
             onVideosChanged = { newVideos ->
                 videos = newVideos
             }
+        )
+    }
+
+    // Fullscreen Downloads Manager Screen
+    AnimatedVisibility(
+        visible = showDownloadsScreen,
+        enter = fadeIn(animationSpec = tween(220)) + slideInVertically(animationSpec = tween(250)) { it / 6 },
+        exit = fadeOut(animationSpec = tween(180)) + slideOutVertically(animationSpec = tween(220)) { it / 6 }
+    ) {
+        com.auraplayer.ui.screens.DownloadsScreen(
+            downloadEngine = downloadEngine,
+            onClose = { showDownloadsScreen = false }
         )
     }
 
