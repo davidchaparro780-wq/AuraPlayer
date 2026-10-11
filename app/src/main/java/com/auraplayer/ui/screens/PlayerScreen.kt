@@ -55,6 +55,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -1706,9 +1707,11 @@ fun PlayerScreen(
                             .background(if (isKaraokeActive) Color(0xFFE040FB).copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
                             .border(1.dp, if (isKaraokeActive) Color(0xFFE040FB) else Color.Transparent, RoundedCornerShape(12.dp))
                             .clickable {
+                                AuraHaptic.click(null)
                                 isKaraokeActive = !isKaraokeActive
                                 gaplessManager.toggleVocalReducer(isKaraokeActive)
-                                Toast.makeText(context, if (isKaraokeActive) "🎤 Modo Karaoke ACTIVADO (Voz Reducida)" else "🎤 Modo Karaoke DESACTIVADO", Toast.LENGTH_SHORT).show()
+                                com.auraplayer.audio.EqualizerManager.instance.setKaraokeMode(isKaraokeActive)
+                                Toast.makeText(context, if (isKaraokeActive) "🎤 Modo Karaoke ACTIVADO (Voz Atenuada)" else "🎤 Modo Karaoke DESACTIVADO", Toast.LENGTH_SHORT).show()
                             }
                             .padding(horizontal = 9.dp, vertical = 6.dp)
                     ) {
@@ -1759,41 +1762,6 @@ fun PlayerScreen(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF38BDF8),
-                            fontSize = 11.sp
-                        )
-                    }
-
-                    // Quick Karaoke Sing-Along Button
-                    val eqManager = remember { com.auraplayer.audio.EqualizerManager.instance }
-                    var isKaraokeActive by remember { mutableStateOf(eqManager.isKaraokeMode) }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isKaraokeActive) Color(0xFFF43F5E).copy(alpha = 0.35f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                            )
-                            .border(
-                                1.dp,
-                                if (isKaraokeActive) Color(0xFFF43F5E).copy(alpha = 0.8f) else Color.Transparent,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .clickable {
-                                AuraHaptic.click(null)
-                                val next = !isKaraokeActive
-                                eqManager.setKaraokeMode(next)
-                                isKaraokeActive = next
-                                val msg = if (next) "🎤 Modo Karaoke ACTIVADO: ¡Voz atenuada para cantar!" else "🎤 Modo Karaoke Desactivado"
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            }
-                            .padding(horizontal = 9.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = if (isKaraokeActive) "🎤 KARAOKE ON" else "🎙️ KARAOKE",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isKaraokeActive) Color(0xFFF43F5E) else Color(0xFFE2E8F0),
                             fontSize = 11.sp
                         )
                     }

@@ -99,6 +99,7 @@ import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button

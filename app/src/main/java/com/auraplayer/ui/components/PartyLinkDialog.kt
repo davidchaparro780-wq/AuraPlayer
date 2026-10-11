@@ -156,7 +156,7 @@ fun PartyLinkDialog(
                                 partyManager.startHosting(
                                     scope = scope,
                                     currentTitle = currentMedia?.title ?: "Música",
-                                    currentPosMs = currentPosMs,
+                                    currentPosMs = currentPosMs.value,
                                     isPlaying = isPlaying
                                 )
                                 Toast.makeText(context, "Sala creada como Anfitrión", Toast.LENGTH_SHORT).show()
