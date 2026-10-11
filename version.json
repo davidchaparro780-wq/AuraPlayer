@@ -1,7 +1,7 @@
 {
-  "versionCode": 92,
-  "versionName": "4.4.0",
+  "versionCode": 93,
+  "versionName": "4.5.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v4.4.0 (Build 92) — ¡La Gran Suite Ultra Pro!\n• 🔍 DaVE Radar (Shazam & Tarareo): Identifica cualquier canción que suene en el ambiente o canta/tararea una melodía para descargarla o escucharla al instante.\n• 🎛️ Estudio Viral FX: Presets con 1 toque para 'Slowed + Reverb', 'Sped Up & Nightcore', 'Audio 8D Espacial 360°' y 'Lo-Fi Chill'.\n• 🎚️ AI Stem Mixer: Aísla voces (Karaoke / Acapella), potencia la batería, bajo e instrumentos con faders en vivo.\n• 🔋 Modo Ahorro Extremo OLED: Pantalla blackout 100% negra (0% consumo de batería) con gestos táctiles.\n• 💤 Detector de Sueño por Acelerómetro: Apagado automático inteligente si dejas el celular quieto por 15 minutos.",
-  "fileSizeMb": 25.0
+  "changelog": "🚀 DaVE Player v4.5.0 (Build 93) — ¡La Gran Mega Suite!\n• 🌐 Traductor de Letras Bilingüe en Vivo: Traduce automáticamente letras en inglés, coreano, japonés, etc., al español verso por verso en tiempo real con el botón '🌐 TR/ES'.\n• ✂️ Story & Reel Maker 9:16: Genera videos y tarjetas verticales HD para WhatsApp y Reels con ondas de audio reactivas y estilos estéticos.\n• 🎙️ Estudio de Grabación Vocal: Graba tu voz con micrófono sobre la música o pistas instrumentales (Karaoke Covers).\n• 📳 Subwoofer Háptico en Tiempo Real: Siente los golpes del bajo (kick/bass) vibrando físicamente en tus manos al ritmo de la música.\n• 💬 Recortador & Compartir Rápido a WhatsApp: Corta clips de audio y envíalos directamente a tus chats o estados.",
+  "fileSizeMb": 25.5
 }
