@@ -1,7 +1,7 @@
 {
-  "versionCode": 88,
-  "versionName": "4.1.1",
+  "versionCode": 89,
+  "versionName": "4.1.2",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "⚡ DaVE Player v4.1.1 (Build 88) — ¡Actualizaciones 100% Garantizadas & Pack Visual Ultra!\n• 🛠️ Corrección Crítica del Actualizador: Descarga atómica en archivo temporal (.tmp), validación forense de integridad del APK para que nunca más se quede atascado ni instale archivos corruptos.\n• 🌌 Fondo Líquido Aurora Mesh: Gradiente de malla vivo animado estilo Apple Music iOS 18 que reacciona a la música.\n• 💽 Tocadiscos Hi-Fi con Aguja Animada: Brazo fonocaptor realista con aguja que desciende al reproducir y se levanta al pausar.\n• 🌊 Waveform Seekbar Interactiva: 42 ondas de audio con efecto lupa de aumento táctil.\n• 💥 Explosión de Partículas al dar Like: Chispas y anillo de choque de neón.\n• 🪟 MiniPlayer Glassmorphism Aero: Cápsula flotante translúcida.",
+  "changelog": "🎬 DaVE Player v4.1.2 (Build 89) — ¡Pack de Animaciones Cinemáticas & Fluidez Total!\n• 🌌 Transición Cinemática de Cambio de Canción: Deslizamiento horizontal con físicas de resorte (Spring physics), zoom y fundido fluido al pasar a la siguiente pista.\n• 🛸 Levitación Anti-Gravedad Orgánica: Oscilación sinusoidal flotante en tocadiscos de vinilo, cassette vintage y espectrograma cyber.\n• 🫧 Micro-interacciones de Rebote 'Squish & Pop': Físicas elásticas táctiles en todos los controles principales (Shuffle, Skip, Repeat).\n• 🚀 Animación de Salto y Rotación Dinámica al alternar modos de reproducción.",
   "fileSizeMb": 24.5
 }

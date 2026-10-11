@@ -21,6 +21,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -526,6 +528,18 @@ fun PlayerScreen(
         label = "visualizerPhase"
     )
 
+    // Anti-Gravity Levitation Oscillation (Organic Floating)
+    val levitationPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(if (isPlaying) 3400 else 6000, easing = LinearEasing),
+            repeatMode = AnimRepeatMode.Restart
+        ),
+        label = "levitationPhase"
+    )
+    val levitationOffsetDp = (kotlin.math.sin(levitationPhase) * 6f).dp
+
     val audioBadgeText = remember(currentMedia.path) {
         val ext = File(currentMedia.path).extension.lowercase()
         when (ext) {
@@ -843,156 +857,174 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     if (!showLyricsView) {
-                        if (centerVisualizerMode == 0) {
-                            // Glowing Ambient Aura Disc with Vinyl Record Grooves (Dynamic Palette Glow)
-                            val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
-                            val dynamicElevation = if (isPlaying) (18.dp + (22.dp * bassEnergy)) else 12.dp
-                            val dynamicGlowAlpha = if (isPlaying) (0.35f + (bassEnergy * 0.55f)).coerceIn(0.2f, 0.95f) else 0.2f
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.94f)
-                                    .aspectRatio(1f)
-                                    .padding(vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                SupernovaShockwave(
-                                    trigger = supernovaTrigger,
-                                    accentColor = activeAccent,
-                                    secondaryColor = Color(0xFFEC4899)
+                        AnimatedContent(
+                            targetState = currentMedia.id,
+                            transitionSpec = {
+                                (slideInHorizontally(
+                                    animationSpec = spring(dampingRatio = 0.76f, stiffness = 350f)
+                                ) { width -> width / 2 } + fadeIn(tween(220)) + scaleIn(initialScale = 0.88f))
+                                .togetherWith(
+                                    slideOutHorizontally(
+                                        animationSpec = spring(dampingRatio = 0.76f, stiffness = 350f)
+                                    ) { width -> -width / 2 } + fadeOut(tween(180)) + scaleOut(targetScale = 0.88f)
                                 )
+                            },
+                            label = "visualizer_song_transition"
+                        ) { _ ->
+                            if (centerVisualizerMode == 0) {
+                                // Glowing Ambient Aura Disc with Vinyl Record Grooves (Dynamic Palette Glow)
+                                val bassEnergy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBassEnergy(isPlaying)
+                                val dynamicElevation = if (isPlaying) (18.dp + (22.dp * bassEnergy)) else 12.dp
+                                val dynamicGlowAlpha = if (isPlaying) (0.35f + (bassEnergy * 0.55f)).coerceIn(0.2f, 0.95f) else 0.2f
 
-                                VinylTurntableSkin(
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.94f)
+                                        .aspectRatio(1f)
+                                        .offset(y = levitationOffsetDp)
+                                        .padding(vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    SupernovaShockwave(
+                                        trigger = supernovaTrigger,
+                                        accentColor = activeAccent,
+                                        secondaryColor = Color(0xFFEC4899)
+                                    )
+
+                                    VinylTurntableSkin(
+                                        song = currentMedia,
+                                        isPlaying = isPlaying,
+                                        vinylRotation = vinylRotation.value,
+                                        accentColor = activeAccent,
+                                        onTap = {
+                                            AuraHaptic.click(view)
+                                            centerVisualizerMode = 1
+                                        },
+                                        onDoubleTap = { offset ->
+                                            val w = 300f
+                                            if (offset.x < w * 0.35f) {
+                                                onSeekRelative(-10000L)
+                                                seekBadgeText = "-10s"
+                                                seekBadgeIsForward = false
+                                                showSeekBadge = true
+                                                AuraHaptic.click(view)
+                                            } else if (offset.x > w * 0.65f) {
+                                                onSeekRelative(10000L)
+                                                seekBadgeText = "+10s"
+                                                seekBadgeIsForward = true
+                                                showSeekBadge = true
+                                                AuraHaptic.click(view)
+                                            } else {
+                                                onToggleFavorite()
+                                                showHeartBurst = true
+                                                AuraHaptic.heavy(view)
+                                            }
+                                        }
+                                    )
+                                }
+                            } else if (centerVisualizerMode == 1) {
+                                // Skin Retro Vintage: Cassette Tape Interactivo
+                                CassetteTapeSkin(
                                     song = currentMedia,
                                     isPlaying = isPlaying,
-                                    vinylRotation = vinylRotation.value,
-                                    accentColor = activeAccent,
-                                    onTap = {
-                                        AuraHaptic.click(view)
-                                        centerVisualizerMode = 1
-                                    },
-                                    onDoubleTap = { offset ->
-                                        val w = 300f
-                                        if (offset.x < w * 0.35f) {
-                                            onSeekRelative(-10000L)
-                                            seekBadgeText = "-10s"
-                                            seekBadgeIsForward = false
-                                            showSeekBadge = true
-                                            AuraHaptic.click(view)
-                                        } else if (offset.x > w * 0.65f) {
-                                            onSeekRelative(10000L)
-                                            seekBadgeText = "+10s"
-                                            seekBadgeIsForward = true
-                                            showSeekBadge = true
-                                            AuraHaptic.click(view)
-                                        } else {
-                                            onToggleFavorite()
-                                            showHeartBurst = true
-                                            AuraHaptic.heavy(view)
+                                    currentPositionMs = currentPositionMs,
+                                    durationMs = durationMs,
+                                    onTogglePlay = onPlayPauseClick,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.92f)
+                                        .offset(y = levitationOffsetDp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = {
+                                                    AuraHaptic.click(view)
+                                                    centerVisualizerMode = 2
+                                                }
+                                            )
+                                        }
+                                )
+                            } else {
+                                // Live Cyber Spectrum Waveform Visualizer (Real-time FFT audio engine)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.88f)
+                                        .aspectRatio(1f)
+                                        .offset(y = levitationOffsetDp)
+                                        .clip(RoundedCornerShape(28.dp))
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(Color(0xFF131A2E), Color(0xFF090D18))
+                                            )
+                                        )
+                                        .border(
+                                            1.5.dp,
+                                            Brush.sweepGradient(listOf(Color(0xFF00F0FF), Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF))),
+                                            RoundedCornerShape(28.dp)
+                                        )
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = {
+                                                    AuraHaptic.click(view)
+                                                    centerVisualizerMode = 0
+                                                },
+                                                onDoubleTap = { offset ->
+                                                    val w = size.width
+                                                    if (offset.x < w * 0.35f) {
+                                                        onSeekRelative(-10000L)
+                                                        seekBadgeText = "-10s"
+                                                        seekBadgeIsForward = false
+                                                        showSeekBadge = true
+                                                        AuraHaptic.click(view)
+                                                    } else if (offset.x > w * 0.65f) {
+                                                        onSeekRelative(10000L)
+                                                        seekBadgeText = "+10s"
+                                                        seekBadgeIsForward = true
+                                                        showSeekBadge = true
+                                                        AuraHaptic.click(view)
+                                                    } else {
+                                                        onToggleFavorite()
+                                                        showHeartBurst = true
+                                                        AuraHaptic.heavy(view)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                        .padding(20.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        val numBars = 20
+                                        val spacing = size.width / numBars
+                                        val barWidth = spacing * 0.65f
+                                        val maxHeight = size.height * 0.72f
+                                        val midY = size.height / 2f
+
+                                        for (i in 0 until numBars) {
+                                            val wave = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, numBars, isPlaying)
+                                            val barHeight = (maxHeight * wave).coerceIn(6f, maxHeight)
+                                            val x = i * spacing + (spacing - barWidth) / 2f
+                                            val y = midY - (barHeight / 2f)
+
+                                            drawRoundRect(
+                                                brush = Brush.verticalGradient(
+                                                    listOf(Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF)),
+                                                    startY = y,
+                                                    endY = y + barHeight
+                                                ),
+                                                topLeft = Offset(x, y),
+                                                size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                                            )
                                         }
                                     }
-                                )
-                            }
-                        } else if (centerVisualizerMode == 1) {
-                            // Skin Retro Vintage: Cassette Tape Interactivo
-                            CassetteTapeSkin(
-                                song = currentMedia,
-                                isPlaying = isPlaying,
-                                currentPositionMs = currentPositionMs,
-                                durationMs = durationMs,
-                                onTogglePlay = onPlayPauseClick,
-                                modifier = Modifier
-                                    .fillMaxWidth(0.92f)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                AuraHaptic.click(view)
-                                                centerVisualizerMode = 2
-                                            }
-                                        )
-                                    }
-                            )
-                        } else {
-                            // Live Cyber Spectrum Waveform Visualizer (Real-time FFT audio engine)
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.88f)
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(28.dp))
-                                    .background(
-                                        Brush.verticalGradient(
-                                            listOf(Color(0xFF131A2E), Color(0xFF090D18))
-                                        )
-                                    )
-                                    .border(
-                                        1.5.dp,
-                                        Brush.sweepGradient(listOf(Color(0xFF00F0FF), Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF))),
-                                        RoundedCornerShape(28.dp)
-                                    )
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                AuraHaptic.click(view)
-                                                centerVisualizerMode = 0
-                                            },
-                                            onDoubleTap = { offset ->
-                                                val w = size.width
-                                                if (offset.x < w * 0.35f) {
-                                                    onSeekRelative(-10000L)
-                                                    seekBadgeText = "-10s"
-                                                    seekBadgeIsForward = false
-                                                    showSeekBadge = true
-                                                    AuraHaptic.click(view)
-                                                } else if (offset.x > w * 0.65f) {
-                                                    onSeekRelative(10000L)
-                                                    seekBadgeText = "+10s"
-                                                    seekBadgeIsForward = true
-                                                    showSeekBadge = true
-                                                    AuraHaptic.click(view)
-                                                } else {
-                                                    onToggleFavorite()
-                                                    showHeartBurst = true
-                                                    AuraHaptic.heavy(view)
-                                                }
-                                            }
-                                        )
-                                    }
-                                    .padding(20.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val numBars = 20
-                                    val spacing = size.width / numBars
-                                    val barWidth = spacing * 0.65f
-                                    val maxHeight = size.height * 0.72f
-                                    val midY = size.height / 2f
 
-                                    for (i in 0 until numBars) {
-                                        val wave = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, numBars, isPlaying)
-                                        val barHeight = (maxHeight * wave).coerceIn(6f, maxHeight)
-                                        val x = i * spacing + (spacing - barWidth) / 2f
-                                        val y = midY - (barHeight / 2f)
-
-                                        drawRoundRect(
-                                            brush = Brush.verticalGradient(
-                                                listOf(Color(0xFFFF0055), Color(0xFF8B5CF6), Color(0xFF00F0FF)),
-                                                startY = y,
-                                                endY = y + barHeight
-                                            ),
-                                            topLeft = Offset(x, y),
-                                            size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
-                                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                                        )
-                                    }
+                                    Text(
+                                        text = "⚡ ESPECTRO CYBER EN VIVO (Toca para Vinilo)",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFF00F0FF).copy(alpha = 0.85f),
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp)
+                                    )
                                 }
-
-                                Text(
-                                    text = "⚡ ESPECTRO CYBER EN VIVO (Toca para Vinilo)",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF00F0FF).copy(alpha = 0.85f),
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp)
-                                )
                             }
                         }
                     } else {
