@@ -2771,12 +2771,20 @@ fun SongListItem(
                     modifier = Modifier.size(24.dp)
                 )
                 if (song.artworkUri != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
+                    val context = LocalContext.current
+                    val imageRequest = remember(song.artworkUri) {
+                        ImageRequest.Builder(context)
                             .data(song.artworkUri)
-                            .size(160, 160)
-                            .crossfade(true)
-                            .build(),
+                            .size(128, 128)
+                            .precision(coil.size.Precision.EXACT)
+                            .allowHardware(true)
+                            .memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                            .crossfade(150)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

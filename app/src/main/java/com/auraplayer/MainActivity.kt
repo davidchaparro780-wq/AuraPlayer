@@ -1124,6 +1124,9 @@ fun AuraApp(
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED) {
+                        sleepTimerManager.onTrackEnded()
+                    }
                     val d = mediaCtrl.duration
                     if (d > 0L) {
                         durationMs = d
@@ -2804,6 +2807,7 @@ fun AuraApp(
         ) + fadeOut(animationSpec = tween(180))
     ) {
         SettingsScreen(
+            appVersion = com.auraplayer.BuildConfig.VERSION_NAME,
             onDismiss = { showSettingsScreen = false },
             onRescanLibrary = {
                 scope.launch {

@@ -1,7 +1,7 @@
 {
-  "versionCode": 89,
-  "versionName": "4.1.2",
+  "versionCode": 90,
+  "versionName": "4.2.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🎬 DaVE Player v4.1.2 (Build 89) — ¡Pack de Animaciones Cinemáticas & Fluidez Total!\n• 🌌 Transición Cinemática de Cambio de Canción: Deslizamiento horizontal con físicas de resorte (Spring physics), zoom y fundido fluido al pasar a la siguiente pista.\n• 🛸 Levitación Anti-Gravedad Orgánica: Oscilación sinusoidal flotante en tocadiscos de vinilo, cassette vintage y espectrograma cyber.\n• 🫧 Micro-interacciones de Rebote 'Squish & Pop': Físicas elásticas táctiles en todos los controles principales (Shuffle, Skip, Repeat).\n• 🚀 Animación de Salto y Rotación Dinámica al alternar modos de reproducción.",
-  "fileSizeMb": 24.5
+  "changelog": "👑 DaVE Player v4.2.0 (Build 90) — ¡Suite Pro de Rendimiento, Audio & Karaoke!\n• 🎚️ Normalización de Volumen Inteligente (ReplayGain -14 LUFS): Sin saltos bruscos entre canciones, activable desde Ajustes.\n• ⚡ Rendimiento 120 FPS en Listas: Carga de carátulas acelerada por hardware con tamaño exacto (128px) y política de memoria LRU ultra-eficiente.\n• 🎤 Descarga y Búsqueda Inteligente de Letras LRC: Sincronización precisa por duración en LRCLIB con fallback automático de texto.\n• 🌙 Sleep Timer 'Al Terminar Canción': Apagado inteligente al finalizar la pista actual sin cortes abruptos.\n• ℹ️ Versión del sistema sincronizada dinámicamente en los Ajustes.",
+  "fileSizeMb": 24.6
 }

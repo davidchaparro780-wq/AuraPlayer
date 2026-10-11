@@ -99,6 +99,8 @@ fun SettingsScreen(
     var showSensitivityDialog by remember { mutableStateOf(false) }
     val backupManager = remember { BackupManager(context) }
     var showBackupDialog by remember { mutableStateOf(false) }
+    val loudnessNormalizer = remember { com.auraplayer.audio.LoudnessNormalizerManager.getInstance(context) }
+    var isLoudnessEnabled by remember { mutableStateOf(loudnessNormalizer.isEnabled) }
 
     Box(
         modifier = Modifier
@@ -221,6 +223,20 @@ fun SettingsScreen(
                         onCheckedChange = {
                             AuraHaptic.click(null)
                             settings.setResumeOnHeadphonesConnectEnabled(it)
+                        }
+                    )
+                }
+
+                item {
+                    SettingsToggleCard(
+                        title = "Normalización de Volumen (ReplayGain)",
+                        subtitle = "Nivela automáticamente la ganancia a -14 LUFS para evitar saltos bruscos entre canciones",
+                        icon = Icons.Default.VolumeUp,
+                        checked = isLoudnessEnabled,
+                        onCheckedChange = {
+                            AuraHaptic.click(null)
+                            isLoudnessEnabled = it
+                            loudnessNormalizer.isEnabled = it
                         }
                     )
                 }

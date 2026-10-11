@@ -84,6 +84,7 @@ class PlaybackService : MediaSessionService() {
 
         val playlistManager = com.auraplayer.data.repository.PlaylistManager(this)
         EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
+        com.auraplayer.audio.LoudnessNormalizerManager.getInstance(this).applyLoudness()
 
         com.auraplayer.audio.VibeModeManager.init(this)
         com.auraplayer.audio.VibeModeManager.setVibe(com.auraplayer.audio.VibeModeManager.currentVibe, player)
@@ -91,6 +92,7 @@ class PlaybackService : MediaSessionService() {
         player.addListener(object : androidx.media3.common.Player.Listener {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
                 EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
+                com.auraplayer.audio.LoudnessNormalizerManager.getInstance(this@PlaybackService).applyLoudness()
                 com.auraplayer.audio.VibeModeManager.setVibe(com.auraplayer.audio.VibeModeManager.currentVibe, player)
                 com.auraplayer.widget.DaVEAppWidgetProvider.updateWidgetFromPlayer(this@PlaybackService, player)
             }

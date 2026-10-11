@@ -57,25 +57,56 @@ class LyricsManager(private val context: Context) {
             }
         }
 
-        // 2. Query LRCLIB API
+        // 2. Query LRCLIB API with exact duration if available, fallback to search if not found
         try {
             val cleanTitle = cleanSongTitle(song.title)
             val cleanArtist = cleanArtistName(song.artist)
+            val durSec = if (song.duration > 0L) song.duration / 1000L else 0L
 
-            val urlString = "https://lrclib.net/api/get?artist_name=" +
-                    URLEncoder.encode(cleanArtist, "UTF-8") +
-                    "&track_name=" + URLEncoder.encode(cleanTitle, "UTF-8")
-
-            val url = URL(urlString)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 7000
-                readTimeout = 7000
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "AuraPlayer/1.3.0 (Android)")
+            val urlString = if (durSec > 0L) {
+                "https://lrclib.net/api/get?artist_name=" +
+                        URLEncoder.encode(cleanArtist, "UTF-8") +
+                        "&track_name=" + URLEncoder.encode(cleanTitle, "UTF-8") +
+                        "&duration=$durSec"
+            } else {
+                "https://lrclib.net/api/get?artist_name=" +
+                        URLEncoder.encode(cleanArtist, "UTF-8") +
+                        "&track_name=" + URLEncoder.encode(cleanTitle, "UTF-8")
             }
 
-            if (connection.responseCode == 200) {
-                val jsonStr = connection.inputStream.bufferedReader().use { it.readText() }
+            var conn = (URL(urlString).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 6000
+                readTimeout = 6000
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "DaVEPlayer/4.1 (Android)")
+            }
+
+            var responseCode = conn.responseCode
+            // Fallback: If 404 with duration, retry search without duration or search endpoint
+            if (responseCode == 404 && durSec > 0L) {
+                val fallbackUrl = "https://lrclib.net/api/search?q=" + URLEncoder.encode("$cleanArtist $cleanTitle", "UTF-8")
+                conn = (URL(fallbackUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 6000
+                    readTimeout = 6000
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", "DaVEPlayer/4.1 (Android)")
+                }
+                responseCode = conn.responseCode
+                if (responseCode == 200) {
+                    val jsonArrayStr = conn.inputStream.bufferedReader().use { it.readText() }
+                    val array = org.json.JSONArray(jsonArrayStr)
+                    if (array.length() > 0) {
+                        val firstObj = array.getJSONObject(0)
+                        val syncedLyrics = firstObj.optString("syncedLyrics", "").ifBlank { null }
+                        val plainLyrics = firstObj.optString("plainLyrics", "").ifBlank { null }
+                        if (syncedLyrics != null || plainLyrics != null) {
+                            saveToCache(song.id, firstObj.toString())
+                            return@withContext parseLyrics(syncedLyrics, plainLyrics)
+                        }
+                    }
+                }
+            } else if (responseCode == 200) {
+                val jsonStr = conn.inputStream.bufferedReader().use { it.readText() }
                 val jsonObj = JSONObject(jsonStr)
 
                 val syncedLyrics = jsonObj.optString("syncedLyrics", "").ifBlank { null }
