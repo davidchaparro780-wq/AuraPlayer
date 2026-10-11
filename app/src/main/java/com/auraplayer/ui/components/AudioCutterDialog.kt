@@ -450,8 +450,49 @@ fun AudioCutterDialog(
                         } else {
                             Icon(Icons.Default.SaveAlt, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Guardar como nuevo archivo", color = Color.White)
+                            Text("Guardar clip en DaVE_Cuts", color = Color.White)
                         }
+                    }
+
+                    Button(
+                        onClick = {
+                            isTrimming = true
+                            scope.launch(Dispatchers.IO) {
+                                try {
+                                    val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVE_Cuts")
+                                    if (!dir.exists()) dir.mkdirs()
+                                    val safeName = song.title.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+                                    val outExt = if (song.path.endsWith(".m4a", true)) "m4a" else "mp3"
+                                    val outFile = File(dir, "${safeName}_tono_${startSec.toInt()}s_${endSec.toInt()}s.$outExt")
+                                    if (!outFile.exists() || outFile.length() == 0L) {
+                                        trimAudioFile(context, song.uri, outFile, (startSec * 1000).toLong(), (endSec * 1000).toLong())
+                                    }
+                                    android.media.MediaScannerConnection.scanFile(context, arrayOf(outFile.absolutePath), null, null)
+                                    val contentUri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", outFile)
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "audio/*"
+                                        putExtra(Intent.EXTRA_STREAM, contentUri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    withContext(Dispatchers.Main) {
+                                        isTrimming = false
+                                        context.startActivity(Intent.createChooser(shareIntent, "Enviar Tono / Clip a WhatsApp"))
+                                        onDismiss()
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        isTrimming = false
+                                        Toast.makeText(context, "Error al compartir: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isTrimming
+                    ) {
+                        Text("💬 Compartir Clip en WhatsApp", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
             }

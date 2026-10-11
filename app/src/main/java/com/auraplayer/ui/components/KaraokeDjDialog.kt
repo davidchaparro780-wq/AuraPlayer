@@ -138,6 +138,54 @@ fun KaraokeDjDialog(
                     )
                 }
 
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val voiceStudio = remember { com.auraplayer.audio.VoiceRecordingStudio.getInstance(context) }
+                var isRecordingVoice by remember { mutableStateOf(voiceStudio.isRecording) }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isRecordingVoice) Color(0xFFDC2626).copy(alpha = 0.25f) else Color(0xFF1E293B))
+                        .clickable {
+                            if (isRecordingVoice) {
+                                val file = voiceStudio.stopRecording()
+                                isRecordingVoice = false
+                                if (file != null) {
+                                    android.widget.Toast.makeText(context, "Cover guardado en DaVE_Recordings 🎉", android.widget.Toast.LENGTH_LONG).show()
+                                }
+                            } else {
+                                val file = voiceStudio.startRecording("MiCover")
+                                if (file != null) {
+                                    isRecordingVoice = true
+                                    android.widget.Toast.makeText(context, "🎙️ Grabando voz con micrófono... ¡Canta!", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    android.widget.Toast.makeText(context, "Verifica el permiso de Micrófono", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = if (isRecordingVoice) "🔴 Grabando Cover..." else "🎙️ Grabar Cover sobre la Música",
+                            color = if (isRecordingVoice) Color(0xFFEF4444) else Color(0xFF38BDF8),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                    Text(
+                        text = if (isRecordingVoice) "DETENER" else "GRABAR",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
 
                 // Sección 2: Balance Estéreo (L / R)

@@ -297,6 +297,18 @@ fun PlayerScreen(
     var showAudioSpecSheet by remember { mutableStateOf(false) }
     var visualizerMode by remember { mutableIntStateOf(0) } // 0: Spectrum bars, 1: Neon wave, 2: Radial pulse, 3: Starfield
     var lyricsFontSizeMultiplier by remember { mutableFloatStateOf(1.0f) }
+    var isPlayerTranslationEnabled by remember { mutableStateOf(false) }
+    var playerLyricsTranslations by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isPlayerTranslating by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isPlayerTranslationEnabled, lyrics) {
+        if (isPlayerTranslationEnabled && lyrics?.lines?.isNotEmpty() == true && playerLyricsTranslations.isEmpty()) {
+            isPlayerTranslating = true
+            val uniqueLines = lyrics!!.lines.map { it.text }.distinct().take(40)
+            playerLyricsTranslations = com.auraplayer.data.repository.LyricsTranslatorService.batchTranslate(uniqueLines)
+            isPlayerTranslating = false
+        }
+    }
 
     var seekBadgeText by remember { mutableStateOf("") }
     var showSeekBadge by remember { mutableStateOf(false) }
@@ -1081,6 +1093,17 @@ fun PlayerScreen(
 
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             IconButton(
+                                                onClick = { isPlayerTranslationEnabled = !isPlayerTranslationEnabled },
+                                                modifier = Modifier.size(28.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isPlayerTranslationEnabled) "🌐 ES" else "🌐 TR",
+                                                    color = if (isPlayerTranslationEnabled) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    fontWeight = FontWeight.Black,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+                                            IconButton(
                                                 onClick = { lyricsFontSizeMultiplier = (lyricsFontSizeMultiplier - 0.15f).coerceAtLeast(0.7f) },
                                                 modifier = Modifier.size(28.dp)
                                             ) {
@@ -1154,14 +1177,41 @@ fun PlayerScreen(
                                                         .padding(horizontal = 14.dp, vertical = if (isActive) 12.dp else 6.dp),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Text(
-                                                        text = line.text,
-                                                        fontSize = if (isActive) (22 * lyricsFontSizeMultiplier).sp else (15 * lyricsFontSizeMultiplier).sp,
-                                                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal,
-                                                        color = if (isActive) Color.White else Color.White.copy(alpha = 0.38f),
-                                                        textAlign = TextAlign.Center,
-                                                        lineHeight = if (isActive) (28 * lyricsFontSizeMultiplier).sp else (22 * lyricsFontSizeMultiplier).sp
-                                                    )
+                                                    Column(
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        Text(
+                                                            text = line.text,
+                                                            fontSize = if (isActive) (22 * lyricsFontSizeMultiplier).sp else (15 * lyricsFontSizeMultiplier).sp,
+                                                            fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal,
+                                                            color = if (isActive) Color.White else Color.White.copy(alpha = 0.38f),
+                                                            textAlign = TextAlign.Center,
+                                                            lineHeight = if (isActive) (28 * lyricsFontSizeMultiplier).sp else (22 * lyricsFontSizeMultiplier).sp
+                                                        )
+                                                        if (isPlayerTranslationEnabled) {
+                                                            val trans = playerLyricsTranslations[line.text]
+                                                            if (!trans.isNullOrBlank()) {
+                                                                Text(
+                                                                    text = trans,
+                                                                    fontSize = if (isActive) (15 * lyricsFontSizeMultiplier).sp else (12 * lyricsFontSizeMultiplier).sp,
+                                                                    fontWeight = FontWeight.Medium,
+                                                                    color = if (isActive) Color(0xFF10B981) else Color(0xFF64748B),
+                                                                    textAlign = TextAlign.Center,
+                                                                    lineHeight = (18 * lyricsFontSizeMultiplier).sp,
+                                                                    modifier = Modifier.padding(top = 2.dp)
+                                                                )
+                                                            } else if (isPlayerTranslating) {
+                                                                Text(
+                                                                    text = "Traduciendo...",
+                                                                    fontSize = 11.sp,
+                                                                    color = Color(0xFF64748B),
+                                                                    textAlign = TextAlign.Center,
+                                                                    modifier = Modifier.padding(top = 2.dp)
+                                                                )
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }

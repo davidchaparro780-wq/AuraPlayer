@@ -95,6 +95,20 @@ fun SyncedLyricsDialog(
     var manualArtist by remember { mutableStateOf(song.artist) }
     var manualTitle by remember { mutableStateOf(song.title) }
 
+    var isTranslationEnabled by remember { mutableStateOf(false) }
+    var translations by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var isTranslating by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isTranslationEnabled, lines) {
+        if (isTranslationEnabled && lines.isNotEmpty() && translations.isEmpty()) {
+            isTranslating = true
+            val uniqueLines = lines.map { it.text }.distinct().take(40)
+            val translatedMap = com.auraplayer.data.repository.LyricsTranslatorService.batchTranslate(uniqueLines)
+            translations = translatedMap
+            isTranslating = false
+        }
+    }
+
     LaunchedEffect(song.id) {
         isLoading = true
         val local = lyricsManager.getLocalSyncedLyrics(song.id)
@@ -214,11 +228,26 @@ fun SyncedLyricsDialog(
                             }
                         }
 
+                        // Botón de Traducción Bilingüe en Vivo
+                        IconButton(
+                            onClick = {
+                                isTranslationEnabled = !isTranslationEnabled
+                            }
+                        ) {
+                            Text(
+                                text = if (isTranslationEnabled) "🌐 ES" else "🌐 TR",
+                                color = if (isTranslationEnabled) Color(0xFF10B981) else Color(0xFF94A3B8),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.sp
+                            )
+                        }
+
                         // Botón de compartir frase activa
                         if (activeIndex >= 0 && activeIndex < lines.size) {
                             IconButton(
                                 onClick = {
-                                    val shareText = "🎵 \"${lines[activeIndex].text}\"\n— ${song.title} (${song.artist})\n✨ Escuchando en DaVE Player"
+                                    val trans = if (isTranslationEnabled) translations[lines[activeIndex].text]?.let { "\n🇪🇸 $it" } ?: "" else ""
+                                    val shareText = "🎵 \"${lines[activeIndex].text}\"$trans\n— ${song.title} (${song.artist})\n✨ Escuchando en DaVE Player"
                                     val sendIntent = Intent().apply {
                                         action = Intent.ACTION_SEND
                                         putExtra(Intent.EXTRA_TEXT, shareText)
@@ -452,14 +481,35 @@ fun SyncedLyricsDialog(
                                                         modifier = Modifier.padding(end = 10.dp)
                                                     )
                                                 }
-                                                Text(
-                                                    text = line.text,
-                                                    color = textColor,
-                                                    fontSize = if (isActive) 23.sp else 17.sp,
-                                                    fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
-                                                    lineHeight = if (isActive) 32.sp else 24.sp,
-                                                    modifier = Modifier.weight(1f)
-                                                )
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = line.text,
+                                                        color = textColor,
+                                                        fontSize = if (isActive) 23.sp else 17.sp,
+                                                        fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
+                                                        lineHeight = if (isActive) 32.sp else 24.sp
+                                                    )
+                                                    if (isTranslationEnabled) {
+                                                        val transText = translations[line.text]
+                                                        if (!transText.isNullOrBlank()) {
+                                                            Text(
+                                                                text = transText,
+                                                                color = if (isActive) Color(0xFF10B981) else Color(0xFF64748B),
+                                                                fontSize = if (isActive) 15.sp else 12.sp,
+                                                                fontWeight = FontWeight.Medium,
+                                                                lineHeight = 18.sp,
+                                                                modifier = Modifier.padding(top = 2.dp)
+                                                            )
+                                                        } else if (isTranslating) {
+                                                            Text(
+                                                                text = "Traduciendo...",
+                                                                color = Color(0xFF64748B),
+                                                                fontSize = 11.sp,
+                                                                modifier = Modifier.padding(top = 2.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }

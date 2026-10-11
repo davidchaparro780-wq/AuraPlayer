@@ -253,6 +253,7 @@ fun MusicScreen(
     var showViralStudio by remember { mutableStateOf(false) }
     var showOledSaver by remember { mutableStateOf(false) }
     var showStemMixer by remember { mutableStateOf(false) }
+    var songForStoryMaker by remember { mutableStateOf<MediaModel?>(null) }
     val stemManager = remember { StemMixerManager.getInstance(context) }
     val sleepSensorManager = remember { SmartSleepSensorManager(context) }
     val lyricsManager = remember { com.auraplayer.data.repository.LyricsManager(context) }
@@ -614,6 +615,19 @@ fun MusicScreen(
                         DropdownMenuItem(
                             text = { Text("🎬 TikTok Video Sin Marca", color = Color(0xFF00F2FE), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; showTikTokDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("✂️ Story & Reel Maker (WhatsApp)", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
+                            onClick = {
+                                showToolsMenu = false
+                                if (currentMedia != null) {
+                                    songForStoryMaker = currentMedia
+                                } else if (songs.isNotEmpty()) {
+                                    songForStoryMaker = songs.first()
+                                } else {
+                                    Toast.makeText(context, "Elige o reproduce una canción primero", Toast.LENGTH_SHORT).show()
+                                }
+                            }
                         )
                         DropdownMenuItem(
                             text = { Text("🔍 DaVE Radar (Shazam & Tarareo)", color = Color(0xFF00F0FF), fontWeight = FontWeight.Bold) },
@@ -2506,6 +2520,14 @@ fun MusicScreen(
             onNext = { currentMedia?.let { onPlayNext(it) } },
             onPrevious = { currentMedia?.let { onPlayNext(it) } },
             onDismiss = { showOledSaver = false }
+        )
+    }
+
+    // Story & Reel Maker (WhatsApp / Instagram Stories)
+    songForStoryMaker?.let { song ->
+        StoryCardDialog(
+            song = song,
+            onDismiss = { songForStoryMaker = null }
         )
     }
 }
