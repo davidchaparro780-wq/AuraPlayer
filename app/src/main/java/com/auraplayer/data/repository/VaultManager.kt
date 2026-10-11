@@ -31,7 +31,9 @@ data class VaultItem(
 
 class VaultManager(private val context: Context) {
 
-    private const val TAG = "VaultManager"
+    companion object {
+        private const val TAG = "VaultManager"
+    }
 
     private val prefs = context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE)
     private val legacyPrefs = context.getSharedPreferences("aura_vault_prefs", Context.MODE_PRIVATE)
