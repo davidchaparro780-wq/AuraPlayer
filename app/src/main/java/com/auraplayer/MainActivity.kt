@@ -2841,7 +2841,7 @@ fun AuraApp(
         com.auraplayer.ui.components.OnboardingScreen(
             onRequestPermissions = {
                 if (!hasPermission) {
-                    permissionLauncher.launch(onboardingPermissions)
+                    permissionLauncher.launch(onboardingPermissions.toTypedArray())
                 }
             },
             onFinish = {

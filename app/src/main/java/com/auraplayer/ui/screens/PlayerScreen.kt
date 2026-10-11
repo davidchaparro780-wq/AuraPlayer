@@ -217,7 +217,7 @@ fun PlayerScreen(
     lyrics: SongLyrics?,
     isLoadingLyrics: Boolean,
     queueSongs: List<MediaModel> = emptyList(),
-    onQueueSongClick: (MediaModel, Int) -> Unit = {},
+    onQueueSongClick: (MediaModel, Int) -> Unit = { _, _ -> },
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onPreviousClick: () -> Unit,
