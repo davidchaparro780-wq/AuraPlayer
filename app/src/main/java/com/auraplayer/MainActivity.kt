@@ -2829,8 +2829,7 @@ fun AuraApp(
                     }
                 }
             },
-            isCheckingUpdate = isCheckingUpdate,
-            appVersion = updateManager.currentVersionName.removePrefix("v")
+            isCheckingUpdate = isCheckingUpdate
         )
     }
 
