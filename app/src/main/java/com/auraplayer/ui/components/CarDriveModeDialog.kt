@@ -291,7 +291,7 @@ fun CarDriveModeDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         AsyncImage(
-                            model = song?.albumArtUri ?: android.R.drawable.ic_media_play,
+                            model = song?.artworkUri ?: android.R.drawable.ic_media_play,
                             contentDescription = song?.title,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
