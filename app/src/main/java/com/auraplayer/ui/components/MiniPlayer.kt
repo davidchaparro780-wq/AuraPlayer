@@ -162,22 +162,29 @@ fun MiniPlayer(
                     }
                 }
 
-                // Interactive Mini Player Card with Real-time Spring Drag Offset
+                // Interactive Mini Player Card with Real-time Spring Drag Offset & Glassmorphism Aero
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .offset { IntOffset(dragOffsetX.value.roundToInt(), 0) }
-                        .clip(RoundedCornerShape(22.dp))
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = if (isPlaying) 0.45f else 0.15f),
+                            ambientColor = Color(0xFF0F172A)
+                        )
+                        .clip(RoundedCornerShape(24.dp))
                         .border(
-                            1.dp,
+                            1.2.dp,
                             Brush.horizontalGradient(
                                 listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f),
-                                    MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)
+                                    Color.White.copy(alpha = 0.25f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f),
+                                    Color.White.copy(alpha = 0.15f)
                                 )
                             ),
-                            RoundedCornerShape(22.dp)
+                            RoundedCornerShape(24.dp)
                         )
                         .semantics {
                             contentDescription = "Reproductor mini: ${currentMedia.title} de ${currentMedia.artist}. Toca para abrir el reproductor completo."
@@ -220,9 +227,9 @@ fun MiniPlayer(
                         .bounceClick(scaleDown = 0.97f) {
                             onClick()
                         },
-                    tonalElevation = 10.dp,
-                    shadowElevation = 10.dp,
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
+                    color = Color(0xF2101524)
                 ) {
                     Column {
                         Row(

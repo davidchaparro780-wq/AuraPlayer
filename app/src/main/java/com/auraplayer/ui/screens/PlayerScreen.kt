@@ -110,6 +110,10 @@ import com.auraplayer.data.repository.SyncedLyricsManager
 import com.auraplayer.ui.components.SyncedLyricsDialog
 import com.auraplayer.ui.components.CassetteTapeSkin
 import com.auraplayer.ui.components.IpodClassicSkin
+import com.auraplayer.ui.components.AuroraMeshBackground
+import com.auraplayer.ui.components.VinylTurntableSkin
+import com.auraplayer.ui.components.DynamicWaveformSeekbar
+import com.auraplayer.ui.components.ExplosiveHeartBurst
 import com.auraplayer.ui.components.CanvasLoopsOverlay
 import com.auraplayer.ui.components.CanvasLoopTheme
 import com.auraplayer.ui.components.AudioQualityDialog
@@ -600,6 +604,11 @@ fun PlayerScreen(
                         .fillMaxSize()
                         .background(rootBackgroundBrush)
                 ) {
+                AuroraMeshBackground(
+                    palette = artworkPalette,
+                    isPlaying = isPlaying
+                )
+
                 FluidAmbilightGlow(
                     primaryColor = dynamicBg.firstOrNull() ?: MaterialTheme.colorScheme.primary,
                     secondaryColor = dynamicBg.getOrNull(1) ?: MaterialTheme.colorScheme.secondary
@@ -764,8 +773,9 @@ fun PlayerScreen(
 
                         // Favorite Toggle
                         IconButton(onClick = {
-                            AuraHaptic.click(view)
+                            AuraHaptic.heavy(view)
                             onToggleFavorite()
+                            showHeartBurst = true
                         }) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -840,7 +850,7 @@ fun PlayerScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth(0.82f)
+                                    .fillMaxWidth(0.94f)
                                     .aspectRatio(1f)
                                     .padding(vertical = 4.dp),
                                 contentAlignment = Alignment.Center
@@ -851,135 +861,37 @@ fun PlayerScreen(
                                     secondaryColor = Color(0xFFEC4899)
                                 )
 
-                                NeonPlasmaCrown(
+                                VinylTurntableSkin(
+                                    song = currentMedia,
                                     isPlaying = isPlaying,
-                                    primaryColor = activeAccent,
-                                    secondaryColor = Color(0xFFEC4899)
-                                )
-
-                                AuraRippleRings(
-                                    isPlaying = isPlaying,
-                                    accentColor = activeAccent
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(0.95f)
-                                        .aspectRatio(1f)
-                                    .shadow(
-                                        elevation = dynamicElevation,
-                                        shape = CircleShape,
-                                        spotColor = activeAccent.copy(alpha = dynamicGlowAlpha),
-                                        ambientColor = Color(0xFF8B5CF6).copy(alpha = dynamicGlowAlpha * 0.7f)
-                                    )
-                                    .clip(CircleShape)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onTap = {
-                                                AuraHaptic.click(view)
-                                                centerVisualizerMode = 1
-                                            },
-                                            onDoubleTap = { offset ->
-                                                val w = size.width
-                                                if (offset.x < w * 0.35f) {
-                                                    onSeekRelative(-10000L)
-                                                    seekBadgeText = "-10s"
-                                                    seekBadgeIsForward = false
-                                                    showSeekBadge = true
-                                                    AuraHaptic.click(view)
-                                                } else if (offset.x > w * 0.65f) {
-                                                    onSeekRelative(10000L)
-                                                    seekBadgeText = "+10s"
-                                                    seekBadgeIsForward = true
-                                                    showSeekBadge = true
-                                                    AuraHaptic.click(view)
-                                                } else {
-                                                    onToggleFavorite()
-                                                    showHeartBurst = true
-                                                    AuraHaptic.heavy(view)
-                                                }
-                                            }
-                                        )
-                                    }
-                                    .background(
-                                        Brush.radialGradient(
-                                            listOf(
-                                                Color(0xFF222B40),
-                                                Color(0xFF131828),
-                                                Color(0xFF090D18)
-                                            )
-                                        )
-                                    )
-                                    .border(
-                                        2.5.dp,
-                                        Brush.sweepGradient(
-                                            listOf(
-                                                activeAccent,
-                                                Color(0xFF38BDF8),
-                                                Color(0xFFEC4899),
-                                                activeAccent
-                                            )
-                                        ),
-                                        CircleShape
-                                    )
-                                    .graphicsLayer {
-                                        rotationZ = vinylRotation.value
+                                    vinylRotation = vinylRotation.value,
+                                    accentColor = activeAccent,
+                                    onTap = {
+                                        AuraHaptic.click(view)
+                                        centerVisualizerMode = 1
                                     },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                // Concentric Vinyl Record Grooves
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    val radiusStep = size.minDimension / 14f
-                                    for (i in 3..6) {
-                                        drawCircle(
-                                            color = Color.White.copy(alpha = 0.045f),
-                                            radius = radiusStep * i,
-                                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f)
-                                        )
+                                    onDoubleTap = { offset ->
+                                        val w = 300f
+                                        if (offset.x < w * 0.35f) {
+                                            onSeekRelative(-10000L)
+                                            seekBadgeText = "-10s"
+                                            seekBadgeIsForward = false
+                                            showSeekBadge = true
+                                            AuraHaptic.click(view)
+                                        } else if (offset.x > w * 0.65f) {
+                                            onSeekRelative(10000L)
+                                            seekBadgeText = "+10s"
+                                            seekBadgeIsForward = true
+                                            showSeekBadge = true
+                                            AuraHaptic.click(view)
+                                        } else {
+                                            onToggleFavorite()
+                                            showHeartBurst = true
+                                            AuraHaptic.heavy(view)
+                                        }
                                     }
-                                }
-
-                                if (currentMedia.artworkUri != null) {
-                                    AsyncImage(
-                                        model = currentMedia.artworkUri,
-                                        contentDescription = "Carátula",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .fillMaxSize(0.68f)
-                                            .clip(CircleShape)
-                                            .pointerInput(Unit) {
-                                                detectTapGestures(
-                                                    onDoubleTap = { offset ->
-                                                        val w = size.width
-                                                        val delta = if (offset.x < w / 2) -10000L else 10000L
-                                                        onSeek((currentPositionMs + delta).coerceAtLeast(0L))
-                                                        seekBadgeText = if (delta < 0) "-10s" else "+10s"
-                                                        seekBadgeIsForward = delta > 0
-                                                        showSeekBadge = true
-                                                        AuraHaptic.click(view)
-                                                    }
-                                                )
-                                            }
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = Icons.Default.MusicNote,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(80.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-
-                                // Center hole (100% opaque solid, zero bleed)
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF070A12))
-                                        .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
-                                 )
+                                )
                             }
-                        }
                         } else if (centerVisualizerMode == 1) {
                             // Skin Retro Vintage: Cassette Tape Interactivo
                             CassetteTapeSkin(
@@ -1282,39 +1194,14 @@ fun PlayerScreen(
                         }
                     }
 
-                    // Animated Glowing Neon Heart Burst Overlay
+                    // Animated Glowing Neon Heart Burst Overlay with Particles
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showHeartBurst,
                         enter = fadeIn() + scaleIn(initialScale = 0.35f),
                         exit = fadeOut() + scaleOut(targetScale = 1.6f),
                         modifier = Modifier.align(Alignment.Center)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(116.dp)
-                                .shadow(28.dp, CircleShape, spotColor = Color(0xFFFF0055), ambientColor = Color(0xFFFF2A85))
-                                .background(Color(0xF0140718), CircleShape)
-                                .border(
-                                    2.5.dp,
-                                    Brush.sweepGradient(
-                                        listOf(
-                                            Color(0xFFFF0055),
-                                            Color(0xFFEC4899),
-                                            Color(0xFFF43F5E),
-                                            Color(0xFFFF0055)
-                                        )
-                                    ),
-                                    CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = null,
-                                tint = Color(0xFFFF0055),
-                                modifier = Modifier.size(64.dp)
-                            )
-                        }
+                        ExplosiveHeartBurst()
                     }
                 }
 
@@ -1467,35 +1354,7 @@ fun PlayerScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     val sliderValue = if (effectiveDurationMs > 0L) (currentPositionMs.toFloat() / effectiveDurationMs.toFloat()) else 0f
 
-                    // Dynamic Rhythmic Audio Waveform Track (Reactive to real audio frequencies)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(14.dp)
-                            .padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        val barCount = 36
-                        for (i in 0 until barCount) {
-                            val barProgress = i.toFloat() / barCount
-                            val isPassed = sliderValue >= barProgress
-                            val energy = com.auraplayer.audio.RealtimeVisualizerManager.instance.getBand(i, barCount, isPlaying)
-                            val baseHeight = 3.dp + (11.dp * energy)
-                            Box(
-                                modifier = Modifier
-                                    .width(3.dp)
-                                    .height(baseHeight)
-                                    .clip(RoundedCornerShape(1.5.dp))
-                                    .background(
-                                        if (isPassed) Brush.verticalGradient(listOf(Color(0xFF38BDF8), Color(0xFF8B5CF6)))
-                                        else Brush.verticalGradient(listOf(Color(0xFF334155), Color(0xFF1E293B)))
-                                    )
-                            )
-                        }
-                    }
-
-                    LiquidShimmerProgressBar(
+                    DynamicWaveformSeekbar(
                         modifier = Modifier.semantics {
                             contentDescription = "Barra de progreso de reproducción"
                             stateDescription = "${formatTime(currentPositionMs)} de ${formatTime(effectiveDurationMs)}"
@@ -1506,8 +1365,8 @@ fun PlayerScreen(
                             val targetMs = (percent * effectiveDurationMs).toLong()
                             onSeek(targetMs)
                         },
-                        activeColor = Color(0xFF38BDF8),
-                        secondaryColor = Color(0xFF8B5CF6)
+                        activeColor = activeAccent,
+                        secondaryColor = Color(0xFFEC4899)
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
