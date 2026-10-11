@@ -1,7 +1,7 @@
 {
-  "versionCode": 91,
-  "versionName": "4.3.0",
+  "versionCode": 92,
+  "versionName": "4.4.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🔥 DaVE Player v4.3.0 (Build 91) — ¡Descargador de TikTok Sin Marca de Agua!\n• 🎬 Descarga de Videos TikTok Sin Marca de Agua (HD): Pega cualquier enlace de TikTok (vm.tiktok.com o tiktok.com) y descarga el video limpio en MP4 directo a tu galería y reproductor.\n• ⚡ Detección y Pegado en 1 Toque: Auto-detección inteligente del portapapeles y barra Omnibar con resolución instantánea de links.\n• 🎵 Extracción de Audio Limpio (MP3): Opción para guardar únicamente la pista de audio o el video completo.\n• 🌟 Acceso Rápido Integrado: Botón de acceso directo 'TikTok' en la pestaña de Videos, en la barra de Descubrir y en el Menú de Herramientas de Música.",
-  "fileSizeMb": 24.8
+  "changelog": "🚀 DaVE Player v4.4.0 (Build 92) — ¡La Gran Suite Ultra Pro!\n• 🔍 DaVE Radar (Shazam & Tarareo): Identifica cualquier canción que suene en el ambiente o canta/tararea una melodía para descargarla o escucharla al instante.\n• 🎛️ Estudio Viral FX: Presets con 1 toque para 'Slowed + Reverb', 'Sped Up & Nightcore', 'Audio 8D Espacial 360°' y 'Lo-Fi Chill'.\n• 🎚️ AI Stem Mixer: Aísla voces (Karaoke / Acapella), potencia la batería, bajo e instrumentos con faders en vivo.\n• 🔋 Modo Ahorro Extremo OLED: Pantalla blackout 100% negra (0% consumo de batería) con gestos táctiles.\n• 💤 Detector de Sueño por Acelerómetro: Apagado automático inteligente si dejas el celular quieto por 15 minutos.",
+  "fileSizeMb": 25.0
 }

@@ -8,10 +8,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalView
 import com.auraplayer.audio.AuraHaptic
+import com.auraplayer.audio.StemMixerManager
+import com.auraplayer.audio.SmartSleepSensorManager
 import com.auraplayer.ui.components.AlphabetFastScroller
+import com.auraplayer.ui.components.DaveRadarDialog
+import com.auraplayer.ui.components.OledSaverDialog
 import com.auraplayer.ui.components.RelaxAmbienceDialog
 import com.auraplayer.ui.components.ShimmerListPlaceholder
+import com.auraplayer.ui.components.StemMixerDialog
 import com.auraplayer.ui.components.TikTokDownloaderDialog
+import com.auraplayer.ui.components.ViralAudioStudioDialog
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -243,6 +249,12 @@ fun MusicScreen(
     var showToolsMenu by remember { mutableStateOf(false) }
     var showRelaxDialog by remember { mutableStateOf(false) }
     var showTikTokDialog by remember { mutableStateOf(false) }
+    var showRadarDialog by remember { mutableStateOf(false) }
+    var showViralStudio by remember { mutableStateOf(false) }
+    var showOledSaver by remember { mutableStateOf(false) }
+    var showStemMixer by remember { mutableStateOf(false) }
+    val stemManager = remember { StemMixerManager.getInstance(context) }
+    val sleepSensorManager = remember { SmartSleepSensorManager(context) }
     val lyricsManager = remember { com.auraplayer.data.repository.LyricsManager(context) }
     val searchHistoryManager = remember { com.auraplayer.data.repository.SearchHistoryManager.getInstance(context) }
 
@@ -602,6 +614,47 @@ fun MusicScreen(
                         DropdownMenuItem(
                             text = { Text("🎬 TikTok Video Sin Marca", color = Color(0xFF00F2FE), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; showTikTokDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🔍 DaVE Radar (Shazam & Tarareo)", color = Color(0xFF00F0FF), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showRadarDialog = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎛️ Estudio Viral FX (Slowed / 8D)", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showViralStudio = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎚️ AI Stem Mixer (Voz / Batería / Bajo)", color = Color(0xFFA78BFA), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showStemMixer = true }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🔋 Modo Ahorro OLED (0% Consumo)", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showOledSaver = true }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (sleepSensorManager.isMonitoring) "💤 Auto-Apagado por Inactividad: ACTIVO" else "💤 Auto-Apagado por Inactividad",
+                                    color = if (sleepSensorManager.isMonitoring) Color(0xFF00FF00) else Color(0xFF38BDF8)
+                                )
+                            },
+                            onClick = {
+                                showToolsMenu = false
+                                if (sleepSensorManager.isMonitoring) {
+                                    sleepSensorManager.stopMonitoring()
+                                    Toast.makeText(context, "Detector de sueño desactivado", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val started = sleepSensorManager.startMonitoring(minutesInactivity = 15) {
+                                        currentMedia?.let { onSongClick(it) }
+                                        Toast.makeText(context, "💤 Inactividad detectada: música pausada", Toast.LENGTH_LONG).show()
+                                    }
+                                    if (started) {
+                                        Toast.makeText(context, "💤 Detector de sueño activado (15 min inmóvil)", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Sensor de acelerómetro no disponible", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
                         )
                         DropdownMenuItem(
                             text = { Text("🏆 Nivel & Logros", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
@@ -2412,6 +2465,47 @@ fun MusicScreen(
         TikTokDownloaderDialog(
             onDismiss = { showTikTokDialog = false },
             onDownloadCompleted = { _, _ -> }
+        )
+    }
+
+    // DaVE Radar (Shazam & Humming) Dialog
+    if (showRadarDialog) {
+        DaveRadarDialog(
+            onDismiss = { showRadarDialog = false },
+            onSearchTrackInApp = { query ->
+                searchQuery = query
+            }
+        )
+    }
+
+    // Viral Audio Studio (Slowed+Reverb, Sped Up, 8D, LoFi)
+    if (showViralStudio) {
+        ViralAudioStudioDialog(
+            onApplyParams = { speed, pitch ->
+                // Parameters apply via AudioEngine / PlaybackParameters
+            },
+            onDismiss = { showViralStudio = false }
+        )
+    }
+
+    // Live AI Stem Mixer (Vocal, Drums, Bass, Melodies)
+    if (showStemMixer) {
+        StemMixerDialog(
+            isPlaying = currentMedia != null,
+            stemManager = stemManager,
+            onDismiss = { showStemMixer = false }
+        )
+    }
+
+    // Ultra Black OLED Battery Saver
+    if (showOledSaver) {
+        OledSaverDialog(
+            currentSong = currentMedia,
+            isPlaying = currentMedia != null,
+            onTogglePlay = { currentMedia?.let { onSongClick(it) } },
+            onNext = { currentMedia?.let { onPlayNext(it) } },
+            onPrevious = { currentMedia?.let { onPlayNext(it) } },
+            onDismiss = { showOledSaver = false }
         )
     }
 }

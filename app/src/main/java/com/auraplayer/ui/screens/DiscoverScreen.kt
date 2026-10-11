@@ -59,6 +59,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import com.auraplayer.data.repository.TikTokDownloader
+import com.auraplayer.ui.components.DaveRadarDialog
 import com.auraplayer.ui.components.TikTokDownloaderDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -152,6 +153,7 @@ fun DiscoverScreen(
     var trackForDownloadChoice by remember { mutableStateOf<OnlineTrack?>(null) }
     var showTikTokDialog by remember { mutableStateOf(false) }
     var tiktokInitialUrl by remember { mutableStateOf("") }
+    var showRadarDialog by remember { mutableStateOf(false) }
 
     // When searching or viewing specific genre, BackHandler resets to Trending
     BackHandler(enabled = searchQuery.isNotBlank() || selectedGenre != "Trending") {
@@ -313,6 +315,30 @@ fun DiscoverScreen(
                     ) {
                         Text(
                             text = "🎬 TikTok HD",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black
+                        )
+                    }
+
+                    // DaVE Radar Shortcut Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(Color(0xFF00F0FF), Color(0xFF8B5CF6))
+                                )
+                            )
+                            .clickable {
+                                AuraHaptic.click(view)
+                                showRadarDialog = true
+                            }
+                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🔍 Radar",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.Black
@@ -1056,6 +1082,16 @@ fun DiscoverScreen(
             initialUrl = tiktokInitialUrl,
             onDismiss = { showTikTokDialog = false },
             onDownloadCompleted = { _, _ -> }
+        )
+    }
+
+    if (showRadarDialog) {
+        DaveRadarDialog(
+            onDismiss = { showRadarDialog = false },
+            onSearchTrackInApp = { query ->
+                searchQuery = query
+                executeSearch()
+            }
         )
     }
 }
