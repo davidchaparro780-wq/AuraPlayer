@@ -39,6 +39,7 @@ class MediaRepository(private val context: Context) {
         )
 
         val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
+        val vaultManager = VaultManager(context)
 
         val parseCursor: (android.database.Cursor) -> Unit = { cursor ->
             val idCol = cursor.getColumnIndex(MediaStore.Audio.Media._ID)
@@ -60,6 +61,12 @@ class MediaRepository(private val context: Context) {
                 val duration = if (durationCol >= 0) cursor.getLong(durationCol) else 0L
                 val data = if (dataCol >= 0) cursor.getString(dataCol) ?: "" else ""
                 val size = if (sizeCol >= 0) cursor.getLong(sizeCol) else 0L
+
+                // 1. Skip if empty, inside vault, or marked as hidden
+                if (data.isBlank() || data.contains(".secure_vault") || data.contains(".dave_vault") || vaultManager.isPathHidden(data)) {
+                    continue
+                }
+
                 val rawDateAdded = if (dateAddedCol >= 0) {
                     try { cursor.getLong(dateAddedCol) } catch (_: Exception) { 0L }
                 } else 0L

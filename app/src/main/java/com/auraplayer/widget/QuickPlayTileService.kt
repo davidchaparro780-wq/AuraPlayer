@@ -23,7 +23,7 @@ class QuickPlayTileService : TileService() {
     override fun onClick() {
         super.onClick()
         val player = activePlayer()
-        if (player == null) {
+        if (player == null || player.mediaItemCount == 0) {
             val intent = Intent(this, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -45,9 +45,10 @@ class QuickPlayTileService : TileService() {
     private fun updateTile() {
         val tile = qsTile ?: return
         val player = activePlayer()
-        val playing = player?.isPlaying == true
+        val hasTrack = (player?.mediaItemCount ?: 0) > 0
+        val playing = player?.isPlaying == true && hasTrack
         tile.state = if (playing) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-        tile.label = if (playing) "Pausar" else getString(R.string.app_name)
+        tile.label = if (playing) "Pausar" else if (hasTrack) "Reproducir" else getString(R.string.app_name)
         tile.icon = Icon.createWithResource(
             this,
             if (playing) R.drawable.ic_widget_pause else R.drawable.ic_widget_play

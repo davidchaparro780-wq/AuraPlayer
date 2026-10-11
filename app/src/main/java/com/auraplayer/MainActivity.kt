@@ -164,6 +164,34 @@ class MainActivity : ComponentActivity() {
         var activeController: MediaController? by mutableStateOf(null)
         var onResumeCallback: (() -> Unit)? = null
         var pendingSharedUri by mutableStateOf<android.net.Uri?>(null)
+        var pendingUpdateInfo by mutableStateOf<UpdateInfo?>(null)
+    }
+
+    private fun handleIncomingIntent(inIntent: Intent?) {
+        if (inIntent == null) return
+        when (inIntent.action) {
+            Intent.ACTION_SEND -> {
+                val streamUri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    inIntent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    inIntent.getParcelableExtra(Intent.EXTRA_STREAM)
+                }
+                if (streamUri != null) pendingSharedUri = streamUri
+            }
+            Intent.ACTION_VIEW -> {
+                inIntent.data?.let { pendingSharedUri = it }
+            }
+            "ACTION_SHOW_UPDATE" -> {
+                val vName = inIntent.getStringExtra("UPDATE_VERSION_NAME") ?: ""
+                val cLog = inIntent.getStringExtra("UPDATE_CHANGELOG") ?: ""
+                val dUrl = inIntent.getStringExtra("UPDATE_DOWNLOAD_URL") ?: ""
+                val fSize = inIntent.getDoubleExtra("UPDATE_FILE_SIZE", 23.0)
+                if (vName.isNotBlank() && dUrl.isNotBlank()) {
+                    pendingUpdateInfo = UpdateInfo(vName, cLog, dUrl, fSize)
+                }
+            }
+        }
     }
 
     private var lastVolumeUpTime = 0L
@@ -245,10 +273,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        if (intent?.action == Intent.ACTION_SEND) {
-            pendingSharedUri = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
-        }
+        handleIncomingIntent(intent)
 
         // Maximize display refresh rate (90Hz / 120Hz) for silky smooth 90 FPS rendering
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -287,9 +312,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.action == Intent.ACTION_SEND) {
-            pendingSharedUri = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
-        }
+        handleIncomingIntent(intent)
     }
 
     override fun onResume() {
@@ -430,7 +453,7 @@ fun AuraApp(
         com.auraplayer.widget.DaVEAppWidgetProvider.updateAllWidgets(context, currentMedia, isPlaying)
     }
 
-    // Play audio/video files shared from other apps ("Compartir a Aura")
+    // Play audio/video files shared or opened from other apps
     val sharedUri = MainActivity.pendingSharedUri
     LaunchedEffect(controller, sharedUri) {
         if (sharedUri == null) return@LaunchedEffect
@@ -440,28 +463,57 @@ fun AuraApp(
             val displayName = context.contentResolver.query(sharedUri, null, null, null, null)?.use { cursor ->
                 val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                 if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
-            } ?: "Archivo compartido"
-            val sharedItem = MediaItem.Builder()
-                .setUri(sharedUri)
-                .setMediaId("shared_${System.currentTimeMillis()}")
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(displayName.substringBeforeLast('.'))
-                        .setArtist("Compartido a Aura")
-                        .build()
-                )
-                .build()
-            ctrl.setMediaItem(sharedItem)
-            ctrl.prepare()
-            ctrl.play()
-            selectedNavTab = if (displayName.endsWith(".mp4", true) ||
+            } ?: (sharedUri.lastPathSegment ?: "Archivo compartido")
+
+            val isVideoFile = displayName.endsWith(".mp4", true) ||
                 displayName.endsWith(".mkv", true) ||
                 displayName.endsWith(".webm", true) ||
-                displayName.endsWith(".avi", true)
-            ) 2 else 0
+                displayName.endsWith(".avi", true) ||
+                displayName.endsWith(".3gp", true) ||
+                displayName.endsWith(".mov", true) ||
+                (context.contentResolver.getType(sharedUri)?.startsWith("video/") == true)
+
+            if (isVideoFile) {
+                ctrl.pause()
+                activeVideo = MediaModel(
+                    id = System.currentTimeMillis(),
+                    title = displayName.substringBeforeLast('.'),
+                    artist = "Video",
+                    album = "Externo",
+                    duration = 0L,
+                    uri = sharedUri,
+                    path = sharedUri.path ?: "",
+                    isVideo = true
+                )
+            } else {
+                val sharedItem = MediaItem.Builder()
+                    .setUri(sharedUri)
+                    .setMediaId("shared_${System.currentTimeMillis()}")
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(displayName.substringBeforeLast('.'))
+                            .setArtist("Compartido a DaVE")
+                            .build()
+                    )
+                    .build()
+                ctrl.setMediaItem(sharedItem)
+                ctrl.prepare()
+                ctrl.play()
+                selectedNavTab = 0
+            }
         } catch (e: Exception) {
             AppLog.e(TAG, "No se pudo reproducir el archivo compartido", e)
             Toast.makeText(context, "No se pudo abrir el archivo compartido", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    // Listen to pending update notification click
+    val pendingUpdate = MainActivity.pendingUpdateInfo
+    LaunchedEffect(pendingUpdate) {
+        if (pendingUpdate != null) {
+            updateInfo = pendingUpdate
+            showUpdateDialog = true
+            MainActivity.pendingUpdateInfo = null
         }
     }
 
@@ -2453,9 +2505,18 @@ fun AuraApp(
                 onQueueSongClick = { song, index ->
                     currentMedia = song
                     playlistManager.recordPlay(song.id)
-                    controller?.run {
-                        seekToDefaultPosition(index)
-                        play()
+                    controller?.let { ctrl ->
+                        if (index in 0 until ctrl.mediaItemCount) {
+                            ctrl.seekToDefaultPosition(index)
+                        } else {
+                            for (i in 0 until ctrl.mediaItemCount) {
+                                if (ctrl.getMediaItemAt(i).mediaId == song.id.toString()) {
+                                    ctrl.seekToDefaultPosition(i)
+                                    break
+                                }
+                            }
+                        }
+                        ctrl.play()
                     }
                 },
                 onPlayPauseClick = {

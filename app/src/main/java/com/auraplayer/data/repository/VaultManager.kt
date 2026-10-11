@@ -207,19 +207,20 @@ class VaultManager(private val context: Context) {
     }
 
     fun verifyPin(pin: String): Boolean {
-        // Check decoy PIN first
+        // 1. Check real PIN first to avoid false decoy mode if real PIN matches decoy default
+        val stored = prefs.getString(pinKey, null)
+        if (stored != null && stored == hashPin(pin)) {
+            isDecoyMode = false
+            return true
+        }
+
+        // 2. Check decoy PIN second
         val configuredDecoy = prefs.getString(decoyPinKey, defaultDecoyPin) ?: defaultDecoyPin
         if (pin == configuredDecoy) {
             isDecoyMode = true
             return true
         }
 
-        val stored = prefs.getString(pinKey, null) ?: return false
-        val matchesReal = stored == hashPin(pin)
-        if (matchesReal) {
-            isDecoyMode = false
-            return true
-        }
         return false
     }
 
@@ -491,20 +492,27 @@ class VaultManager(private val context: Context) {
             // Clean characters for safe filename
             val safeBaseName = rawBaseName.replace(Regex("[\\\\/:*?\"<>|]"), "_")
 
-            val targetFile = File(targetDir, "${safeBaseName}${ext}")
-            val persistentFile = File(persistentDir, "${safeBaseName}${ext}")
-
-            // If this exact file already exists in vault and has content (>0 bytes), avoid duplicate re-copy!
-            if (targetFile.exists() && targetFile.length() > 0) {
-                val realSourcePath = sourcePath ?: resolveRealPathFromUri(sourceUri)
-                if (realSourcePath != null) markPathAsHidden(realSourcePath)
-                markPathAsHidden(targetFile.name)
-                return@withContext targetFile
-            }
-
             var realSourcePath = sourcePath
             if (realSourcePath.isNullOrBlank() && sourceUri != null) {
                 realSourcePath = resolveRealPathFromUri(sourceUri)
+            }
+            val sourceSize = if (!realSourcePath.isNullOrBlank()) File(realSourcePath).length() else 0L
+
+            var targetFile = File(targetDir, "${safeBaseName}${ext}")
+            var persistentFile = File(persistentDir, "${safeBaseName}${ext}")
+            var collisionIndex = 1
+
+            while (targetFile.exists() && targetFile.length() > 0) {
+                // If it's the exact same file (matching size), avoid duplicate copy
+                if (sourceSize > 0L && targetFile.length() == sourceSize) {
+                    if (realSourcePath != null) markPathAsHidden(realSourcePath)
+                    markPathAsHidden(targetFile.name)
+                    return@withContext targetFile
+                }
+                // Different file with same name -> disambiguate with collision index
+                targetFile = File(targetDir, "${safeBaseName}_${collisionIndex}${ext}")
+                persistentFile = File(persistentDir, "${safeBaseName}_${collisionIndex}${ext}")
+                collisionIndex++
             }
 
             if (realSourcePath != null && File(realSourcePath).exists()) {
