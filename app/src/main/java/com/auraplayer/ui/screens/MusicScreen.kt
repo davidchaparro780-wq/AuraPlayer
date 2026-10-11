@@ -16,6 +16,7 @@ import com.auraplayer.ui.components.OledSaverDialog
 import com.auraplayer.ui.components.RelaxAmbienceDialog
 import com.auraplayer.ui.components.ShimmerListPlaceholder
 import com.auraplayer.ui.components.StemMixerDialog
+import com.auraplayer.ui.components.StoryCardDialog
 import com.auraplayer.ui.components.TikTokDownloaderDialog
 import com.auraplayer.ui.components.ViralAudioStudioDialog
 import kotlinx.coroutines.launch
@@ -2524,9 +2525,10 @@ fun MusicScreen(
     }
 
     // Story & Reel Maker (WhatsApp / Instagram Stories)
-    songForStoryMaker?.let { song ->
+    val storySong = songForStoryMaker
+    if (storySong != null) {
         StoryCardDialog(
-            song = song,
+            song = storySong,
             onDismiss = { songForStoryMaker = null }
         )
     }
