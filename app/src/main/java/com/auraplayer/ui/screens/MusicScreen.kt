@@ -2411,9 +2411,7 @@ fun MusicScreen(
     if (showTikTokDialog) {
         TikTokDownloaderDialog(
             onDismiss = { showTikTokDialog = false },
-            onDownloadCompleted = { _, _ ->
-                onRefreshMusic()
-            }
+            onDownloadCompleted = { _, _ -> }
         )
     }
 }
