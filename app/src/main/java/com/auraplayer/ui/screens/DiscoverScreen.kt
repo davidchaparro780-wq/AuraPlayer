@@ -253,7 +253,7 @@ fun DiscoverScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 1. Compact Header Row with Integrated Quality Pill (Saves ~50dp vertical space)
+            // 1. Compact Header Row with Integrated Quality Pill
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -261,7 +261,10 @@ fun DiscoverScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Box(
                         modifier = Modifier
                             .size(34.dp)
@@ -285,21 +288,28 @@ fun DiscoverScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
-                            fontSize = 16.sp
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Top TikTok, Pop y MP3 HD",
-                            fontSize = 11.sp,
-                            color = Color(0xFF94A3B8)
+                            fontSize = 10.sp,
+                            color = Color(0xFF94A3B8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     // TikTok No-Watermark Shortcut Pill
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(Color(0xFF00F2FE), Color(0xFFFE2C55))
@@ -310,12 +320,12 @@ fun DiscoverScreen(
                                 tiktokInitialUrl = if (TikTokDownloader.isTikTokUrl(searchQuery)) searchQuery.trim() else ""
                                 showTikTokDialog = true
                             }
-                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                            .padding(horizontal = 7.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "🎬 TikTok HD",
-                            fontSize = 11.sp,
+                            text = "🎬 TikTok",
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.Black
                         )
@@ -324,7 +334,7 @@ fun DiscoverScreen(
                     // DaVE Radar Shortcut Pill
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .background(
                                 Brush.horizontalGradient(
                                     listOf(Color(0xFF00F0FF), Color(0xFF8B5CF6))
@@ -334,24 +344,22 @@ fun DiscoverScreen(
                                 AuraHaptic.click(view)
                                 showRadarDialog = true
                             }
-                            .padding(horizontal = 9.dp, vertical = 5.dp),
+                            .padding(horizontal = 7.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "🔍 Radar",
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.Black
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
-
                     // Compact Glassmorphic Quality Toggle Pill
                     val is320 = downloadQuality == "320"
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .background(Color(0xFF13182E))
                             .border(
                                 1.dp,
@@ -359,7 +367,7 @@ fun DiscoverScreen(
                                     if (is320) listOf(Color(0xFF38BDF8).copy(alpha = 0.8f), Color(0xFF8B5CF6).copy(alpha = 0.8f))
                                     else listOf(Color(0xFFF59E0B).copy(alpha = 0.8f), Color(0xFFE11D48).copy(alpha = 0.8f))
                                 ),
-                                RoundedCornerShape(20.dp)
+                                RoundedCornerShape(16.dp)
                             )
                             .clickable {
                                 AuraHaptic.tick(view)
@@ -369,12 +377,12 @@ fun DiscoverScreen(
                                 val msg = if (next == "320") "💎 Calidad: 320 kbps (Hi-Fi)" else "⚡ Calidad: 160 kbps (Rápido)"
                                 Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .padding(horizontal = 7.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = if (is320) "💎 320k Hi-Fi" else "⚡ 160k Rápido",
-                            fontSize = 11.sp,
+                            text = if (is320) "💎 320k" else "⚡ 160k",
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (is320) Color(0xFF38BDF8) else Color(0xFFF59E0B)
                         )

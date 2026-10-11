@@ -1,7 +1,7 @@
 {
-  "versionCode": 93,
-  "versionName": "4.5.0",
+  "versionCode": 94,
+  "versionName": "4.5.1",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v4.5.0 (Build 93) — ¡La Gran Mega Suite!\n• 🌐 Traductor de Letras Bilingüe en Vivo: Traduce automáticamente letras en inglés, coreano, japonés, etc., al español verso por verso en tiempo real con el botón '🌐 TR/ES'.\n• ✂️ Story & Reel Maker 9:16: Genera videos y tarjetas verticales HD para WhatsApp y Reels con ondas de audio reactivas y estilos estéticos.\n• 🎙️ Estudio de Grabación Vocal: Graba tu voz con micrófono sobre la música o pistas instrumentales (Karaoke Covers).\n• 📳 Subwoofer Háptico en Tiempo Real: Siente los golpes del bajo (kick/bass) vibrando físicamente en tus manos al ritmo de la música.\n• 💬 Recortador & Compartir Rápido a WhatsApp: Corta clips de audio y envíalos directamente a tus chats o estados.",
+  "changelog": "🚀 DaVE Player v4.5.1 (Build 94) — ¡Perfeccionamiento Visual & Mega Suite!\n• 🎨 Interfaz Pulida: Ajuste responsivo de la barra superior en la pestaña Explorar (pastilla de calidad Hi-Fi 320k y accesos directos TikTok y Radar perfectamente alineados).\n• 🌐 Traductor de Letras Bilingüe en Vivo: Traduce letras verso por verso en tiempo real con 1 toque.\n• ✂️ Story & Reel Maker 9:16: Tarjetas y clips HD con ondas reactivas para WhatsApp.\n• 🎙️ Estudio de Grabación Vocal: Graba tu voz con micrófono sobre pistas para covers.\n• 📳 Subwoofer Háptico en Tiempo Real: Siente el impacto físico de los bajos en tus manos.",
   "fileSizeMb": 25.5
 }
