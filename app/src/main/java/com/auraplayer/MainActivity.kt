@@ -95,6 +95,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,6 +107,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -159,8 +161,9 @@ private const val TAG = "MainActivity"
 class MainActivity : ComponentActivity() {
 
     companion object {
-        var activeController: MediaController? = null
+        var activeController: MediaController? by mutableStateOf(null)
         var onResumeCallback: (() -> Unit)? = null
+        var pendingSharedUri by mutableStateOf<android.net.Uri?>(null)
     }
 
     private var lastVolumeUpTime = 0L
@@ -243,6 +246,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        if (intent?.action == Intent.ACTION_SEND) {
+            pendingSharedUri = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+        }
+
         // Maximize display refresh rate (90Hz / 120Hz) for silky smooth 90 FPS rendering
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             try {
@@ -280,6 +287,9 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == Intent.ACTION_SEND) {
+            pendingSharedUri = intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
+        }
     }
 
     override fun onResume() {
@@ -316,13 +326,23 @@ fun AuraApp(
     val permKey = "media_permissions_granted"
     val isPermanentlyGranted = appPrefs.getBoolean(permKey, false)
 
-    var hasPermission by remember {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    val mediaPermissions = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             listOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO)
         } else {
             listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        val hasAnySystemPerm = permissions.any {
+    }
+    val onboardingPermissions = remember {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            mediaPermissions + Manifest.permission.POST_NOTIFICATIONS
+        } else {
+            mediaPermissions
+        }
+    }
+
+    var hasPermission by remember {
+        val hasAnySystemPerm = mediaPermissions.any {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         }
         mutableStateOf(isPermanentlyGranted || hasAnySystemPerm)
@@ -338,11 +358,15 @@ fun AuraApp(
         }
     }
 
+    var showOnboarding by remember {
+        mutableStateOf(!appPrefs.getBoolean("onboarding_done", false))
+    }
+
     var songs by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
     var videos by remember { mutableStateOf<List<MediaModel>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
 
-    var selectedNavTab by remember { mutableIntStateOf(0) } // 0: Music, 1: Videos, 2: Equalizer
+    var selectedNavTab by rememberSaveable { mutableIntStateOf(0) } // 0: Music, 1: Videos, 2: Equalizer
     var currentMedia by remember { mutableStateOf<MediaModel?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var currentPositionMs by remember { mutableLongStateOf(0L) }
@@ -352,6 +376,7 @@ fun AuraApp(
     var playbackSpeed by remember { mutableFloatStateOf(1.0f) }
     var playbackPitch by remember { mutableFloatStateOf(1.0f) }
     var favoritesTrigger by remember { mutableIntStateOf(0) }
+    var queueVersion by remember { mutableIntStateOf(0) }
 
     var showPlayerScreen by remember { mutableStateOf(false) }
     var showCarModeScreen by remember { mutableStateOf(false) }
@@ -414,6 +439,41 @@ fun AuraApp(
 
     LaunchedEffect(currentMedia, isPlaying) {
         com.auraplayer.widget.DaVEAppWidgetProvider.updateAllWidgets(context, currentMedia, isPlaying)
+    }
+
+    // Play audio/video files shared from other apps ("Compartir a Aura")
+    val sharedUri = MainActivity.pendingSharedUri
+    LaunchedEffect(controller, sharedUri) {
+        if (sharedUri == null) return@LaunchedEffect
+        val ctrl = controller ?: return@LaunchedEffect
+        MainActivity.pendingSharedUri = null
+        try {
+            val displayName = context.contentResolver.query(sharedUri, null, null, null, null)?.use { cursor ->
+                val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0 && cursor.moveToFirst()) cursor.getString(idx) else null
+            } ?: "Archivo compartido"
+            val sharedItem = MediaItem.Builder()
+                .setUri(sharedUri)
+                .setMediaId("shared_${System.currentTimeMillis()}")
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(displayName.substringBeforeLast('.'))
+                        .setArtist("Compartido a Aura")
+                        .build()
+                )
+                .build()
+            ctrl.setMediaItem(sharedItem)
+            ctrl.prepare()
+            ctrl.play()
+            selectedNavTab = if (displayName.endsWith(".mp4", true) ||
+                displayName.endsWith(".mkv", true) ||
+                displayName.endsWith(".webm", true) ||
+                displayName.endsWith(".avi", true)
+            ) 2 else 0
+        } catch (e: Exception) {
+            AppLog.e(TAG, "No se pudo reproducir el archivo compartido", e)
+            Toast.makeText(context, "No se pudo abrir el archivo compartido", Toast.LENGTH_LONG).show()
+        }
     }
 
     // Smart Resume State ("Continuar donde lo dejaste")
@@ -997,6 +1057,10 @@ fun AuraApp(
                     currentMedia?.let { cm ->
                         tubeAmpManager.detectAndApplyAutoEq(cm.title, cm.artist, cm.album)
                     }
+                }
+
+                override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                    queueVersion++
                 }
 
                 override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -2358,6 +2422,31 @@ fun AuraApp(
     ) {
         currentMedia?.let { media ->
             val isFav = favoritesTrigger.let { favoritesManager.isFavorite(media.id) }
+            val controllerQueue = remember(queueVersion, songs, currentMedia, controller) {
+                val ctrl = controller
+                if (ctrl != null && ctrl.mediaItemCount > 0) {
+                    (0 until ctrl.mediaItemCount).map { i ->
+                        val item = ctrl.getMediaItemAt(i)
+                        val songId = item.mediaId.toLongOrNull()
+                        songs.find { it.id == songId } ?: run {
+                            val meta = item.mediaMetadata
+                            val extraDuration = meta.extras?.getLong("duration_ms", 0L) ?: 0L
+                            MediaModel(
+                                id = songId ?: -(i + 2L),
+                                title = meta.title?.toString() ?: "Canción",
+                                artist = meta.artist?.toString() ?: "Artista",
+                                album = meta.albumTitle?.toString() ?: "Online",
+                                duration = extraDuration,
+                                uri = item.localConfiguration?.uri ?: Uri.EMPTY,
+                                path = item.localConfiguration?.uri?.toString() ?: "",
+                                artworkUri = meta.artworkUri
+                            )
+                        }
+                    }
+                } else {
+                    emptyList()
+                }
+            }
             PlayerScreen(
                 currentMedia = media,
                 isPlaying = isPlaying,
@@ -2371,13 +2460,12 @@ fun AuraApp(
                 isShakeEnabled = isShakeEnabled,
                 lyrics = lyrics,
                 isLoadingLyrics = isLoadingLyrics,
-                queueSongs = songs,
-                onQueueSongClick = { song ->
+                queueSongs = controllerQueue,
+                onQueueSongClick = { song, index ->
                     currentMedia = song
                     playlistManager.recordPlay(song.id)
                     controller?.run {
-                        val songIndex = songs.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-                        seekToDefaultPosition(songIndex)
+                        seekToDefaultPosition(index)
                         play()
                     }
                 },
@@ -2744,6 +2832,21 @@ fun AuraApp(
                     hasPromptedStartupAuth = true
                     showAuthDialog = true
                 }
+            }
+        )
+    }
+
+    // First-run onboarding: value proposition + contextual permissions
+    if (showOnboarding) {
+        com.auraplayer.ui.components.OnboardingScreen(
+            onRequestPermissions = {
+                if (!hasPermission) {
+                    permissionLauncher.launch(onboardingPermissions)
+                }
+            },
+            onFinish = {
+                appPrefs.edit().putBoolean("onboarding_done", true).apply()
+                showOnboarding = false
             }
         )
     }

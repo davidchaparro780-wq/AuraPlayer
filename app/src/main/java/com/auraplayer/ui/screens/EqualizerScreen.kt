@@ -51,6 +51,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -298,7 +301,12 @@ fun EqualizerScreen(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = MaterialTheme.colorScheme.primary
                             ),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier
+                                .weight(1f)
+                                .semantics {
+                                    contentDescription = "Ecualizador, banda de $freq"
+                                    stateDescription = "${if (bandLevels[index] > 0) "+" else ""}${bandLevels[index].toInt()} decibelios"
+                                }
                         )
                         Text(
                             text = "${if (bandLevels[index] > 0) "+" else ""}${bandLevels[index].toInt()} dB",
@@ -348,6 +356,10 @@ fun EqualizerScreen(
                         },
                         valueRange = 0f..100f,
                         enabled = isEqEnabled,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Intensidad de graves"
+                            stateDescription = "${bassBoost.toInt()} por ciento"
+                        },
                         colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.secondary, activeTrackColor = MaterialTheme.colorScheme.secondary)
                     )
                 }
@@ -374,6 +386,10 @@ fun EqualizerScreen(
                         },
                         valueRange = 0f..100f,
                         enabled = isEqEnabled,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Virtualizador"
+                            stateDescription = "${virtualizer.toInt()} por ciento"
+                        },
                         colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.tertiary, activeTrackColor = MaterialTheme.colorScheme.tertiary)
                     )
                 }
@@ -400,6 +416,10 @@ fun EqualizerScreen(
                         },
                         valueRange = 0f..100f,
                         enabled = isEqEnabled,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Sonoridad"
+                            stateDescription = "${loudness.toInt()} por ciento"
+                        },
                         colors = SliderDefaults.colors(thumbColor = Color(0xFFF59E0B), activeTrackColor = Color(0xFFF59E0B))
                     )
                 }
@@ -454,6 +474,10 @@ fun EqualizerScreen(
                     },
                     valueRange = 0f..12f,
                     steps = 11,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Duración del fundido cruzado"
+                        stateDescription = if (crossfadeSeconds == 0) "Desactivado" else "${crossfadeSeconds} segundos"
+                    },
                     colors = SliderDefaults.colors(
                         thumbColor = MaterialTheme.colorScheme.primary,
                         activeTrackColor = MaterialTheme.colorScheme.primary

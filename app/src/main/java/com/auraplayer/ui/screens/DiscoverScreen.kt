@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -77,6 +78,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +91,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,7 +102,13 @@ import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.data.repository.DownloadEngine
 import com.auraplayer.data.repository.DownloadStatus
 import com.auraplayer.data.repository.GlobalSearchService
+import com.auraplayer.ui.components.ShimmerCardPlaceholder
+import com.auraplayer.ui.components.ShimmerSongRow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,11 +127,12 @@ fun DiscoverScreen(
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedSource by remember { mutableStateOf("Todas") } // "Todas", "Jamendo", "Deezer", "Archive"
-    var selectedGenre by remember { mutableStateOf("Trending") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedSource by rememberSaveable { mutableStateOf("Todas") } // "Todas", "Jamendo", "Deezer", "Archive"
+    var selectedGenre by rememberSaveable { mutableStateOf("Trending") }
     var trackList by remember { mutableStateOf<List<OnlineTrack>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
 
     // Batch download state
     var isDownloadingBatch by remember { mutableStateOf(false) }
@@ -142,6 +152,7 @@ fun DiscoverScreen(
         }
         selectedGenre = "Trending"
         scope.launch {
+            searchError = null
             isLoading = true
             trackList = searchService.getTrending("Trending", selectedSource)
             isLoading = false
@@ -168,19 +179,39 @@ fun DiscoverScreen(
         "Acoustic" to "🌿 Acústico"
     )
 
+    fun runSearch() {
+        scope.launch {
+            isLoading = true
+            try {
+                trackList = searchService.searchOrExtract(searchQuery, selectedSource)
+                searchError = null
+            } catch (e: SocketTimeoutException) {
+                searchError = "El servidor tardó demasiado. Comprueba tu internet y reintenta."
+            } catch (e: UnknownHostException) {
+                searchError = "No se pudo conectar. Comprueba tu internet y reintenta."
+            } catch (e: IOException) {
+                searchError = "No se pudo conectar. Comprueba tu internet y reintenta."
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                searchError = "Hubo un problema al procesar los resultados"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     fun executeSearch() {
         if (searchQuery.isBlank()) return
         focusManager.clearFocus()
-        scope.launch {
-            isLoading = true
-            trackList = searchService.searchOrExtract(searchQuery, selectedSource)
-            isLoading = false
-        }
+        searchError = null
+        runSearch()
     }
 
     // Load initial trending tracks
     LaunchedEffect(selectedGenre, selectedSource) {
         if (searchQuery.isBlank()) {
+            searchError = null
             isLoading = true
             trackList = searchService.getTrending(selectedGenre, selectedSource)
             isLoading = false
@@ -328,6 +359,7 @@ fun DiscoverScreen(
                                     AuraHaptic.click(view)
                                     searchQuery = ""
                                     scope.launch {
+                                        searchError = null
                                         isLoading = true
                                         trackList = searchService.getTrending(selectedGenre, selectedSource)
                                         isLoading = false
@@ -646,20 +678,94 @@ fun DiscoverScreen(
 
             // Results List / Loading State
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(12.dp))
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 130.dp, top = 4.dp)
+                ) {
+                    item {
                         Text(
-                            "Buscando en catálogo global...",
+                            text = "Buscando en catálogo global...",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    item {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                        ) {
+                            items(4) {
+                                ShimmerCardPlaceholder()
+                            }
+                        }
+                    }
+                    items(3) {
+                        ShimmerSongRow()
+                    }
+                }
+            } else if (trackList.isEmpty() && searchError != null) {
+                val errorMessage = searchError ?: ""
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF1E1B4B))
+                            .border(
+                                1.dp,
+                                Color(0xFFEF4444).copy(alpha = 0.35f),
+                                RoundedCornerShape(18.dp)
+                            )
+                            .padding(horizontal = 20.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Sin resultados",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = errorMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF94A3B8),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(18.dp))
+                        Button(
+                            onClick = { runSearch() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF8B5CF6),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Reintentar",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
                 }
             } else if (trackList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Icon(
                             Icons.Default.Headphones,
                             contentDescription = null,
@@ -671,6 +777,13 @@ fun DiscoverScreen(
                             "No se encontraron canciones.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "Prueba con otro nombre, artista o pega un enlace de YouTube/Spotify arriba.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center
                         )
                     }
                 }

@@ -79,6 +79,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.FastForward
@@ -118,6 +119,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Mic
@@ -176,6 +178,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -212,7 +217,7 @@ fun PlayerScreen(
     lyrics: SongLyrics?,
     isLoadingLyrics: Boolean,
     queueSongs: List<MediaModel> = emptyList(),
-    onQueueSongClick: (MediaModel) -> Unit = {},
+    onQueueSongClick: (MediaModel, Int) -> Unit = {},
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
     onPreviousClick: () -> Unit,
@@ -1433,6 +1438,10 @@ fun PlayerScreen(
                     }
 
                     LiquidShimmerProgressBar(
+                        modifier = Modifier.semantics {
+                            contentDescription = "Barra de progreso de reproducción"
+                            stateDescription = "${formatTime(currentPositionMs)} de ${formatTime(effectiveDurationMs)}"
+                        },
                         progress = sliderValue,
                         isPlaying = isPlaying,
                         onSeek = { percent ->
@@ -2482,6 +2491,7 @@ fun PlayerScreen(
 
     // Interactive Queue Sheet Modal
     if (showQueueSheet) {
+        var queueDisplay by remember(queueSongs) { mutableStateOf(queueSongs) }
         ModalBottomSheet(
             onDismissRequest = { showQueueSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -2516,7 +2526,7 @@ fun PlayerScreen(
                             color = Color.White
                         )
                         Text(
-                            text = "${queueSongs.size} canciones en cola",
+                            text = "${queueDisplay.size} canciones en cola",
                             fontSize = 12.sp,
                             color = Color(0xFF94A3B8)
                         )
@@ -2532,7 +2542,7 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (queueSongs.isEmpty()) {
+                if (queueDisplay.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                         Text("La cola de reproducción está vacía", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -2544,7 +2554,7 @@ fun PlayerScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         itemsIndexed(
-                            items = queueSongs,
+                            items = queueDisplay,
                             key = { idx, song -> "${song.id}_$idx" }
                         ) { index, song ->
                             val isPlayingThis = song.id == currentMedia.id
@@ -2564,7 +2574,7 @@ fun PlayerScreen(
                                     )
                                     .clickable {
                                         AuraHaptic.click(view)
-                                        onQueueSongClick(song)
+                                        onQueueSongClick(song, index)
                                         showQueueSheet = false
                                     }
                                     .padding(10.dp),
@@ -2643,6 +2653,63 @@ fun PlayerScreen(
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color(0xFF38BDF8)
+                                        )
+                                    }
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    if (index > 0) {
+                                        IconButton(
+                                            onClick = {
+                                                AuraHaptic.click(view)
+                                                MainActivity.activeController?.moveMediaItem(index, index - 1)
+                                                queueDisplay = queueDisplay.toMutableList().apply {
+                                                    val item = removeAt(index)
+                                                    add(index - 1, item)
+                                                }
+                                            },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.KeyboardArrowUp,
+                                                contentDescription = "Subir en la cola",
+                                                tint = Color(0xFF38BDF8),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    if (index < queueDisplay.size - 1) {
+                                        IconButton(
+                                            onClick = {
+                                                AuraHaptic.click(view)
+                                                MainActivity.activeController?.moveMediaItem(index, index + 1)
+                                                queueDisplay = queueDisplay.toMutableList().apply {
+                                                    val item = removeAt(index)
+                                                    add(index + 1, item)
+                                                }
+                                            },
+                                            modifier = Modifier.size(34.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.KeyboardArrowDown,
+                                                contentDescription = "Bajar en la cola",
+                                                tint = Color(0xFF94A3B8),
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            AuraHaptic.click(view)
+                                            MainActivity.activeController?.removeMediaItem(index)
+                                            queueDisplay = queueDisplay.filterIndexed { i, _ -> i != index }
+                                        },
+                                        modifier = Modifier.size(34.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Quitar de la cola",
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }

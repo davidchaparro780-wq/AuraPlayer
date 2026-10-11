@@ -59,6 +59,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -175,6 +179,9 @@ fun MiniPlayer(
                             ),
                             RoundedCornerShape(22.dp)
                         )
+                        .semantics {
+                            contentDescription = "Reproductor mini: ${currentMedia.title} de ${currentMedia.artist}. Toca para abrir el reproductor completo."
+                        }
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDrag = { change, dragAmount ->
@@ -384,6 +391,10 @@ fun MiniPlayer(
                                 .fillMaxWidth()
                                 .height(3.dp)
                                 .background(Color.White.copy(alpha = 0.08f))
+                                .semantics {
+                                    contentDescription = "Progreso de reproducción"
+                                    progressBarRangeInfo = ProgressBarRangeInfo(progress.coerceIn(0f, 1f), 0f..1f)
+                                }
                         ) {
                             Box(
                                 modifier = Modifier

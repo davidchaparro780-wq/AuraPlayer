@@ -3,12 +3,14 @@ package com.auraplayer.ui.screens
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalView
 import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.ui.components.AlphabetFastScroller
 import com.auraplayer.ui.components.RelaxAmbienceDialog
+import com.auraplayer.ui.components.ShimmerListPlaceholder
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -220,16 +222,16 @@ fun MusicScreen(
     val context = LocalContext.current
     val view = LocalView.current
     val scope = rememberCoroutineScope()
-    val songsListState = rememberLazyListState()
+    val songsListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tabs = listOf("Canciones", "Playlists 📂", "Favoritos ❤️", "Carpetas", "Artistas")
 
     // Filter & Sort States
     // 0: Todas, 1: Descargas, 2: Recientes, 3: Más Escuchadas, 4: HD/Lossless, 5: Favoritas, 6: Cortas, 7: Largas
-    var selectedFilterIndex by remember { mutableIntStateOf(0) }
-    var selectedSortMode by remember { mutableIntStateOf(0) } // 0: Recién Descargadas, 1: Título, 2: Artista, 3: Duración, 4: Más Escuchadas
+    var selectedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
+    var selectedSortMode by rememberSaveable { mutableIntStateOf(0) } // 0: Recién Descargadas, 1: Título, 2: Artista, 3: Duración, 4: Más Escuchadas
     var showSortMenu by remember { mutableStateOf(false) }
     var showToolsMenu by remember { mutableStateOf(false) }
     var showRelaxDialog by remember { mutableStateOf(false) }
@@ -253,11 +255,11 @@ fun MusicScreen(
 
     // Custom Playlist view / create state
     var selectedPlaylistForView by remember { mutableStateOf<Playlist?>(null) }
-    var selectedFolderForView by remember { mutableStateOf<String?>(null) }
-    var selectedArtistForView by remember { mutableStateOf<String?>(null) }
+    var selectedFolderForView by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedArtistForView by rememberSaveable { mutableStateOf<String?>(null) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
-    var playlistSubCategory by remember { mutableIntStateOf(0) } // 0: Mis Playlists, 1: Top Escuchadas, 2: Historial
+    var playlistSubCategory by rememberSaveable { mutableIntStateOf(0) } // 0: Mis Playlists, 1: Top Escuchadas, 2: Historial
 
     val voiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -1025,7 +1027,11 @@ fun MusicScreen(
             }
         }
 
-        if (isLoading) {
+        if (isLoading && songs.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                ShimmerListPlaceholder(count = 10)
+            }
+        } else if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
