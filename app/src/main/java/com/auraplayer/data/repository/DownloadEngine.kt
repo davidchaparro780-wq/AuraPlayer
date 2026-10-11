@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -55,6 +56,84 @@ class DownloadEngine(
 
     private val _trackRegistry = MutableStateFlow<Map<String, OnlineTrack>>(emptyMap())
     val trackRegistry: StateFlow<Map<String, OnlineTrack>> = _trackRegistry.asStateFlow()
+
+    private val registryPrefs = context.getSharedPreferences("dave_download_registry", Context.MODE_PRIVATE)
+
+    init {
+        loadPersistedRegistry()
+    }
+
+    private fun loadPersistedRegistry() {
+        try {
+            val raw = registryPrefs.getString("entries", null) ?: return
+            val arr = JSONArray(raw)
+            val tracks = mutableMapOf<String, OnlineTrack>()
+            val states = mutableMapOf<String, DownloadStatus>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val key = obj.optString("key", "")
+                if (key.isBlank()) continue
+                tracks[key] = OnlineTrack(
+                    id = obj.optString("id", key),
+                    title = obj.optString("title", "Canción"),
+                    artist = obj.optString("artist", "Artista"),
+                    album = obj.optString("album", ""),
+                    durationSec = obj.optInt("durationSec", 0),
+                    audioUrl = obj.optString("audioUrl", ""),
+                    coverUrl = obj.optString("coverUrl", ""),
+                    format = obj.optString("format", "MP3"),
+                    bitrateKbps = obj.optInt("bitrateKbps", 320),
+                    source = obj.optString("source", "DaVE"),
+                    isDownloadable = obj.optBoolean("isDownloadable", true)
+                )
+                when (obj.optString("status", "")) {
+                    "completed" -> states[key] = DownloadStatus.Completed
+                    "error" -> states[key] = DownloadStatus.Error(obj.optString("errorMsg", "Error desconocido"))
+                }
+            }
+            if (tracks.isNotEmpty()) {
+                _trackRegistry.value = tracks
+                _downloadStates.value = _downloadStates.value + states
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo restaurar el historial de descargas", e)
+        }
+    }
+
+    private fun persistRegistry() {
+        try {
+            val arr = JSONArray()
+            _trackRegistry.value.forEach { (key, track) ->
+                if (arr.length() >= 100) return@forEach
+                val status = _downloadStates.value[key]
+                val statusLabel = when (status) {
+                    is DownloadStatus.Completed -> "completed"
+                    is DownloadStatus.Error -> "error"
+                    else -> return@forEach
+                }
+                arr.put(
+                    JSONObject().apply {
+                        put("key", key)
+                        put("id", track.id)
+                        put("title", track.title)
+                        put("artist", track.artist)
+                        put("album", track.album)
+                        put("durationSec", track.durationSec)
+                        put("audioUrl", track.audioUrl)
+                        put("coverUrl", track.coverUrl)
+                        put("format", track.format)
+                        put("bitrateKbps", track.bitrateKbps)
+                        put("source", track.source)
+                        put("status", statusLabel)
+                        if (status is DownloadStatus.Error) put("errorMsg", status.message)
+                    }
+                )
+            }
+            registryPrefs.edit().putString("entries", arr.toString()).apply()
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo guardar el historial de descargas", e)
+        }
+    }
 
     fun getStatus(trackId: String): DownloadStatus {
         return _downloadStates.value[trackId] ?: DownloadStatus.Idle
@@ -669,6 +748,7 @@ class DownloadEngine(
         val current = _downloadStates.value.toMutableMap()
         current[trackId] = status
         _downloadStates.value = current
+        persistRegistry()
     }
 
     private fun sanitize(text: String): String {

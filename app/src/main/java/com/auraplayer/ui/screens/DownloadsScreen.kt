@@ -55,16 +55,17 @@ fun DownloadsScreen(downloadEngine: DownloadEngine, onClose: () -> Unit) {
     val states by downloadEngine.downloadStates.collectAsState()
     val tracks by downloadEngine.trackRegistry.collectAsState()
 
-    val activeTracks = tracks.values.filter { track ->
-        when (states[track.id] ?: DownloadStatus.Idle) {
+    val registryEntries = tracks.entries.toList()
+    val activeEntries = registryEntries.filter { (key, _) ->
+        when (states[key]) {
             is DownloadStatus.Downloading, is DownloadStatus.Tagging, is DownloadStatus.Error -> true
             else -> false
         }
     }
-    val completedTracks = tracks.values.filter { track ->
-        states[track.id] is DownloadStatus.Completed
+    val completedEntries = registryEntries.filter { (key, _) ->
+        states[key] is DownloadStatus.Completed
     }
-    val visibleTracks = activeTracks + completedTracks
+    val visibleEntries = activeEntries + completedEntries
 
     Box(
         modifier = Modifier
@@ -101,7 +102,7 @@ fun DownloadsScreen(downloadEngine: DownloadEngine, onClose: () -> Unit) {
                 }
             }
 
-            if (visibleTracks.isEmpty()) {
+            if (visibleEntries.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -138,13 +139,17 @@ fun DownloadsScreen(downloadEngine: DownloadEngine, onClose: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp)
                 ) {
-                    items(visibleTracks, key = { it.id }) { track ->
+                    items(visibleEntries, key = { it.key }) { (downloadKey, track) ->
                         DownloadRow(
                             track = track,
-                            status = states[track.id] ?: DownloadStatus.Idle,
+                            status = states[downloadKey] ?: DownloadStatus.Idle,
                             onRetry = {
                                 scope.launch {
-                                    downloadEngine.downloadTrack(track = track)
+                                    if (downloadKey.startsWith("vid_")) {
+                                        downloadEngine.downloadVideo(track = track)
+                                    } else {
+                                        downloadEngine.downloadTrack(track = track)
+                                    }
                                 }
                             }
                         )

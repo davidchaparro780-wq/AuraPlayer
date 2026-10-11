@@ -1,7 +1,7 @@
 {
-  "versionCode": 83,
-  "versionName": "3.9.0",
+  "versionCode": 84,
+  "versionName": "3.9.1",
   "downloadUrl": "https://github.com/davidchaparro780-wq/AuraPlayer/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🎨 DaVE Player v3.9.0 (Build 83) — Gran actualización de experiencia:\n• 🎨 Color dinámico: el reproductor se tiñe con los colores de la carátula de cada canción.\n• 👆 Doble toque en la carátula para retroceder o avanzar 10 segundos.\n• 🎬 Vídeos con gestos: desliza arriba/abajo para brillo (izquierda) o volumen (derecha) y doble toque para saltar 10s.\n• 📋 Selección múltiple: elige varias canciones para añadirlas a la cola, reproducirlas luego o marcarlas como favoritas.\n• 📥 Pantalla de descargas: progreso, reintento de fallidas y todo lo descargado desde un solo sitio.\n• 💾 Cola inteligente: tu cola y posición se guardan al salir y se reanudan al volver.\n• ❤️ Widget con barra de progreso y botón de favorito.\n• 🛡️ Incluye las mejoras de la v3.8.2: bloqueo reforzado de la bóveda señuelo, privacidad de audio y compartir archivos corregido.",
+  "changelog": "🛠️ DaVE Player v3.9.1 (Build 84) — Correcciones:\n• 📥 La pantalla de Descargas ahora recuerda tu historial entre sesiones: las canciones y vídeos descargados siguen apareciendo aunque cierres la app.\n• 🎬 Los vídeos descargados ya aparecen correctamente en la lista de Descargas y en la pestaña Vídedeos/Explorar sin reiniciar la app.\n• 🔄 Al terminar una descarga se refrescan también tus vídeos, no solo la música.\n• ↻ El botón Reintentar ahora reintenta la descarga correcta (canción o vídeo según corresponda).",
   "fileSizeMb": 24.2
 }

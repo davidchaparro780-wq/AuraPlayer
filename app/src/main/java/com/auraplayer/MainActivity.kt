@@ -2414,8 +2414,10 @@ fun AuraApp(
                                 s.copy(title = override.title, artist = override.artist, album = override.album)
                             } else s
                         }
+                        val reloadedVideos = mediaRepository.loadVideoFiles()
                         withContext(Dispatchers.Main) {
                             songs = updatedSongs
+                            videos = reloadedVideos
                         }
 
                         // Secondary refresh after MediaScanner finishes background indexing
@@ -2426,8 +2428,10 @@ fun AuraApp(
                                 s.copy(title = override.title, artist = override.artist, album = override.album)
                             } else s
                         }
+                        val secondVideos = mediaRepository.loadVideoFiles()
                         withContext(Dispatchers.Main) {
                             songs = secondReload
+                            videos = secondVideos
                         }
                     }
                 },
