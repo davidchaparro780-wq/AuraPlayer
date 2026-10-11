@@ -5,10 +5,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricPrompt
+import android.hardware.fingerprint.FingerprintManager
 import android.os.Build
 import android.os.CancellationSignal
 import androidx.core.content.ContextCompat
-import androidx.core.hardware.fingerprint.FingerprintManagerCompat
 
 object BiometricHelper {
 
@@ -18,8 +18,9 @@ object BiometricHelper {
                 val biometricManager = context.getSystemService(BiometricManager::class.java)
                 biometricManager?.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val fingerprintManager = FingerprintManagerCompat.from(context)
-                fingerprintManager.isHardwareDetected && fingerprintManager.hasEnrolledFingerprints()
+                @Suppress("DEPRECATION")
+                val fingerprintManager = context.getSystemService(FingerprintManager::class.java)
+                fingerprintManager != null && fingerprintManager.isHardwareDetected && fingerprintManager.hasEnrolledFingerprints()
             } else {
                 false
             }
@@ -80,31 +81,32 @@ object BiometricHelper {
                     }
                 }
             )
-        } else {
-            // Android 6.0 to 8.1 fallback via FingerprintManagerCompat
-            val fingerprintManager = FingerprintManagerCompat.from(activity)
-            val androidxSignal = androidx.core.os.CancellationSignal()
-            cancellationSignal.setOnCancelListener { androidxSignal.cancel() }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            @Suppress("DEPRECATION")
+            val fingerprintManager = activity.getSystemService(FingerprintManager::class.java)
+            if (fingerprintManager != null) {
+                fingerprintManager.authenticate(
+                    null,
+                    cancellationSignal,
+                    0,
+                    object : FingerprintManager.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: FingerprintManager.AuthenticationResult?) {
+                            onSuccess()
+                        }
 
-            fingerprintManager.authenticate(
-                null,
-                0,
-                androidxSignal,
-                object : FingerprintManagerCompat.AuthenticationCallback() {
-                    override fun onAuthenticationSucceeded(result: FingerprintManagerCompat.AuthenticationResult?) {
-                        onSuccess()
-                    }
+                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                            onError(errString?.toString() ?: "Error en lector de huellas")
+                        }
 
-                    override fun onAuthenticationError(errMsgId: Int, errString: CharSequence?) {
-                        onError(errString?.toString() ?: "Error en lector de huellas")
-                    }
-
-                    override fun onAuthenticationFailed() {
-                        onError("Huella no reconocida. Intenta de nuevo.")
-                    }
-                },
-                null
-            )
+                        override fun onAuthenticationFailed() {
+                            onError("Huella no reconocida. Intenta de nuevo.")
+                        }
+                    },
+                    null
+                )
+            } else {
+                onError("Lector de huellas no disponible")
+            }
         }
 
         return cancellationSignal

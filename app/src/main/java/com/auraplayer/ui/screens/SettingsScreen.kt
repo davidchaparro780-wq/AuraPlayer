@@ -84,7 +84,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val settings = remember { SettingsManager.getInstance(context) }
-    val playlistManager = remember { PlaylistManager.getInstance(context) }
+    val playlistManager = remember { PlaylistManager(context) }
     val crossfadeManager = remember { CrossfadeManager.getInstance(context) }
     val vaultManager = remember { VaultManager(context) }
 

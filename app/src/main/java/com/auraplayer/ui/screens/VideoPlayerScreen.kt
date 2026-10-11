@@ -80,7 +80,7 @@ fun VideoPlayerScreen(
 
     val resumePrefs = remember { context.getSharedPreferences("dave_video_resume", Context.MODE_PRIVATE) }
     val resumeKey = remember(video.id, video.path) {
-        "pos_${if (video.id.isNotBlank()) video.id else video.path.hashCode().toString()}"
+        "pos_${if (video.id > 0L) video.id else video.path.hashCode().toString()}"
     }
     val savedPos = remember { resumePrefs.getLong(resumeKey, 0L) }
     var showResumePrompt by remember { mutableStateOf(savedPos > 4000L) }

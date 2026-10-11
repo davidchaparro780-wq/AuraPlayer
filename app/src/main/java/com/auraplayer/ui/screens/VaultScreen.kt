@@ -137,6 +137,12 @@ fun VaultScreen(
     val isBiometricAvailable = remember { BiometricHelper.isBiometricAvailable(context) }
     var biometricLaunchedOnce by remember { mutableStateOf(false) }
 
+    // PIN Setup / Entry state
+    var enteredPin by remember { mutableStateOf("") }
+    var setupFirstPin by remember { mutableStateOf("") }
+    var setupStep by remember { mutableIntStateOf(0) } // 0: Enter Pin or Setup Step 1, 1: Confirm Setup Pin
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
     fun triggerBiometrics() {
         if (activity != null && isPinSet && vaultManager.isBiometricEnabled() && isBiometricAvailable) {
             BiometricHelper.authenticate(
@@ -164,12 +170,6 @@ fun VaultScreen(
 
     val vaultPrefs = remember { context.getSharedPreferences("dave_vault_prefs", Context.MODE_PRIVATE) }
     var isBannerDismissed by remember { mutableStateOf(vaultPrefs.getBoolean("vault_banner_dismissed", false)) }
-
-    // PIN Setup / Entry state
-    var enteredPin by remember { mutableStateOf("") }
-    var setupFirstPin by remember { mutableStateOf("") }
-    var setupStep by remember { mutableIntStateOf(0) } // 0: Enter Pin or Setup Step 1, 1: Confirm Setup Pin
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Restore media with PIN confirmation state
     var itemToRestoreWithPin by remember { mutableStateOf<VaultItem?>(null) }
