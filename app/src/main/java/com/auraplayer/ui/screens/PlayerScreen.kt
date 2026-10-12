@@ -107,7 +107,6 @@ import com.auraplayer.audio.PartyLinkManager
 import com.auraplayer.service.FloatingBubbleService
 import com.auraplayer.ui.components.ZapDialog
 import com.auraplayer.ui.components.PartyLinkDialog
-import android.provider.Settings
 import com.auraplayer.audio.EqualizerManager
 import com.auraplayer.ui.components.AudioCutterDialog
 import com.auraplayer.ui.components.EdgeLighting
