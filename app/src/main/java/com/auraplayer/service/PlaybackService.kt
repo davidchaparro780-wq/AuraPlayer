@@ -78,6 +78,9 @@ class PlaybackService : MediaSessionService() {
 
         activePlayer = player
 
+        val silenceTrimmer = com.auraplayer.audio.SilenceTrimmerManager.getInstance(this)
+        player.skipSilenceEnabled = silenceTrimmer.isEnabled
+
         EqualizerManager.instance.initPrefs(this)
         EqualizerManager.instance.attachToAudioSession(player.audioSessionId)
         com.auraplayer.audio.RealtimeVisualizerManager.instance.attachToAudioSession(player.audioSessionId)
@@ -95,6 +98,12 @@ class PlaybackService : MediaSessionService() {
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
                 EqualizerManager.instance.setReplayGainEnabled(playlistManager.isReplayGainEnabled())
                 com.auraplayer.audio.LoudnessNormalizerManager.getInstance(this@PlaybackService).applyLoudness()
+                val st = com.auraplayer.audio.SilenceTrimmerManager.getInstance(this@PlaybackService)
+                player.skipSilenceEnabled = st.isEnabled
+                val startTrimMs = st.getTrimmedStartPositionMs(player.duration)
+                if (startTrimMs > 0 && player.currentPosition < startTrimMs) {
+                    player.seekTo(startTrimMs)
+                }
                 com.auraplayer.audio.VibeModeManager.setVibe(com.auraplayer.audio.VibeModeManager.currentVibe, player)
                 com.auraplayer.widget.DaVEAppWidgetProvider.updateWidgetFromPlayer(this@PlaybackService, player)
             }
@@ -123,6 +132,14 @@ class PlaybackService : MediaSessionService() {
                 // Check A-B loop
                 com.auraplayer.audio.ABRepeatManager.instance.checkPositionAndLoop(player.currentPosition) { targetA ->
                     player.seekTo(targetA)
+                }
+
+                // Smart Silence Trimmer: Outro Skip
+                val st = com.auraplayer.audio.SilenceTrimmerManager.getInstance(this@PlaybackService)
+                if (st.isEnabled && player.duration > 20_000L && st.shouldTrimOutro(player.currentPosition, player.duration)) {
+                    if (player.hasNextMediaItem()) {
+                        player.seekToNextMediaItem()
+                    }
                 }
 
                 val crossfadeSec = playlistManager.getCrossfadeSeconds()

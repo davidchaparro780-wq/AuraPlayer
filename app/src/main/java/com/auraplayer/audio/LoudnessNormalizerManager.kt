@@ -42,6 +42,13 @@ class LoudnessNormalizerManager private constructor(context: Context) {
         EqualizerManager.instance.setLoudnessGain(targetMb)
     }
 
+    fun toggle(): Boolean {
+        val newState = !isEnabled
+        isEnabled = newState
+        applyLoudness()
+        return newState
+    }
+
     companion object {
         @Volatile
         private var instance: LoudnessNormalizerManager? = null

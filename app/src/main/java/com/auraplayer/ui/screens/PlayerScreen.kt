@@ -100,6 +100,14 @@ import com.auraplayer.audio.RelaxAmbienceManager
 import com.auraplayer.ui.components.RelaxAmbienceDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.auraplayer.audio.SilenceTrimmerManager
+import com.auraplayer.audio.LoudnessNormalizerManager
+import com.auraplayer.audio.ZapPreviewManager
+import com.auraplayer.audio.PartyLinkManager
+import com.auraplayer.service.FloatingBubbleService
+import com.auraplayer.ui.components.ZapDialog
+import com.auraplayer.ui.components.PartyLinkDialog
+import android.provider.Settings
 import com.auraplayer.audio.EqualizerManager
 import com.auraplayer.ui.components.AudioCutterDialog
 import com.auraplayer.ui.components.EdgeLighting
@@ -422,6 +430,15 @@ fun PlayerScreen(
     var showRelaxAmbienceDialog by remember { mutableStateOf(false) }
     var isKaraokeActive by remember { mutableStateOf(com.auraplayer.audio.KaraokeVocalManager.instance.isKaraokeEnabled) }
     val looper = remember { com.auraplayer.audio.AbLooperManager.instance }
+    val silenceTrimmerMgr = remember { SilenceTrimmerManager.getInstance(context) }
+    var isSilenceTrimmerActive by remember { mutableStateOf(silenceTrimmerMgr.isEnabled) }
+    val loudnessNormMgr = remember { LoudnessNormalizerManager.getInstance(context) }
+    var isLoudnessNormalizerActive by remember { mutableStateOf(loudnessNormMgr.isEnabled) }
+    val zapManager = remember { ZapPreviewManager.getInstance(context) }
+    var showZapDialog by remember { mutableStateOf(false) }
+    val partyLinkManager = remember { PartyLinkManager.getInstance(context) }
+    var showPartyLinkDialog by remember { mutableStateOf(false) }
+    var isBubbleActive by remember { mutableStateOf(FloatingBubbleService.isRunning) }
 
     var qualityInfo by remember(currentMedia.path) { mutableStateOf<com.auraplayer.data.repository.AudioQualityInfo?>(null) }
     LaunchedEffect(currentMedia.path) {
@@ -457,7 +474,11 @@ fun PlayerScreen(
     }
 
     BackHandler {
-        if (showRelaxAmbienceDialog) {
+        if (showPartyLinkDialog) {
+            showPartyLinkDialog = false
+        } else if (showZapDialog) {
+            showZapDialog = false
+        } else if (showRelaxAmbienceDialog) {
             showRelaxAmbienceDialog = false
         } else if (showQuickEqDialog) {
             showQuickEqDialog = false
@@ -2014,6 +2035,137 @@ fun PlayerScreen(
                         )
                     )
 
+                    // Omitir Silencios Muertos Pro Chip
+                    FilterChip(
+                        selected = isSilenceTrimmerActive,
+                        onClick = {
+                            AuraHaptic.click(view)
+                            isSilenceTrimmerActive = silenceTrimmerMgr.toggle()
+                            val msg = if (isSilenceTrimmerActive) "✂️ Omitir Silencios ACTIVADO (transición continua)" else "Recorte de silencios desactivado"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = {
+                            Text(
+                                text = if (isSilenceTrimmerActive) "✂️ Sin Silencios: ON" else "✂️ Omitir Silencios",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF06B6D4).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF06B6D4),
+                            labelColor = Color(0xFF22D3EE)
+                        )
+                    )
+
+                    // Normalizador de Volumen (-14 LUFS) Chip
+                    FilterChip(
+                        selected = isLoudnessNormalizerActive,
+                        onClick = {
+                            AuraHaptic.click(view)
+                            isLoudnessNormalizerActive = loudnessNormMgr.toggle()
+                            val msg = if (isLoudnessNormalizerActive) "⚖️ Normalizador ACTIVADO (-14 LUFS uniforme)" else "Normalizador desactivado"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        },
+                        label = {
+                            Text(
+                                text = if (isLoudnessNormalizerActive) "⚖️ Normalizado (-14dB)" else "⚖️ Normalizador",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFA855F7).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFA855F7),
+                            labelColor = Color(0xFFC084FC)
+                        )
+                    )
+
+                    // Burbuja Flotante Multitarea Chip
+                    FilterChip(
+                        selected = isBubbleActive,
+                        onClick = {
+                            AuraHaptic.click(view)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                                Toast.makeText(context, "Concede el permiso para mostrar la burbuja flotante", Toast.LENGTH_LONG).show()
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            } else {
+                                val bubbleIntent = Intent(context, FloatingBubbleService::class.java)
+                                if (FloatingBubbleService.isRunning) {
+                                    context.stopService(bubbleIntent)
+                                    isBubbleActive = false
+                                    Toast.makeText(context, "Burbuja flotante cerrada", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        context.startForegroundService(bubbleIntent)
+                                    } else {
+                                        context.startService(bubbleIntent)
+                                    }
+                                    isBubbleActive = true
+                                    Toast.makeText(context, "🏝️ Burbuja Flotante ACTIVA en pantalla", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        label = {
+                            Text(
+                                text = if (isBubbleActive) "🏝️ Burbuja: ON" else "🏝️ Burbuja Flotante",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF00F0FF).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFF00F0FF),
+                            labelColor = Color(0xFF38BDF8)
+                        )
+                    )
+
+                    // Modo ZAP Chip
+                    FilterChip(
+                        selected = zapManager.isZapActive,
+                        onClick = {
+                            AuraHaptic.click(view)
+                            showZapDialog = true
+                        },
+                        label = {
+                            Text(
+                                text = if (zapManager.isZapActive) "⚡ ZAP Activo (${zapManager.previewDurationSeconds}s)" else "⚡ Modo ZAP (15s)",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFEAB308).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFEAB308),
+                            labelColor = Color(0xFFFDE047)
+                        )
+                    )
+
+                    // Silent Disco / Fiesta Wi-Fi Chip
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            AuraHaptic.click(view)
+                            showPartyLinkDialog = true
+                        },
+                        label = {
+                            Text(
+                                text = "📻 Fiesta Wi-Fi",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFFEC4899).copy(alpha = 0.25f),
+                            selectedLabelColor = Color(0xFFEC4899),
+                            labelColor = Color(0xFFF472B6)
+                        )
+                    )
+
                     // Bucle A-B Pro Chip
                     FilterChip(
                         selected = isAbActive || abPointA != null,
@@ -3377,6 +3529,41 @@ fun PlayerScreen(
     if (showVolumeBoosterDialog) {
         com.auraplayer.ui.components.VolumeBoosterDialog(
             onDismiss = { showVolumeBoosterDialog = false }
+        )
+    }
+
+    // Modo ZAP Dialog
+    if (showZapDialog) {
+        ZapDialog(
+            zapManager = zapManager,
+            isCurrentlyActive = zapManager.isZapActive,
+            onStartZap = { seconds ->
+                zapManager.previewDurationSeconds = seconds
+                zapManager.startZap(com.auraplayer.MainActivity.activeController, coroutineScope)
+                showZapDialog = false
+                Toast.makeText(context, "⚡ Modo ZAP Activo: Explorando cada ${seconds}s", Toast.LENGTH_SHORT).show()
+            },
+            onStopZap = {
+                zapManager.stopZap()
+                showZapDialog = false
+                Toast.makeText(context, "Modo ZAP Detenido", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showZapDialog = false }
+        )
+    }
+
+    // Party Link / Silent Disco Dialog
+    if (showPartyLinkDialog) {
+        val currentPosState = remember(currentPositionMs) { androidx.compose.runtime.mutableStateOf(currentPositionMs) }
+        PartyLinkDialog(
+            partyManager = partyLinkManager,
+            currentMedia = currentMedia,
+            currentPosMs = currentPosState,
+            isPlaying = isPlaying,
+            onSyncPlay = { title, pos, playing ->
+                Toast.makeText(context, "📻 Sincronizando con Party Link: $title", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showPartyLinkDialog = false }
         )
     }
 }

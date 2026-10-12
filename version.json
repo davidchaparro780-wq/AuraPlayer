@@ -1,7 +1,7 @@
 {
-  "versionCode": 99,
-  "versionName": "4.8.0",
+  "versionCode": 100,
+  "versionName": "4.9.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🌿 DaVE Player v4.8.0 (Build 99) — Confort Visual & Modo Zen:\n• 🌿 Vista Cómoda / Modo Zen: Pantalla limpia, relajante y ergonómica. La carátula y los controles principales destacan sin saturación. Accede a la Suite Pro completa con 1 toque.\n• 🌙 Escudo Ocular Nocturno: Cambia al instante entre 'Dinámico Natural', 'Luz Cálida Nocturna' (ámbar suave sin luz azul que canse los ojos) y 'OLED Negro Puro' (#000000 para máxima comodidad y ahorro de batería).\n• 🎬 Reproductor de Video Ultra Cómodo:\n  - 🔒 Candado de Bloqueo Cómodo: Bloquea la pantalla contra toques accidentales mientras disfrutas de tus videos.\n  - 📺 Relación de Aspecto en 1 Toque: Alterna entre Ajustar Pantalla, Llenar Pantalla (Zoom sin franjas negras) y Estirar.\n  - ⚡ Velocidad Cómoda: Ajusta la velocidad de video rápidamente (1.0x, 1.25x, 1.5x, 2.0x, 0.5x).\n• 📱 Barra Ergonómica al Alcance del Pulgar: Acceso directo y fluido a Favoritos, Letras, Booster y Suite Pro.",
-  "fileSizeMb": 25.8
+  "changelog": "🎉 DaVE Player v4.9.0 (Build 100 - ¡Edición Centenario!):\n• ✂️ Omitir Silencios Muertos Automáticamente (Smart Silence Skip): Salta silencios inaudibles al inicio y final de las canciones con el motor DSP nativo de ExoPlayer para transiciones continuas sin pausas molestas.\n• 🏝️ Dynamic Island Flotante / Burbuja Multitarea: Controla tu música (Play/Pausa, Siguiente, Anterior y Título) flotando sobre WhatsApp, TikTok, juegos o Instagram.\n• ⚖️ Normalizador Inteligente de Volumen (-14 LUFS ReplayGain): Ganancia uniforme automática para que ninguna canción suene ni muy baja ni reviente tus oídos.\n• ⚡ Modo DJ ZAP (Escucha Rápida 15s): Explora álbumes o listas completas escuchando solo los mejores segundos de cada canción con salto automático.\n• 📻 Fiesta Wi-Fi / Silent Disco: Sincroniza la reproducción al mismo milisegundo entre varios teléfonos cercanos para multiplicar el volumen o escuchar con amigos.\n• 🌿 Integración completa en Modo Cómodo y Ajustes de Audio.",
+  "fileSizeMb": 25.9
 }

@@ -44,6 +44,13 @@ class SilenceTrimmerManager private constructor(context: Context) {
         return currentPosMs >= threshold
     }
 
+    fun toggle(): Boolean {
+        val newState = !isEnabled
+        isEnabled = newState
+        com.auraplayer.service.PlaybackService.activePlayer?.skipSilenceEnabled = newState
+        return newState
+    }
+
     companion object {
         @Volatile
         private var instance: SilenceTrimmerManager? = null

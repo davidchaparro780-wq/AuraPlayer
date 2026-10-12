@@ -27,6 +27,10 @@ import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ColorLens
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.PictureInPictureAlt
+import android.os.Build
+import android.content.Intent
 import com.auraplayer.data.repository.BackupManager
 import com.auraplayer.ui.components.BackupLocalDialog
 import androidx.compose.material.icons.filled.Fingerprint
@@ -101,6 +105,9 @@ fun SettingsScreen(
     var showBackupDialog by remember { mutableStateOf(false) }
     val loudnessNormalizer = remember { com.auraplayer.audio.LoudnessNormalizerManager.getInstance(context) }
     var isLoudnessEnabled by remember { mutableStateOf(loudnessNormalizer.isEnabled) }
+    val silenceTrimmer = remember { com.auraplayer.audio.SilenceTrimmerManager.getInstance(context) }
+    var isSilenceTrimmerEnabled by remember { mutableStateOf(silenceTrimmer.isEnabled) }
+    var isFloatingBubbleRunning by remember { mutableStateOf(com.auraplayer.service.FloatingBubbleService.isRunning) }
 
     Box(
         modifier = Modifier
@@ -237,6 +244,55 @@ fun SettingsScreen(
                             AuraHaptic.click(null)
                             isLoudnessEnabled = it
                             loudnessNormalizer.isEnabled = it
+                        }
+                    )
+                }
+
+                item {
+                    SettingsToggleCard(
+                        title = "Omitir Silencios Muertos (Smart Silence Skip)",
+                        subtitle = "Salta automáticamente los silencios inaudibles al inicio y final de las canciones",
+                        icon = Icons.Default.ContentCut,
+                        checked = isSilenceTrimmerEnabled,
+                        onCheckedChange = {
+                            AuraHaptic.click(null)
+                            isSilenceTrimmerEnabled = it
+                            silenceTrimmer.isEnabled = it
+                            com.auraplayer.service.PlaybackService.activePlayer?.skipSilenceEnabled = it
+                        }
+                    )
+                }
+
+                item {
+                    SettingsToggleCard(
+                        title = "Burbuja Flotante Multitarea (Dynamic Mini Player)",
+                        subtitle = "Muestra un reproductor flotante en pantalla para controlar tu música sobre cualquier app",
+                        icon = Icons.Default.PictureInPictureAlt,
+                        checked = isFloatingBubbleRunning,
+                        onCheckedChange = { enable ->
+                            AuraHaptic.click(null)
+                            if (enable) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(context)) {
+                                    Toast.makeText(context, "Concede el permiso para mostrar la burbuja flotante", Toast.LENGTH_LONG).show()
+                                    val intent = Intent(
+                                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                        android.net.Uri.parse("package:${context.packageName}")
+                                    )
+                                    context.startActivity(intent)
+                                } else {
+                                    val bubbleIntent = Intent(context, com.auraplayer.service.FloatingBubbleService::class.java)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                        context.startForegroundService(bubbleIntent)
+                                    } else {
+                                        context.startService(bubbleIntent)
+                                    }
+                                    isFloatingBubbleRunning = true
+                                }
+                            } else {
+                                val bubbleIntent = Intent(context, com.auraplayer.service.FloatingBubbleService::class.java)
+                                context.stopService(bubbleIntent)
+                                isFloatingBubbleRunning = false
+                            }
                         }
                     )
                 }
