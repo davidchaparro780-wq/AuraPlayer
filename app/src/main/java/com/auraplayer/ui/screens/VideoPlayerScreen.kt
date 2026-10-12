@@ -17,6 +17,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,20 +26,27 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -72,6 +80,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.auraplayer.audio.AuraHaptic
 import com.auraplayer.data.model.MediaModel
@@ -210,8 +219,17 @@ fun VideoPlayerScreen(
         }
     }
 
+    var isScreenLocked by remember { mutableStateOf(false) }
+    var resizeModeIndex by remember { mutableIntStateOf(0) }
+    var videoSpeed by remember { mutableFloatStateOf(1.0f) }
+
     BackHandler {
-        onBack()
+        if (isScreenLocked) {
+            isScreenLocked = false
+            Toast.makeText(context, "🔓 Pantalla desbloqueada", Toast.LENGTH_SHORT).show()
+        } else {
+            onBack()
+        }
     }
 
     val view = LocalView.current
@@ -241,16 +259,26 @@ fun VideoPlayerScreen(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
-                    useController = !isInPipMode
+                    useController = !isInPipMode && !isScreenLocked
+                    resizeMode = when (resizeModeIndex) {
+                        1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                        else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    }
                 }
             },
             update = { playerView ->
-                playerView.useController = !isInPipMode
+                playerView.useController = !isInPipMode && !isScreenLocked
+                playerView.resizeMode = when (resizeModeIndex) {
+                    1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                }
             },
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(isInPipMode) {
-                    if (isInPipMode) return@pointerInput
+                .pointerInput(isInPipMode, isScreenLocked) {
+                    if (isInPipMode || isScreenLocked) return@pointerInput
                     var lastTapUptime = 0L
                     var lastTapWasLeft = false
                     awaitEachGesture {
@@ -320,8 +348,8 @@ fun VideoPlayerScreen(
                 }
         )
 
-        // Overlay top controls with dark scrim & statusBarsPadding protection (hidden in PiP mode)
-        if (!isInPipMode) {
+        // Overlay top controls with dark scrim & statusBarsPadding protection (hidden in PiP mode or when locked)
+        if (!isInPipMode && !isScreenLocked) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -359,6 +387,62 @@ fun VideoPlayerScreen(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
+
+                    // Selector Cómodo de Relación de Aspecto
+                    IconButton(onClick = {
+                        resizeModeIndex = (resizeModeIndex + 1) % 3
+                        val modeName = when (resizeModeIndex) {
+                            1 -> "🔲 Llenar Pantalla (Zoom sin franjas)"
+                            2 -> "↔️ Estirar Pantalla"
+                            else -> "📺 Ajustar Pantalla (Original)"
+                        }
+                        Toast.makeText(context, modeName, Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.AspectRatio,
+                            contentDescription = "Ajuste de pantalla",
+                            tint = if (resizeModeIndex != 0) Color(0xFF38BDF8) else Color.White
+                        )
+                    }
+
+                    // Selector Cómodo de Velocidad
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
+                            .clickable {
+                                videoSpeed = when (videoSpeed) {
+                                    1.0f -> 1.25f
+                                    1.25f -> 1.5f
+                                    1.5f -> 2.0f
+                                    2.0f -> 0.5f
+                                    else -> 1.0f
+                                }
+                                exoPlayer.setPlaybackSpeed(videoSpeed)
+                                Toast.makeText(context, "⚡ Velocidad: ${videoSpeed}x", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "${videoSpeed}x",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Candado de Bloqueo Cómodo
+                    IconButton(onClick = {
+                        isScreenLocked = true
+                        AuraHaptic.click(view)
+                        Toast.makeText(context, "🔒 Pantalla bloqueada contra toques", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.LockOpen,
+                            contentDescription = "Bloquear pantalla",
+                            tint = Color.White
+                        )
+                    }
 
                     // Background Audio Mode Toggle
                     IconButton(onClick = {
@@ -480,6 +564,45 @@ fun VideoPlayerScreen(
                         .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 )
+            }
+        }
+
+        // Candado flotante de desbloqueo cuando la pantalla está bloqueada
+        if (isScreenLocked) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = 44.dp)
+            ) {
+                Surface(
+                    onClick = {
+                        isScreenLocked = false
+                        AuraHaptic.click(view)
+                        Toast.makeText(context, "🔓 Pantalla desbloqueada", Toast.LENGTH_SHORT).show()
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF0F172A).copy(alpha = 0.90f),
+                    border = BorderStroke(1.5.dp, Color(0xFF38BDF8))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Desbloquear",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Toca para desbloquear",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
     }

@@ -1,7 +1,7 @@
 {
-  "versionCode": 98,
-  "versionName": "4.7.0",
+  "versionCode": 99,
+  "versionName": "4.8.0",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🚀 DaVE Player v4.7.0 (Build 98) — ¡Mega Suite VIP Pro!\n• 🔊 Super Booster de Volumen 200%: Ganancia limpia hasta el 200% con limitador dinámico anti-distorsión y perfiles rápidos (🍿 Cine 3D, 📢 Modo Calle).\n• 📳 Subwoofer Háptico en tu Mano: Tu celular vibra como un subwoofer real al ritmo de los bajos y sub-bass (<100Hz) en tiempo real con 3 niveles de potencia.\n• 🎬 Extractor Instantáneo de Video a MP3 HD: Convierte cualquier video a audio en menos de 1 segundo sin pérdida de calidad y agrégalo directo a tu biblioteca.\n• 🎨 Carátulas Ultra HD (1000x1000): Nuevo buscador oficial de carátulas en alta resolución en 1 toque dentro del Editor de Etiquetas ID3.\n• 🔁 Modo Repetición A-B Pro: Repite el segmento exacto que quieras (rap, coreografías, partes favoritas) con bucle instantáneo continuo.\n• 🌙 Detector Inteligente de Sueño por Movimiento: Temporizador con acelerómetro que detecta cuando te quedas dormido y apaga la música con un suave desvanecimiento.",
+  "changelog": "🌿 DaVE Player v4.8.0 (Build 99) — Confort Visual & Modo Zen:\n• 🌿 Vista Cómoda / Modo Zen: Pantalla limpia, relajante y ergonómica. La carátula y los controles principales destacan sin saturación. Accede a la Suite Pro completa con 1 toque.\n• 🌙 Escudo Ocular Nocturno: Cambia al instante entre 'Dinámico Natural', 'Luz Cálida Nocturna' (ámbar suave sin luz azul que canse los ojos) y 'OLED Negro Puro' (#000000 para máxima comodidad y ahorro de batería).\n• 🎬 Reproductor de Video Ultra Cómodo:\n  - 🔒 Candado de Bloqueo Cómodo: Bloquea la pantalla contra toques accidentales mientras disfrutas de tus videos.\n  - 📺 Relación de Aspecto en 1 Toque: Alterna entre Ajustar Pantalla, Llenar Pantalla (Zoom sin franjas negras) y Estirar.\n  - ⚡ Velocidad Cómoda: Ajusta la velocidad de video rápidamente (1.0x, 1.25x, 1.5x, 2.0x, 0.5x).\n• 📱 Barra Ergonómica al Alcance del Pulgar: Acceso directo y fluido a Favoritos, Letras, Booster y Suite Pro.",
   "fileSizeMb": 25.8
 }
