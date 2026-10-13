@@ -1,7 +1,7 @@
 {
-  "versionCode": 106,
-  "versionName": "4.9.6",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v4.9.6/app-debug.apk",
-  "changelog": "🎨 DaVE Player v4.9.6 (Build 106):\n• 🌈 Material You: nuevo ajuste 'Color del sistema' en Ajustes (Android 12 o superior): la app adopta los colores de tu fondo de pantalla.\n• 🧰 Menú Herramientas Pro reorganizado por secciones: Audio, Fiesta, Privado, Social y Otros para encontrar cada función al instante.\n• ⚡ Rendimiento general: interfaz más fluida y menor consumo al reproducir música.\n• 🛠️ Correcciones: widget compacto arreglado y actualizador OTA más fiable.",
+  "versionCode": 107,
+  "versionName": "4.9.7",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v4.9.7/app-debug.apk",
+  "changelog": "🔊 DaVE Player v4.9.7 (Build 107):\n• 🔊 Las teclas de volumen del celular ya NO cambian de canción: subir o bajar volumen ahora solo ajusta el volumen, sin saltos de pista.\n• 🌈 Material You, 🧰 menú Herramientas Pro por secciones y ⚡ mejoras de rendimiento incluidas desde 4.9.6.",
   "fileSizeMb": 24.5
 }
