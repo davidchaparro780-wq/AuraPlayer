@@ -227,6 +227,7 @@ object TikTokDownloader {
             // Almacenamiento Scoped Storage (Android 10+)
             // Guardamos videos en DCIM/DaVEPlayer para indexación inmediata en Galería, WhatsApp y Estados
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var pendingMediaUri: Uri? = null
                 try {
                     val collectionUri = if (isVideo) {
                         MediaStore.Video.Media.EXTERNAL_CONTENT_URI
@@ -255,7 +256,6 @@ object TikTokDownloader {
                         }
                     }
 
-                    var pendingMediaUri: Uri? = null
                     val uri = context.contentResolver.insert(collectionUri, values)
                     pendingMediaUri = uri
                     if (uri != null) {
