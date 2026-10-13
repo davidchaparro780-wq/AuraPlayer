@@ -421,10 +421,10 @@ class EqualizerManager private constructor() {
             bassBoost?.release()
             virtualizer?.release()
             loudnessEnhancer?.release()
+            presetReverb?.release()
         } catch (e: Exception) {
             AppLog.d(TAG, "No se pudo liberar algún efecto del ecualizador", e)
         } finally {
-            presetReverb?.release()
             presetReverb = null
             equalizer = null
             bassBoost = null

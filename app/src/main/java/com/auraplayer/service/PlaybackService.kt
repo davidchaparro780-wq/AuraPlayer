@@ -282,6 +282,7 @@ class PlaybackService : MediaSessionService() {
         }
         serviceScope.cancel()
         com.auraplayer.audio.RealtimeVisualizerManager.instance.release()
+        EqualizerManager.instance.release()
         mediaSession?.run {
             player.release()
             release()

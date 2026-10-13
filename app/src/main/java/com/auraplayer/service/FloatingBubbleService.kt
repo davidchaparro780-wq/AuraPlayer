@@ -8,6 +8,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -56,7 +57,11 @@ class FloatingBubbleService : Service() {
         isRunning = true
         createNotificationChannel()
         val notif = createNotification()
-        startForeground(9982, notif)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(9982, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(9982, notif)
+        }
         setupFloatingView()
     }
 
@@ -175,14 +180,21 @@ class FloatingBubbleService : Service() {
             setPadding(dpToPx(6f), dpToPx(4f), dpToPx(6f), dpToPx(4f))
             setOnClickListener {
                 val p = PlaybackService.activePlayer
-                if (p?.isPlaying == true) {
-                    p.pause()
-                    text = "▶️"
-                    bubble.setImageResource(android.R.drawable.ic_media_play)
+                if (p != null) {
+                    if (p.isPlaying) {
+                        p.pause()
+                        text = "▶️"
+                        bubble.setImageResource(android.R.drawable.ic_media_play)
+                    } else {
+                        p.play()
+                        text = "⏸️"
+                        bubble.setImageResource(android.R.drawable.ic_media_pause)
+                    }
                 } else {
-                    p?.play()
-                    text = "⏸️"
-                    bubble.setImageResource(android.R.drawable.ic_media_pause)
+                    val appIntent = Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    }
+                    context.startActivity(appIntent)
                 }
             }
         }
@@ -288,6 +300,16 @@ class FloatingBubbleService : Service() {
                 AppLog.d(TAG, "No se pudo quitar la vista flotante al destruir", e)
             }
             floatingView = null
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (e: Exception) {
+            AppLog.d(TAG, "Error deteniendo foreground en FloatingBubbleService", e)
         }
     }
 }

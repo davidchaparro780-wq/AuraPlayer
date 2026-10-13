@@ -1,7 +1,9 @@
 package com.auraplayer.data.repository
 
+import android.content.ClipData
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -262,9 +264,9 @@ object TikTokDownloader {
                         }
 
                         // Extraer metadatos técnicos (duración, dimensiones) para que WhatsApp no rechace el archivo
-                        var realDuration = if (details.durationSeconds > 0) details.durationSeconds * 1000L else 0L
-                        var videoWidth = 0
-                        var videoHeight = 0
+                        var realDuration = if (details.durationSeconds > 0) details.durationSeconds * 1000L else 15000L
+                        var videoWidth = 720
+                        var videoHeight = 1280
                         try {
                             val retriever = android.media.MediaMetadataRetriever()
                             context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
@@ -273,8 +275,8 @@ object TikTokDownloader {
                                 val wStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
                                 val hStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
                                 durStr?.toLongOrNull()?.let { if (it > 0) realDuration = it }
-                                wStr?.toIntOrNull()?.let { videoWidth = it }
-                                hStr?.toIntOrNull()?.let { videoHeight = it }
+                                wStr?.toIntOrNull()?.let { if (it > 0) videoWidth = it }
+                                hStr?.toIntOrNull()?.let { if (it > 0) videoHeight = it }
                                 retriever.release()
                             }
                         } catch (e: Exception) {
@@ -284,23 +286,30 @@ object TikTokDownloader {
                         val updateValues = ContentValues().apply {
                             put(MediaStore.MediaColumns.IS_PENDING, 0)
                             if (isVideo) {
-                                if (realDuration > 0) put(MediaStore.Video.Media.DURATION, realDuration)
-                                if (videoWidth > 0) put(MediaStore.Video.Media.WIDTH, videoWidth)
-                                if (videoHeight > 0) put(MediaStore.Video.Media.HEIGHT, videoHeight)
+                                put(MediaStore.Video.Media.DURATION, realDuration)
+                                put(MediaStore.Video.Media.WIDTH, videoWidth)
+                                put(MediaStore.Video.Media.HEIGHT, videoHeight)
                             }
                         }
                         context.contentResolver.update(uri, updateValues, null, null)
                         finalUri = uri
 
-                        // Forzar escaneo en MediaScanner con la ruta en DCIM para WhatsApp
+                        // Forzar escaneo en MediaScanner con la ruta real en disco para indexación inmediata en WhatsApp
                         try {
+                            var resolvedPath: String? = null
+                            context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DATA), null, null, null)?.use { cursor ->
+                                if (cursor.moveToFirst()) {
+                                    resolvedPath = cursor.getString(0)
+                                }
+                            }
                             val physicalDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "DaVEPlayer")
                             val physicalFile = File(physicalDir, fileName)
-                            if (physicalFile.exists()) {
-                                MediaScannerConnection.scanFile(context, arrayOf(physicalFile.absolutePath), arrayOf(mimeType), null)
+                            val pathToScan = resolvedPath ?: physicalFile.absolutePath
+                            MediaScannerConnection.scanFile(context, arrayOf(pathToScan), arrayOf(mimeType)) { path, scannedUri ->
+                                AppLog.d(TAG, "MediaScanner indexó archivo para WhatsApp: $path -> $scannedUri")
                             }
                         } catch (e: Exception) {
-                            // Ignorar error de escaneo de ruta física
+                            AppLog.w(TAG, "Error escaneando ruta en MediaScanner", e)
                         }
                     }
                 } catch (e: Exception) {
@@ -351,21 +360,82 @@ object TikTokDownloader {
     }
 
     /**
+     * Resuelve un URI compatible con FileProvider para que aplicaciones externas (como WhatsApp)
+     * puedan acceder y transmitir el archivo sin restricciones de Scoped Storage ni SecurityException.
+     */
+    fun getShareableUri(context: Context, uri: Uri, isVideo: Boolean): Uri {
+        try {
+            if (uri.authority?.contains("fileprovider") == true) {
+                return uri
+            }
+            var resolvedFile: File? = null
+            try {
+                context.contentResolver.query(uri, arrayOf(MediaStore.MediaColumns.DATA), null, null, null)?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val path = cursor.getString(0)
+                        if (!path.isNullOrBlank()) {
+                            val f = File(path)
+                            if (f.exists()) resolvedFile = f
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (resolvedFile == null) {
+                val dir = if (isVideo) {
+                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM), "DaVEPlayer")
+                } else {
+                    File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVEPlayer")
+                }
+                if (dir.exists()) {
+                    val files = dir.listFiles()?.filter { it.isFile && (if (isVideo) it.name.endsWith(".mp4") else it.name.endsWith(".mp3")) }
+                        ?.sortedByDescending { it.lastModified() }
+                    resolvedFile = files?.firstOrNull()
+                }
+            }
+
+            if (resolvedFile != null && resolvedFile.exists()) {
+                return androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    resolvedFile
+                )
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "Error resolviendo FileProvider Uri para compartir", e)
+        }
+        return uri
+    }
+
+    /**
      * Comparte directamente a WhatsApp, WhatsApp Business o al selector general de aplicaciones.
      */
     fun shareMedia(context: Context, uri: Uri, isVideo: Boolean, specificPackage: String? = null) {
         try {
             val mimeType = if (isVideo) "video/mp4" else "audio/mpeg"
-            val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+            val shareUri = getShareableUri(context, uri, isVideo)
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
                 type = mimeType
-                putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                putExtra(Intent.EXTRA_STREAM, shareUri)
+                clipData = ClipData.newRawUri("", shareUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 if (!specificPackage.isNullOrBlank()) {
                     setPackage(specificPackage)
                 }
             }
+
+            // Conceder permisos explícitos de lectura de URI a WhatsApp y WhatsApp Business
+            try {
+                val targets = listOfNotNull(specificPackage, "com.whatsapp", "com.whatsapp.w4b")
+                for (pkg in targets) {
+                    context.grantUriPermission(pkg, shareUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            } catch (_: Exception) {}
+
+            val pm = context.packageManager
             if (!specificPackage.isNullOrBlank()) {
-                val pm = context.packageManager
                 val resolves = intent.resolveActivity(pm)
                 if (resolves != null) {
                     context.startActivity(intent)
@@ -379,8 +449,11 @@ object TikTokDownloader {
                 }
             }
             intent.setPackage(null)
-            val title = if (isVideo) "Compartir Video" else "Compartir Audio"
-            context.startActivity(android.content.Intent.createChooser(intent, title))
+            val title = if (isVideo) "Compartir Video en WhatsApp y Redes" else "Compartir Audio"
+            val chooser = Intent.createChooser(intent, title).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
         } catch (e: Exception) {
             AppLog.e(TAG, "Error al compartir archivo", e)
             android.widget.Toast.makeText(context, "No se pudo compartir: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()

@@ -124,7 +124,8 @@
         <!-- Floating Bubble Service -->
         <service
             android:name="com.auraplayer.service.FloatingBubbleService"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- FileProvider for In-App APK Updates and File Sharing -->
         <provider
