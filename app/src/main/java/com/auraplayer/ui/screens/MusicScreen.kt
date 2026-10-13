@@ -533,65 +533,59 @@ fun MusicScreen(
                         onDismissRequest = { showToolsMenu = false },
                         modifier = Modifier.background(Color(0xFF0F172A))
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("🛡️ Folder Shield & WhatsApp", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenFolderShield() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("📊 DaVE Insights & Métricas", color = Color(0xFF6366F1), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenInsights() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🖼️ Descargar Carátulas Masivas", color = Color(0xFF06B6D4), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenBatchCovers() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🎤 Estudio Karaoke & Balance", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenKaraokeDj() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🚗 Modo Coche (DaVE Drive)", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenCarMode() }
+                        Text(
+                            text = "AUDIO",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                         )
                         DropdownMenuItem(
                             text = { Text("⚡ Modo ZAP (DJ Escucha Rápida)", color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenZap() }
                         )
                         DropdownMenuItem(
-                            text = { Text("🎭 Rueda de Emociones (Mood Wheel)", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenMoodWheel() }
-                        )
-                        DropdownMenuItem(
                             text = { Text("🎬 Extraer Audio de Video (MP3)", color = Color(0xFF06B6D4), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenVideoExtractor() }
                         )
                         DropdownMenuItem(
-                            text = { Text("📻 Silent Disco (Party Link)", color = Color(0xFF8B5CF6), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenPartyLink() }
+                            text = { Text("🎛️ Estudio Viral FX (Slowed / 8D)", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showViralStudio = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("🤖 DaVE AI Playlists", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenAiPlaylist() }
+                            text = { Text("🎚️ AI Stem Mixer (Voz / Batería / Bajo)", color = Color(0xFFA78BFA), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showStemMixer = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("🧹 Limpiador de Duplicados", color = Color(0xFFF43F5E), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenDuplicateCleaner() }
+                            text = { Text("🧠 Ondas Binaurales & Ruido", color = Color(0xFF38BDF8)) },
+                            onClick = { showToolsMenu = false; onOpenBinaural() }
                         )
                         DropdownMenuItem(
-                            text = { Text("💾 Copia de Seguridad & Restaurar", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenBackupRestore() }
+                            text = { Text("🌧️ Modo Ambiente & Relax", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; showRelaxDialog = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("🔔 Buscar Actualizaciones", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onCheckUpdates() }
+                            text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenHeadphones() }
+                        )
+                        Text(
+                            text = "FIESTA",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎤 Estudio Karaoke & Balance", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenKaraokeDj() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🎭 Rueda de Emociones (Mood Wheel)", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenMoodWheel() }
                         )
                         DropdownMenuItem(
                             text = { Text("🎲 Ruleta Musical", color = Color(0xFFFFD700), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenRoulette() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🧰 Diagnóstico de Biblioteca", color = Color(0xFF00F0FF)) },
-                            onClick = { showToolsMenu = false; onOpenDiagnostic() }
                         )
                         DropdownMenuItem(
                             text = { Text("🎰 Modo Jukebox Retro", color = Color(0xFFFF6600)) },
@@ -606,12 +600,48 @@ fun MusicScreen(
                             onClick = { showToolsMenu = false; onOpenOracle() }
                         )
                         DropdownMenuItem(
-                            text = { Text("🌅 Alarma Musical Suave", color = Color(0xFF10B981)) },
-                            onClick = { showToolsMenu = false; onOpenAlarm() }
-                        )
-                        DropdownMenuItem(
                             text = { Text("🎮 DaVE Music Quiz", color = Color(0xFFE040FB), fontWeight = FontWeight.Bold) },
                             onClick = { showToolsMenu = false; onOpenQuiz() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isFlashlightActive) "🔦 Linterna Rítmica: ACTIVA" else "🔦 Linterna al Ritmo",
+                                    color = if (isFlashlightActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleFlashlight() }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isVirtualDjActive) "📻 Locutor DJ: ACTIVO" else "📻 Locutor Radio Virtual",
+                                    color = if (isVirtualDjActive) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleVirtualDj() }
+                        )
+                        Text(
+                            text = "PRIVADO",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🛡️ Folder Shield & WhatsApp", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenFolderShield() }
+                        )
+                        Text(
+                            text = "SOCIAL",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                        DropdownMenuItem(
+                            text = { Text("📻 Silent Disco (Party Link)", color = Color(0xFF8B5CF6), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenPartyLink() }
                         )
                         DropdownMenuItem(
                             text = { Text("🎬 TikTok Video Sin Marca", color = Color(0xFF00F2FE), fontWeight = FontWeight.Bold) },
@@ -635,12 +665,56 @@ fun MusicScreen(
                             onClick = { showToolsMenu = false; showRadarDialog = true }
                         )
                         DropdownMenuItem(
-                            text = { Text("🎛️ Estudio Viral FX (Slowed / 8D)", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; showViralStudio = true }
+                            text = {
+                                Text(
+                                    if (isWifiServerRunning) "🌐 Servidor WiFi: ACTIVO (8080)" else "🌐 Activar Servidor WiFi",
+                                    color = if (isWifiServerRunning) Color(0xFF00FF00) else Color.White
+                                )
+                            },
+                            onClick = { showToolsMenu = false; onToggleWifiServer() }
+                        )
+                        Text(
+                            text = "OTROS",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                         )
                         DropdownMenuItem(
-                            text = { Text("🎚️ AI Stem Mixer (Voz / Batería / Bajo)", color = Color(0xFFA78BFA), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; showStemMixer = true }
+                            text = { Text("📊 DaVE Insights & Métricas", color = Color(0xFF6366F1), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenInsights() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🖼️ Descargar Carátulas Masivas", color = Color(0xFF06B6D4), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenBatchCovers() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🚗 Modo Coche (DaVE Drive)", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenCarMode() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🤖 DaVE AI Playlists", color = Color(0xFFA855F7), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenAiPlaylist() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🧹 Limpiador de Duplicados", color = Color(0xFFF43F5E), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenDuplicateCleaner() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("💾 Copia de Seguridad & Restaurar", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onOpenBackupRestore() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🔔 Buscar Actualizaciones", color = Color(0xFFEC4899), fontWeight = FontWeight.Bold) },
+                            onClick = { showToolsMenu = false; onCheckUpdates() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🧰 Diagnóstico de Biblioteca", color = Color(0xFF00F0FF)) },
+                            onClick = { showToolsMenu = false; onOpenDiagnostic() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("🌅 Alarma Musical Suave", color = Color(0xFF10B981)) },
+                            onClick = { showToolsMenu = false; onOpenAlarm() }
                         )
                         DropdownMenuItem(
                             text = { Text("🔋 Modo Ahorro OLED (0% Consumo)", color = Color(0xFF10B981), fontWeight = FontWeight.Bold) },
@@ -680,14 +754,6 @@ fun MusicScreen(
                             onClick = { showToolsMenu = false; onOpenBpmWorkout() }
                         )
                         DropdownMenuItem(
-                            text = { Text("🧠 Ondas Binaurales & Ruido", color = Color(0xFF38BDF8)) },
-                            onClick = { showToolsMenu = false; onOpenBinaural() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🌧️ Modo Ambiente & Relax", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; showRelaxDialog = true }
-                        )
-                        DropdownMenuItem(
                             text = { Text("⏳ Cápsula del Tiempo", color = Color(0xFFFFD700)) },
                             onClick = { showToolsMenu = false; onOpenTimeCapsule() }
                         )
@@ -721,37 +787,6 @@ fun MusicScreen(
                                 )
                             },
                             onClick = { showToolsMenu = false; onToggleShake() }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    if (isFlashlightActive) "🔦 Linterna Rítmica: ACTIVA" else "🔦 Linterna al Ritmo",
-                                    color = if (isFlashlightActive) Color(0xFF00FF00) else Color.White
-                                )
-                            },
-                            onClick = { showToolsMenu = false; onToggleFlashlight() }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    if (isVirtualDjActive) "📻 Locutor DJ: ACTIVO" else "📻 Locutor Radio Virtual",
-                                    color = if (isVirtualDjActive) Color(0xFF00FF00) else Color.White
-                                )
-                            },
-                            onClick = { showToolsMenu = false; onToggleVirtualDj() }
-                        )
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    if (isWifiServerRunning) "🌐 Servidor WiFi: ACTIVO (8080)" else "🌐 Activar Servidor WiFi",
-                                    color = if (isWifiServerRunning) Color(0xFF00FF00) else Color.White
-                                )
-                            },
-                            onClick = { showToolsMenu = false; onToggleWifiServer() }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("🎧 Mis Audífonos & Audio", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
-                            onClick = { showToolsMenu = false; onOpenHeadphones() }
                         )
                         DropdownMenuItem(
                             text = { Text("⚙️ Ajustes & Confort", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold) },
