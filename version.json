@@ -1,7 +1,7 @@
 {
-  "versionCode": 105,
-  "versionName": "4.9.5",
-  "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "⚡ DaVE Player v4.9.5 (Build 105 - Integración Maestra de Descargas y Búsqueda Directa):\n• 🚀 Búsqueda y Descarga Instantánea desde el Radar: Al identificar cualquier canción con DaVE Radar o SongHunter, tocar 'Escuchar / Descargar' abre de inmediato la pantalla de Explorar con la canción buscada lista para reproducir o descargar.\n• 📥 Notificaciones del Sistema para Descargas: Al completarse cualquier descarga de música o video se emite una notificación nativa con icono de confirmación y acceso directo al reproductor.\n• 🔄 Sincronización Automática de Biblioteca: Las canciones descargadas en segundo plano se indexan y aparecen de inmediato en la lista de canciones locales sin necesidad de reiniciar la app ni deslizar para refrescar.\n• 🏷️ Canal de Notificación Actualizado: Renombrado oficial a 'DaVE Player Playback' para mantener la identidad visual del reproductor en Android.",
-  "fileSizeMb": 25.9
+  "versionCode": 106,
+  "versionName": "4.9.6",
+  "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v4.9.6/app-debug.apk",
+  "changelog": "🎨 DaVE Player v4.9.6 (Build 106):\n• 🌈 Material You: nuevo ajuste 'Color del sistema' en Ajustes (Android 12 o superior): la app adopta los colores de tu fondo de pantalla.\n• 🧰 Menú Herramientas Pro reorganizado por secciones: Audio, Fiesta, Privado, Social y Otros para encontrar cada función al instante.\n• ⚡ Rendimiento general: interfaz más fluida y menor consumo al reproducir música.",
+  "fileSizeMb": 26.0
 }
