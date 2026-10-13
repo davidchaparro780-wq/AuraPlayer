@@ -147,10 +147,13 @@ private fun generateStickerBitmap(context: Context, song: MediaModel, emoji: Str
         // Album art from path if available
         val artBitmap = try {
             val retriever = android.media.MediaMetadataRetriever()
-            retriever.setDataSource(song.path)
-            val art = retriever.embeddedPicture
-            retriever.release()
-            if (art != null) BitmapFactory.decodeByteArray(art, 0, art.size) else null
+            try {
+                retriever.setDataSource(song.path)
+                val art = retriever.embeddedPicture
+                if (art != null) BitmapFactory.decodeByteArray(art, 0, art.size) else null
+            } finally {
+                retriever.release()
+            }
         } catch (_: Exception) { null }
 
         if (artBitmap != null) {
@@ -195,7 +198,9 @@ private fun generateStickerBitmap(context: Context, song: MediaModel, emoji: Str
         val wmPaint = Paint().apply { color = 0xFF6C63FF.toInt(); textSize = 22f; isAntiAlias = true }
         canvas.drawText("DaVE Player 🎵", 24f, size * 0.94f, wmPaint)
 
-        // Save to cache
+        // Save to cache (limpiando stickers anteriores)
+        context.cacheDir.listFiles { f -> f.name.startsWith("sticker_") && f.name.endsWith(".png") }
+            ?.forEach { it.delete() }
         val file = File(context.cacheDir, "sticker_${System.currentTimeMillis()}.png")
         FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
 
