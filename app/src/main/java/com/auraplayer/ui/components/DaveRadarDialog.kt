@@ -123,11 +123,37 @@ fun DaveRadarDialog(
         label = "PulseAlpha"
     )
 
+    fun performListening() {
+        AuraHaptic.click(view)
+        isListening = true
+        recognizedSong = null
+        searchError = null
+        listenProgress = 0f
+        statusMessage = "Iniciando micrófono..."
+
+        scope.launch {
+            val result = DaveRadarManager.identifyFromSurroundings(
+                context = context,
+                onProgress = { p -> listenProgress = p },
+                onStatusUpdate = { s -> statusMessage = s }
+            )
+            isListening = false
+            result.onSuccess { song ->
+                AuraHaptic.heavy(view)
+                recognizedSong = song
+                searchError = null
+            }.onFailure { ex ->
+                AuraHaptic.tick(view)
+                searchError = ex.message ?: "No se encontró la música. Intenta más cerca del parlante."
+            }
+        }
+    }
+
     val micPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            startListening()
+            performListening()
         } else {
             searchError = "Se requiere permiso de micrófono para escuchar e identificar la música ambiental."
         }
@@ -135,29 +161,7 @@ fun DaveRadarDialog(
 
     fun startListening() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-            AuraHaptic.click(view)
-            isListening = true
-            recognizedSong = null
-            searchError = null
-            listenProgress = 0f
-            statusMessage = "Iniciando micrófono..."
-
-            scope.launch {
-                val result = DaveRadarManager.identifyFromSurroundings(
-                    context = context,
-                    onProgress = { p -> listenProgress = p },
-                    onStatusUpdate = { s -> statusMessage = s }
-                )
-                isListening = false
-                result.onSuccess { song ->
-                    AuraHaptic.heavy(view)
-                    recognizedSong = song
-                    searchError = null
-                }.onFailure { ex ->
-                    AuraHaptic.tick(view)
-                    searchError = ex.message ?: "No se encontró la música. Intenta más cerca del parlante."
-                }
-            }
+            performListening()
         } else {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
