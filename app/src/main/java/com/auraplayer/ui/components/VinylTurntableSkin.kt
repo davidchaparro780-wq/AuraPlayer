@@ -63,7 +63,6 @@ fun VinylTurntableSkin(
     // Chasis exterior del tocadiscos
     Box(
         modifier = modifier
-            .fillMaxWidth(0.92f)
             .aspectRatio(1f)
             .shadow(
                 elevation = 20.dp,

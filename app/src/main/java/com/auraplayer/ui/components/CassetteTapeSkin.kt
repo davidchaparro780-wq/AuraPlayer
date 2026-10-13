@@ -73,7 +73,6 @@ fun CassetteTapeSkin(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
             .aspectRatio(1.6f)
             .clip(RoundedCornerShape(20.dp))
             .background(

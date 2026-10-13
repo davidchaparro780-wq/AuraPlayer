@@ -86,6 +86,8 @@ class FloatingBubbleService : Service() {
             .build()
     }
 
+    private fun dpToPx(dp: Float): Int = (dp * resources.displayMetrics.density + 0.5f).toInt()
+
     @SuppressLint("ClickableViewAccessibility")
     private fun setupFloatingView() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -105,8 +107,8 @@ class FloatingBubbleService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 40
-            y = 280
+            x = dpToPx(16f)
+            y = dpToPx(140f)
         }
 
         // Programmatic container layout
@@ -114,18 +116,20 @@ class FloatingBubbleService : Service() {
             setBackgroundColor(Color.TRANSPARENT)
         }
 
-        // Circular Bubble View
+        // Circular Bubble View (Scaled to 56dp for any screen density)
+        val bubbleSize = dpToPx(56f)
+        val bubblePad = dpToPx(13f)
         val bubble = ImageView(this).apply {
             setImageResource(android.R.drawable.ic_media_play)
             setColorFilter(Color.parseColor("#00F0FF"))
             val bubbleBg = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#0F172A"))
-                setStroke(4, Color.parseColor("#00F0FF"))
+                setStroke(dpToPx(2.5f), Color.parseColor("#00F0FF"))
             }
             background = bubbleBg
-            setPadding(26, 26, 26, 26)
-            layoutParams = FrameLayout.LayoutParams(135, 135)
+            setPadding(bubblePad, bubblePad, bubblePad, bubblePad)
+            layoutParams = FrameLayout.LayoutParams(bubbleSize, bubbleSize)
         }
 
         // Expanded Panel View (Dynamic Mini Player)
@@ -133,12 +137,12 @@ class FloatingBubbleService : Service() {
             orientation = LinearLayout.HORIZONTAL
             val panelBg = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
-                cornerRadius = 40f
+                cornerRadius = dpToPx(24f).toFloat()
                 setColor(Color.parseColor("#0F172A"))
-                setStroke(3, Color.parseColor("#38BDF8"))
+                setStroke(dpToPx(2f), Color.parseColor("#38BDF8"))
             }
             background = panelBg
-            setPadding(18, 12, 18, 12)
+            setPadding(dpToPx(14f), dpToPx(8f), dpToPx(14f), dpToPx(8f))
             visibility = View.GONE
             gravity = Gravity.CENTER_VERTICAL
         }
@@ -147,7 +151,7 @@ class FloatingBubbleService : Service() {
             text = "🎵 DaVE Player"
             setTextColor(Color.parseColor("#00F0FF"))
             textSize = 13f
-            setPadding(10, 0, 16, 0)
+            setPadding(dpToPx(8f), 0, dpToPx(12f), 0)
             setOnClickListener {
                 val appIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -159,7 +163,7 @@ class FloatingBubbleService : Service() {
         val btnPrev = TextView(this).apply {
             text = "⏮️"
             textSize = 16f
-            setPadding(8, 4, 8, 4)
+            setPadding(dpToPx(6f), dpToPx(4f), dpToPx(6f), dpToPx(4f))
             setOnClickListener {
                 PlaybackService.activePlayer?.seekToPreviousMediaItem()
             }
@@ -168,7 +172,7 @@ class FloatingBubbleService : Service() {
         val btnPlay = TextView(this).apply {
             text = if (PlaybackService.activePlayer?.isPlaying == true) "⏸️" else "▶️"
             textSize = 18f
-            setPadding(8, 4, 8, 4)
+            setPadding(dpToPx(6f), dpToPx(4f), dpToPx(6f), dpToPx(4f))
             setOnClickListener {
                 val p = PlaybackService.activePlayer
                 if (p?.isPlaying == true) {
@@ -186,7 +190,7 @@ class FloatingBubbleService : Service() {
         val btnNext = TextView(this).apply {
             text = "⏭️"
             textSize = 16f
-            setPadding(8, 4, 8, 4)
+            setPadding(dpToPx(6f), dpToPx(4f), dpToPx(6f), dpToPx(4f))
             setOnClickListener {
                 PlaybackService.activePlayer?.seekToNextMediaItem()
             }
@@ -196,7 +200,7 @@ class FloatingBubbleService : Service() {
             text = "✖"
             setTextColor(Color.parseColor("#EF4444"))
             textSize = 16f
-            setPadding(14, 4, 8, 4)
+            setPadding(dpToPx(10f), dpToPx(4f), dpToPx(6f), dpToPx(4f))
             setOnClickListener {
                 stopSelf()
             }

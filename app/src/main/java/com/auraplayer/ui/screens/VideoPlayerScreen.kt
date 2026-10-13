@@ -370,11 +370,15 @@ fun VideoPlayerScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(38.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Volver",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -385,30 +389,36 @@ fun VideoPlayerScreen(
                         color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 6.dp)
                     )
 
                     // Selector Cómodo de Relación de Aspecto
-                    IconButton(onClick = {
-                        resizeModeIndex = (resizeModeIndex + 1) % 3
-                        val modeName = when (resizeModeIndex) {
-                            1 -> "🔲 Llenar Pantalla (Zoom sin franjas)"
-                            2 -> "↔️ Estirar Pantalla"
-                            else -> "📺 Ajustar Pantalla (Original)"
-                        }
-                        Toast.makeText(context, modeName, Toast.LENGTH_SHORT).show()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            resizeModeIndex = (resizeModeIndex + 1) % 3
+                            val modeName = when (resizeModeIndex) {
+                                1 -> "🔲 Llenar Pantalla (Zoom sin franjas)"
+                                2 -> "↔️ Estirar Pantalla"
+                                else -> "📺 Ajustar Pantalla (Original)"
+                            }
+                            Toast.makeText(context, modeName, Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.AspectRatio,
                             contentDescription = "Ajuste de pantalla",
-                            tint = if (resizeModeIndex != 0) Color(0xFF38BDF8) else Color.White
+                            tint = if (resizeModeIndex != 0) Color(0xFF38BDF8) else Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
                     // Selector Cómodo de Velocidad
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(Color.White.copy(alpha = 0.15f))
                             .clickable {
                                 videoSpeed = when (videoSpeed) {
@@ -421,7 +431,7 @@ fun VideoPlayerScreen(
                                 exoPlayer.setPlaybackSpeed(videoSpeed)
                                 Toast.makeText(context, "⚡ Velocidad: ${videoSpeed}x", Toast.LENGTH_SHORT).show()
                             }
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                            .padding(horizontal = 6.dp, vertical = 4.dp)
                     ) {
                         Text(
                             text = "${videoSpeed}x",
@@ -432,35 +442,43 @@ fun VideoPlayerScreen(
                     }
 
                     // Candado de Bloqueo Cómodo
-                    IconButton(onClick = {
-                        isScreenLocked = true
-                        AuraHaptic.click(view)
-                        Toast.makeText(context, "🔒 Pantalla bloqueada contra toques", Toast.LENGTH_SHORT).show()
-                    }) {
+                    IconButton(
+                        onClick = {
+                            isScreenLocked = true
+                            AuraHaptic.click(view)
+                            Toast.makeText(context, "🔒 Pantalla bloqueada contra toques", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.LockOpen,
                             contentDescription = "Bloquear pantalla",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
                     // Background Audio Mode Toggle
-                    IconButton(onClick = {
-                        isBackgroundAudio = !isBackgroundAudio
-                        if (isBackgroundAudio) {
-                            Toast.makeText(
-                                context,
-                                "🎧 Modo audio en segundo plano activado: el video seguirá sonando con la pantalla apagada",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            Toast.makeText(context, "Modo audio en segundo plano desactivado", Toast.LENGTH_SHORT).show()
-                        }
-                    }) {
+                    IconButton(
+                        onClick = {
+                            isBackgroundAudio = !isBackgroundAudio
+                            if (isBackgroundAudio) {
+                                Toast.makeText(
+                                    context,
+                                    "🎧 Modo audio en segundo plano activado: el video seguirá sonando con la pantalla apagada",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                Toast.makeText(context, "Modo audio en segundo plano desactivado", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Headphones,
                             contentDescription = "Audio en segundo plano",
-                            tint = if (isBackgroundAudio) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.75f)
+                            tint = if (isBackgroundAudio) Color(0xFF38BDF8) else Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(20.dp)
                         )
                     }
 
@@ -468,17 +486,21 @@ fun VideoPlayerScreen(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
                         context.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
                     ) {
-                        IconButton(onClick = {
-                            val act = context as? Activity
-                            val params = PictureInPictureParams.Builder()
-                                .setAspectRatio(Rational(16, 9))
-                                .build()
-                            act?.enterPictureInPictureMode(params)
-                        }) {
+                        IconButton(
+                            onClick = {
+                                val act = context as? Activity
+                                val params = PictureInPictureParams.Builder()
+                                    .setAspectRatio(Rational(16, 9))
+                                    .build()
+                                act?.enterPictureInPictureMode(params)
+                            },
+                            modifier = Modifier.size(34.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.PictureInPictureAlt,
                                 contentDescription = "Ventana Flotante (PiP)",
-                                tint = Color.White
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }

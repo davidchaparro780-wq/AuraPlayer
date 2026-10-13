@@ -56,6 +56,9 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -742,7 +745,9 @@ fun PlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -1002,11 +1007,11 @@ fun PlayerScreen(
                 }
 
                 // Center Display: Either Glowing Vinyl OR Synced Karaoke Lyrics (Swipe to change track)
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .padding(vertical = 10.dp)
+                        .padding(vertical = 4.dp)
                         .pointerInput(isPocketLocked) {
                             if (isPocketLocked) return@pointerInput
                             var totalDragX = 0f
@@ -1031,6 +1036,7 @@ fun PlayerScreen(
                         },
                     contentAlignment = Alignment.Center
                 ) {
+                    val maxArtSize = minOf(maxWidth * 0.90f, maxHeight * 0.92f)
                     if (!showLyricsView) {
                         AnimatedContent(
                             targetState = currentMedia.id,
@@ -1054,8 +1060,7 @@ fun PlayerScreen(
 
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(0.94f)
-                                        .aspectRatio(1f)
+                                        .size(maxArtSize)
                                         .offset(y = levitationOffsetDp)
                                         .padding(vertical = 4.dp),
                                     contentAlignment = Alignment.Center
@@ -1094,7 +1099,8 @@ fun PlayerScreen(
                                                 showHeartBurst = true
                                                 AuraHaptic.heavy(view)
                                             }
-                                        }
+                                        },
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
                             } else if (centerVisualizerMode == 1) {
@@ -1106,7 +1112,8 @@ fun PlayerScreen(
                                     durationMs = durationMs,
                                     onTogglePlay = onPlayPauseClick,
                                     modifier = Modifier
-                                        .fillMaxWidth(0.92f)
+                                        .width(maxArtSize)
+                                        .height(maxArtSize * 0.65f)
                                         .offset(y = levitationOffsetDp)
                                         .pointerInput(Unit) {
                                             detectTapGestures(
@@ -1121,8 +1128,7 @@ fun PlayerScreen(
                                 // Live Cyber Spectrum Waveform Visualizer (Real-time FFT audio engine)
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth(0.88f)
-                                        .aspectRatio(1f)
+                                        .size(maxArtSize)
                                         .offset(y = levitationOffsetDp)
                                         .clip(RoundedCornerShape(28.dp))
                                         .background(
@@ -2658,7 +2664,7 @@ fun PlayerScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -2669,7 +2675,7 @@ fun PlayerScreen(
                                 onToggleFavorite()
                                 if (!isFavorite) showHeartBurst = true
                             },
-                            modifier = Modifier.bounceClick()
+                            modifier = Modifier.size(40.dp).bounceClick()
                         ) {
                             Icon(
                                 imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -2689,15 +2695,15 @@ fun PlayerScreen(
                             }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Mic,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Letras",
@@ -2719,15 +2725,15 @@ fun PlayerScreen(
                             }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.VolumeUp,
                                     contentDescription = null,
                                     tint = if (boostPercent > 100) Color(0xFFFF5722) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = if (boostPercent > 100) "Booster $boostPercent%" else "Booster",
@@ -2750,15 +2756,15 @@ fun PlayerScreen(
                             }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Tune,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Suite Pro",
