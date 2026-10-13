@@ -354,7 +354,11 @@ fun AuraApp(
 
     val mediaPermissions = remember {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            listOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.READ_MEDIA_VIDEO)
+            listOf(
+                Manifest.permission.READ_MEDIA_AUDIO,
+                Manifest.permission.READ_MEDIA_VIDEO,
+                Manifest.permission.READ_MEDIA_IMAGES
+            )
         } else {
             listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
@@ -964,6 +968,14 @@ fun AuraApp(
                                 currentMedia = null
                             }
                         }
+                        controller?.let { ctrl ->
+                            for (i in 0 until ctrl.mediaItemCount) {
+                                if (ctrl.getMediaItemAt(i).mediaId == song.id.toString()) {
+                                    ctrl.removeMediaItem(i)
+                                    break
+                                }
+                            }
+                        }
                         Toast.makeText(context, "Canción eliminada del teléfono", Toast.LENGTH_SHORT).show()
                         pendingSongToDelete = null
                     }
@@ -1004,6 +1016,24 @@ fun AuraApp(
     }
 
     val handleDeleteSong: (MediaModel) -> Unit = { song ->
+        val removeSongFromPlayer = {
+            if (currentMedia?.id == song.id) {
+                if (songs.isNotEmpty()) {
+                    controller?.seekToNextMediaItem()
+                } else {
+                    controller?.stop()
+                    currentMedia = null
+                }
+            }
+            controller?.let { ctrl ->
+                for (i in 0 until ctrl.mediaItemCount) {
+                    if (ctrl.getMediaItemAt(i).mediaId == song.id.toString()) {
+                        ctrl.removeMediaItem(i)
+                        break
+                    }
+                }
+            }
+        }
         scope.launch {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 if (Environment.isExternalStorageManager()) {
@@ -1011,14 +1041,7 @@ fun AuraApp(
                     val success = mediaRepository.deleteAudioFile(song)
                     if (success) {
                         songs = songs.filter { it.id != song.id }
-                        if (currentMedia?.id == song.id) {
-                            if (songs.isNotEmpty()) {
-                                controller?.seekToNextMediaItem()
-                            } else {
-                                controller?.stop()
-                                currentMedia = null
-                            }
-                        }
+                        removeSongFromPlayer()
                         Toast.makeText(context, "Canción eliminada del teléfono", Toast.LENGTH_SHORT).show()
                     } else {
                         // Fallback to Scoped Storage system dialog
@@ -1051,14 +1074,7 @@ fun AuraApp(
                         val success = mediaRepository.deleteAudioFile(song)
                         if (success) {
                             songs = songs.filter { it.id != song.id }
-                            if (currentMedia?.id == song.id) {
-                                if (songs.isNotEmpty()) {
-                                    controller?.seekToNextMediaItem()
-                                } else {
-                                    controller?.stop()
-                                    currentMedia = null
-                                }
-                            }
+                            removeSongFromPlayer()
                             Toast.makeText(context, "Canción eliminada del teléfono", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(context, "Error al eliminar: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
@@ -1071,14 +1087,7 @@ fun AuraApp(
                     if (rows > 0) {
                         mediaRepository.cleanupSongCache(song)
                         songs = songs.filter { it.id != song.id }
-                        if (currentMedia?.id == song.id) {
-                            if (songs.isNotEmpty()) {
-                                controller?.seekToNextMediaItem()
-                            } else {
-                                controller?.stop()
-                                currentMedia = null
-                            }
-                        }
+                        removeSongFromPlayer()
                         Toast.makeText(context, "Canción eliminada del teléfono", Toast.LENGTH_SHORT).show()
                     }
                 } catch (securityEx: SecurityException) {
@@ -1093,14 +1102,7 @@ fun AuraApp(
                 val success = mediaRepository.deleteAudioFile(song)
                 if (success) {
                     songs = songs.filter { it.id != song.id }
-                    if (currentMedia?.id == song.id) {
-                        if (songs.isNotEmpty()) {
-                            controller?.seekToNextMediaItem()
-                        } else {
-                            controller?.stop()
-                            currentMedia = null
-                        }
-                    }
+                    removeSongFromPlayer()
                     Toast.makeText(context, "Canción eliminada del teléfono", Toast.LENGTH_SHORT).show()
                 } else {
                     Toast.makeText(context, "No se pudo eliminar el archivo", Toast.LENGTH_SHORT).show()
@@ -1382,6 +1384,7 @@ fun AuraApp(
                             arrayOf(
                                 Manifest.permission.READ_MEDIA_AUDIO,
                                 Manifest.permission.READ_MEDIA_VIDEO,
+                                Manifest.permission.READ_MEDIA_IMAGES,
                                 Manifest.permission.POST_NOTIFICATIONS
                             )
                         } else {

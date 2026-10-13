@@ -109,8 +109,8 @@ private suspend fun loadVideoThumbnail(context: Context, video: MediaModel): Bit
     }
 
     // 2. Try MediaMetadataRetriever
+    val retriever = MediaMetadataRetriever()
     try {
-        val retriever = MediaMetadataRetriever()
         if (video.path.isNotBlank() && File(video.path).exists()) {
             retriever.setDataSource(video.path)
         } else {
@@ -118,10 +118,13 @@ private suspend fun loadVideoThumbnail(context: Context, video: MediaModel): Bit
         }
         val frame = retriever.getFrameAtTime(1000000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
             ?: retriever.frameAtTime
-        retriever.release()
         if (frame != null) return@withContext frame
     } catch (e: Exception) {
         AppLog.d(TAG, "MediaMetadataRetriever no pudo extraer un fotograma", e)
+    } finally {
+        try {
+            retriever.release()
+        } catch (_: Exception) {}
     }
 
     // 3. Fallback: ThumbnailUtils

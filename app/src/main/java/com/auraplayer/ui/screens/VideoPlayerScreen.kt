@@ -151,6 +151,19 @@ fun VideoPlayerScreen(
             }
     }
 
+    // Keep screen ON while watching video and restore system brightness on exit
+    DisposableEffect(activity) {
+        activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            activity?.let { act ->
+                val lp = act.window.attributes
+                lp.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                act.window.attributes = lp
+            }
+        }
+    }
+
     // Background playback & lifecycle handling
     DisposableEffect(activity, isBackgroundAudio) {
         val componentActivity = activity as? ComponentActivity
@@ -259,6 +272,7 @@ fun VideoPlayerScreen(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     player = exoPlayer
+                    keepScreenOn = true
                     useController = !isInPipMode && !isScreenLocked
                     resizeMode = when (resizeModeIndex) {
                         1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
@@ -268,6 +282,7 @@ fun VideoPlayerScreen(
                 }
             },
             update = { playerView ->
+                playerView.keepScreenOn = true
                 playerView.useController = !isInPipMode && !isScreenLocked
                 playerView.resizeMode = when (resizeModeIndex) {
                     1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM

@@ -255,7 +255,9 @@ object TikTokDownloader {
                         }
                     }
 
+                    var pendingMediaUri: Uri? = null
                     val uri = context.contentResolver.insert(collectionUri, values)
+                    pendingMediaUri = uri
                     if (uri != null) {
                         context.contentResolver.openOutputStream(uri)?.use { output ->
                             copyStreamWithProgress(inputStream, output, contentLength) { pct ->
@@ -267,8 +269,8 @@ object TikTokDownloader {
                         var realDuration = if (details.durationSeconds > 0) details.durationSeconds * 1000L else 15000L
                         var videoWidth = 720
                         var videoHeight = 1280
+                        val retriever = android.media.MediaMetadataRetriever()
                         try {
-                            val retriever = android.media.MediaMetadataRetriever()
                             context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                                 retriever.setDataSource(pfd.fileDescriptor)
                                 val durStr = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
@@ -277,10 +279,11 @@ object TikTokDownloader {
                                 durStr?.toLongOrNull()?.let { if (it > 0) realDuration = it }
                                 wStr?.toIntOrNull()?.let { if (it > 0) videoWidth = it }
                                 hStr?.toIntOrNull()?.let { if (it > 0) videoHeight = it }
-                                retriever.release()
                             }
                         } catch (e: Exception) {
                             AppLog.w(TAG, "No se pudieron extraer metadatos con retriever", e)
+                        } finally {
+                            try { retriever.release() } catch (_: Exception) {}
                         }
 
                         val updateValues = ContentValues().apply {
@@ -313,7 +316,13 @@ object TikTokDownloader {
                         }
                     }
                 } catch (e: Exception) {
-                    AppLog.w(TAG, "Fallo al guardar vía MediaStore, recurriendo a File directo", e)
+                    AppLog.w(TAG, "Fallo al guardar vía MediaStore", e)
+                    pendingMediaUri?.let {
+                        try { context.contentResolver.delete(it, null, null) } catch (_: Exception) {}
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        return@withContext Result.failure(e)
+                    }
                 }
             }
 

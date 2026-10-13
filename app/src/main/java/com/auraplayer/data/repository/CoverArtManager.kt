@@ -176,11 +176,10 @@ class CoverArtManager(private val context: Context) {
     }
 
     private fun extractAndSaveEmbeddedArt(media: MediaModel): Uri? {
+        val retriever = MediaMetadataRetriever()
         return try {
-            val retriever = MediaMetadataRetriever()
             retriever.setDataSource(context, media.uri)
             val picture = retriever.embeddedPicture
-            retriever.release()
 
             if (picture != null && picture.isNotEmpty()) {
                 val targetFile = File(coversDir, "${media.id}.jpg")
@@ -194,6 +193,10 @@ class CoverArtManager(private val context: Context) {
             }
         } catch (e: Exception) {
             null
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: Exception) {}
         }
     }
 

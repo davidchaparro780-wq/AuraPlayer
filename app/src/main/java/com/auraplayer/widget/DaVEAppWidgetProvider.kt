@@ -37,8 +37,16 @@ class DaVEAppWidgetProvider : AppWidgetProvider() {
 
         when (intent.action) {
             ACTION_PLAY_PAUSE -> {
-                player?.let {
-                    if (it.isPlaying) it.pause() else it.play()
+                if (player != null) {
+                    if (player.isPlaying) player.pause() else player.play()
+                } else {
+                    try {
+                        val launchIntent = Intent(context, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            putExtra("EXTRA_AUTO_PLAY", true)
+                        }
+                        context.startActivity(launchIntent)
+                    } catch (_: Exception) {}
                 }
             }
             ACTION_NEXT -> {

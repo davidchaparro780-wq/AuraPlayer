@@ -412,26 +412,36 @@ class DownloadEngine(
                     put(MediaStore.Audio.Media.IS_MUSIC, 1)
                     put(MediaStore.Audio.Media.IS_PENDING, 1)
                 }
-                val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
-                if (uri != null) {
-                    val outputStream = context.contentResolver.openOutputStream(uri)
-                    if (outputStream != null) {
-                        streamWithProgress(inputStream, outputStream, contentLength, track.id)
-                        outputStream.close()
+                var pendingUri: Uri? = null
+                try {
+                    val uri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                    pendingUri = uri
+                    if (uri != null) {
+                        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            streamWithProgress(inputStream, outputStream, contentLength, track.id)
+                        }
+                        val updateValues = ContentValues().apply {
+                            put(MediaStore.Audio.Media.IS_PENDING, 0)
+                        }
+                        context.contentResolver.update(uri, updateValues, null, null)
                         savedFileUri = uri
                     }
-                    val updateValues = ContentValues().apply {
-                        put(MediaStore.Audio.Media.IS_PENDING, 0)
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Escritura en MediaStore falló: ${e.message}", e)
+                    pendingUri?.let {
+                        try { context.contentResolver.delete(it, null, null) } catch (_: Exception) {}
                     }
-                    context.contentResolver.update(uri, updateValues, null, null)
+                    throw e
                 }
             } catch (e: Exception) {
-                AppLog.e(TAG, "Escritura en MediaStore falló, se usa almacenamiento público directo: ${e.message}", e)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    throw e
+                }
                 savedFileUri = null
             }
         }
 
-        // Fallback for Android 9 or below, or if MediaStore insert/update threw an exception
+        // Fallback for Android 9 or below
         if (savedFileUri == null) {
             val publicMusicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "DaVEPlayer")
             val targetDir = if (publicMusicDir.exists() || publicMusicDir.mkdirs()) {
@@ -443,9 +453,14 @@ class DownloadEngine(
             savedFilePath = targetFile.absolutePath
             savedFileUri = Uri.fromFile(targetFile)
 
-            val outputStream = FileOutputStream(targetFile)
-            streamWithProgress(inputStream, outputStream, contentLength, track.id)
-            outputStream.close()
+            try {
+                FileOutputStream(targetFile).use { outputStream ->
+                    streamWithProgress(inputStream, outputStream, contentLength, track.id)
+                }
+            } catch (e: Exception) {
+                try { targetFile.delete() } catch (_: Exception) {}
+                throw e
+            }
 
             MediaScannerConnection.scanFile(
                 context,

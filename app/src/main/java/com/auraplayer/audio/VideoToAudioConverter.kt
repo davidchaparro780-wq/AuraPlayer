@@ -100,12 +100,14 @@ object VideoToAudioConverter {
 
             // Obtener metadatos reales del audio extraído
             var durationMs = 0L
+            val mmr = MediaMetadataRetriever()
             try {
-                val mmr = MediaMetadataRetriever()
                 mmr.setDataSource(tempAudioFile.absolutePath)
                 durationMs = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
-                mmr.release()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            } finally {
+                try { mmr.release() } catch (_: Exception) {}
+            }
 
             // Guardar en la biblioteca pública de Música (MediaStore / Scoped Storage)
             val cleanTitle = videoTitle.replace(Regex("[\\\\/:*?\"<>|\\r\\n]"), "_").trim().ifBlank { "Audio_Extraído" }
@@ -115,6 +117,7 @@ object VideoToAudioConverter {
             var finalUri: Uri? = null
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                var pendingInsertUri: Uri? = null
                 try {
                     val values = ContentValues().apply {
                         put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
@@ -130,6 +133,7 @@ object VideoToAudioConverter {
                     }
 
                     val insertUri = context.contentResolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                    pendingInsertUri = insertUri
                     if (insertUri != null) {
                         context.contentResolver.openOutputStream(insertUri)?.use { outStream ->
                             FileInputStream(tempAudioFile).use { inStream ->
@@ -144,6 +148,9 @@ object VideoToAudioConverter {
                     }
                 } catch (e: Exception) {
                     AppLog.w(TAG, "Fallo al insertar en MediaStore, recurriendo a File directo", e)
+                    pendingInsertUri?.let {
+                        try { context.contentResolver.delete(it, null, null) } catch (_: Exception) {}
+                    }
                 }
             }
 

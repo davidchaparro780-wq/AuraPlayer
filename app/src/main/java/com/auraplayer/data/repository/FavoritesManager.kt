@@ -12,7 +12,11 @@ class FavoritesManager(context: Context) {
 
     fun toggleFavorite(songId: Long): Boolean {
         val current = isFavorite(songId)
-        prefs.edit().putBoolean("fav_$songId", !current).apply()
+        if (current) {
+            prefs.edit().remove("fav_$songId").apply()
+        } else {
+            prefs.edit().putBoolean("fav_$songId", true).apply()
+        }
         return !current
     }
 
