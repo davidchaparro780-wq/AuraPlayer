@@ -1,12 +1,17 @@
 package com.auraplayer.data.repository
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.core.app.NotificationCompat
 import com.auraplayer.data.model.MediaModel
 import com.auraplayer.data.model.OnlineTrack
 import com.auraplayer.util.AppLog
@@ -44,6 +49,7 @@ class DownloadEngine(
     }
 
     var onUpdateNeeded: (() -> Unit)? = null
+    var onDownloadCompleted: ((OnlineTrack) -> Unit)? = null
 
     init {
         youtubeRepo.onYouTubeApiChangedDetected = {
@@ -258,6 +264,8 @@ class DownloadEngine(
                     performDownload(resolvedAudioUrl, track, safeArtist, safeTitle)
 
                     updateState(track.id, DownloadStatus.Completed)
+                    showDownloadCompletedNotification(track.title, track.artist)
+                    onDownloadCompleted?.invoke(track)
                     withContext(Dispatchers.Main) {
                         onComplete?.invoke()
                     }
@@ -640,6 +648,7 @@ class DownloadEngine(
             performVideoDownload(videoStreamUrl, downloadId, fileName, track.title)
 
             updateState(downloadId, DownloadStatus.Completed)
+            showDownloadCompletedNotification(track.title, "Video MP4")
             withContext(Dispatchers.Main) {
                 onComplete?.invoke()
             }
@@ -768,5 +777,46 @@ class DownloadEngine(
 
     private fun sanitize(text: String): String {
         return text.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim()
+    }
+
+    private fun showDownloadCompletedNotification(title: String, artist: String) {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+            val channelId = "dave_downloads_channel"
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Descargas DaVE",
+                    NotificationManager.IMPORTANCE_DEFAULT
+                ).apply {
+                    description = "Notificaciones de canciones y videos descargados"
+                    setShowBadge(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            val pendingIntent = if (launchIntent != null) {
+                PendingIntent.getActivity(
+                    context,
+                    (System.currentTimeMillis() % 100000).toInt(),
+                    launchIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+            } else null
+
+            val notif = NotificationCompat.Builder(context, channelId)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("Descarga completada")
+                .setContentText("$title • $artist")
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+
+            notificationManager.notify((System.currentTimeMillis() % 100000).toInt(), notif)
+        } catch (e: Exception) {
+            AppLog.w(TAG, "No se pudo emitir notificación de descarga: ${e.message}")
+        }
     }
 }

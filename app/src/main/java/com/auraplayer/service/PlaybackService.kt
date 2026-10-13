@@ -261,10 +261,10 @@ class PlaybackService : MediaSessionService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Aura Playback",
+                "DaVE Player Playback",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Reproducción de música en segundo plano de Aura"
+                description = "Reproducción de música en segundo plano de DaVE Player"
                 setShowBadge(false)
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager

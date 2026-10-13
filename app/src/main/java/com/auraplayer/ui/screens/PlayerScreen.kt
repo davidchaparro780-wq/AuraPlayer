@@ -264,6 +264,7 @@ fun PlayerScreen(
     onToggleHapticBass: () -> Unit = {},
     onOpenHeadphones: () -> Unit = {},
     isHeadphonesConnected: Boolean = false,
+    onSearchOnline: (String) -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -3509,10 +3510,8 @@ fun PlayerScreen(
         SongHunterDialog(
             onPlayOrSearch = { query ->
                 showSongHunterDialog = false
-                val searchIntent = android.content.Intent(android.content.Intent.ACTION_WEB_SEARCH).apply {
-                    putExtra(android.app.SearchManager.QUERY, query)
-                }
-                try { context.startActivity(searchIntent) } catch (_: Exception) {}
+                onDismiss()
+                onSearchOnline(query)
             },
             onDismiss = { showSongHunterDialog = false }
         )

@@ -2489,6 +2489,7 @@ fun MusicScreen(
             onDismiss = { showRadarDialog = false },
             onSearchTrackInApp = { query ->
                 searchQuery = query
+                onSearchOnline(query)
             }
         )
     }

@@ -1,7 +1,7 @@
 {
-  "versionCode": 104,
-  "versionName": "4.9.4",
+  "versionCode": 105,
+  "versionName": "4.9.5",
   "downloadUrl": "https://github.com/davidchaparro780-wq/D4ve/releases/download/v1.0.0/app-debug.apk",
-  "changelog": "🔍 DaVE Player v4.9.4 (Build 104 - DaVE Radar Acústico Real):\n• 🎯 Reconocimiento Acústico Real: Eliminada la simulación y canciones aleatorias en DaVE Radar. Ahora captura el audio real del ambiente mediante el micrófono (AAC 44.1kHz) y consulta el catálogo acústico global con metadatos y carátula HD.\n• ⏱️ Ventana de Escucha Ampliada (~7.5s): El radar ahora escucha con mayor profundidad para capturar con precisión las ondas sonoras, melodía y frecuencias acústicas de la canción.\n• ❌ Detección Fidedigna Sin Falsos Positivos: Si una canción no se reconoce o no coincide en la base de datos acústica, la app informa claramente 'No se encontró la música' con sugerencias para reintentar, en lugar de mostrar canciones al azar.\n• 🎙️ Gestión Segura de Permisos: Solicitud interactiva del permiso de micrófono (RECORD_AUDIO) con retroalimentación en pantalla y botón de reintento directo.",
+  "changelog": "⚡ DaVE Player v4.9.5 (Build 105 - Integración Maestra de Descargas y Búsqueda Directa):\n• 🚀 Búsqueda y Descarga Instantánea desde el Radar: Al identificar cualquier canción con DaVE Radar o SongHunter, tocar 'Escuchar / Descargar' abre de inmediato la pantalla de Explorar con la canción buscada lista para reproducir o descargar.\n• 📥 Notificaciones del Sistema para Descargas: Al completarse cualquier descarga de música o video se emite una notificación nativa con icono de confirmación y acceso directo al reproductor.\n• 🔄 Sincronización Automática de Biblioteca: Las canciones descargadas en segundo plano se indexan y aparecen de inmediato en la lista de canciones locales sin necesidad de reiniciar la app ni deslizar para refrescar.\n• 🏷️ Canal de Notificación Actualizado: Renombrado oficial a 'DaVE Player Playback' para mantener la identidad visual del reproductor en Android.",
   "fileSizeMb": 25.9
 }

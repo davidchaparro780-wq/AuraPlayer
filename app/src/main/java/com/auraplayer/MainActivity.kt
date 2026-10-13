@@ -702,6 +702,20 @@ fun AuraApp(
                 }
             }
         }
+
+        downloadEngine.onDownloadCompleted = {
+            scope.launch {
+                mediaRepository.rescanDownloadDirectories()
+                val freshSongs = mediaRepository.loadAudioFiles()
+                val reloadedSongs = freshSongs.map { s ->
+                    val override = playlistManager.getTagOverride(s.id)
+                    if (override != null) s.copy(title = override.title, artist = override.artist, album = override.album) else s
+                }
+                withContext(Dispatchers.Main) {
+                    songs = reloadedSongs
+                }
+            }
+        }
         val info = updateManager.checkForUpdate()
         if (info != null) {
             updateInfo = info
@@ -2709,6 +2723,10 @@ fun AuraApp(
                 },
                 onOpenHeadphones = { showHeadphonesDialog = true },
                 isHeadphonesConnected = headphoneManager.isHeadphonesConnected,
+                onSearchOnline = { query ->
+                    pendingDiscoverQuery = query
+                    selectedNavTab = 1
+                },
                 onDismiss = { showPlayerScreen = false },
                 modifier = Modifier.fillMaxSize().background(Color(0xFF070A12))
             )
