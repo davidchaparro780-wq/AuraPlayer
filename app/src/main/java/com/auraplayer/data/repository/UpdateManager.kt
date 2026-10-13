@@ -85,15 +85,18 @@ class UpdateManager(private val context: Context) {
 
                     val isNewer = (remoteVersionCode > 0 && remoteVersionCode > currentVersionCode) || isVersionNewer(remoteVersion, currentVersion)
                     if (isNewer && downloadUrl.isNotBlank()) {
-                        val info = UpdateInfo(
-                            versionName = "v$remoteVersion",
-                            changelog = changelog,
-                            downloadUrl = downloadUrl,
-                            fileSizeMb = fileSizeMb,
-                            versionCode = remoteVersionCode
-                        )
-                        com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
-                        return@withContext info
+                        if (isDownloadUrlReachable(downloadUrl)) {
+                            val info = UpdateInfo(
+                                versionName = "v$remoteVersion",
+                                changelog = changelog,
+                                downloadUrl = downloadUrl,
+                                fileSizeMb = fileSizeMb,
+                                versionCode = remoteVersionCode
+                            )
+                            com.auraplayer.notification.UpdateNotificationHelper.showUpdateNotification(context, info)
+                            return@withContext info
+                        }
+                        AppLog.w(tag, "version.json anuncia v$remoteVersion pero el APK no está publicado todavía; se omite la actualización")
                     }
                 }
             } catch (e: Exception) {
@@ -387,6 +390,45 @@ class UpdateManager(private val context: Context) {
                 browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(browserIntent)
             } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Verifica que la URL del APK responde correctamente (sigue redirecciones) antes de
+     * ofrecer la actualización, para no avisar de versiones cuyo archivo aún no existe.
+     */
+    private fun isDownloadUrlReachable(url: String): Boolean {
+        return try {
+            var currentUrl = url
+            var attempts = 0
+            var reachable = false
+            while (attempts < 6) {
+                attempts++
+                val conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 8000
+                    readTimeout = 8000
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) DaVE-Updater")
+                    setRequestProperty("Range", "bytes=0-0")
+                }
+                val code = conn.responseCode
+                val location = if (code in 301..308) conn.getHeaderField("Location") else null
+                conn.disconnect()
+                if (code in 200..299) {
+                    reachable = true
+                    break
+                }
+                if (!location.isNullOrBlank()) {
+                    currentUrl = location
+                    continue
+                }
+                break
+            }
+            reachable
+        } catch (e: Exception) {
+            AppLog.w(tag, "No se pudo verificar la URL de actualización: ${e.message}")
+            false
         }
     }
 

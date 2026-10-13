@@ -595,6 +595,11 @@ fun AuraApp(
     var showUpdateDialog by remember { mutableStateOf(false) }
     var isDownloadingUpdate by remember { mutableStateOf(false) }
     var updateProgress by remember { mutableIntStateOf(0) }
+    var updateError by remember { mutableStateOf("") }
+
+    LaunchedEffect(showUpdateDialog) {
+        if (showUpdateDialog) updateError = ""
+    }
 
     // Play audio/video files shared or opened from other apps
     val sharedUri = MainActivity.pendingSharedUri
@@ -2954,6 +2959,15 @@ fun AuraApp(
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
+                    if (updateError.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = updateError,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -2963,6 +2977,7 @@ fun AuraApp(
 
                     Button(
                         onClick = {
+                            updateError = ""
                             if (alreadyDownloaded) {
                                 updateManager.installApk(downloadedApk!!)
                                 showUpdateDialog = false
@@ -2978,6 +2993,7 @@ fun AuraApp(
                                         },
                                         onError = { err ->
                                             isDownloadingUpdate = false
+                                            updateError = err
                                             Toast.makeText(context, err, Toast.LENGTH_LONG).show()
                                         }
                                     )
