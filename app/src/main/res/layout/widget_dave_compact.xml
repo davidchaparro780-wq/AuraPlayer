@@ -88,20 +88,17 @@
             android:text="Toca para reproducir"
             android:textColor="#94A3B8"
             android:textSize="12sp" />
-    </LinearLayout>
 
-    <ProgressBar
-        android:id="@+id/widget_progress"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="4dp"
-        android:layout_below="@+id/widget_song_artist"
-        android:layout_alignStart="@id/widget_song_title"
-        android:layout_alignEnd="@id/widget_song_title"
-        android:layout_marginTop="6dp"
-        android:max="100"
-        android:progress="0"
-        android:progressTint="#00F0FF"
-        android:progressBackgroundTint="#22FFFFFF" />
+        <ProgressBar
+            android:id="@+id/widget_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="6dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#00F0FF"
+            android:progressBackgroundTint="#22FFFFFF" />
+    </LinearLayout>
 
 </RelativeLayout>
