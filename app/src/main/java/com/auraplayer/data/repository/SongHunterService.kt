@@ -49,8 +49,8 @@ object SongHunterService {
             }
             recorder = mr
 
-            // Escuchar durante 4 segundos
-            delay(4000)
+            // Escuchar durante 7 segundos para capturar suficiente huella acústica
+            delay(7000)
 
             try {
                 mr.stop()

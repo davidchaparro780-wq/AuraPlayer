@@ -1,10 +1,13 @@
 package com.auraplayer.ui.components
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -37,6 +40,7 @@ import androidx.compose.material.icons.filled.Hearing
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Radar
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -92,7 +96,9 @@ fun DaveRadarDialog(
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Escuchar Entorno, 1: Tararear
     var isListening by remember { mutableStateOf(false) }
     var listenProgress by remember { mutableFloatStateOf(0f) }
+    var statusMessage by remember { mutableStateOf("Toca el radar para identificar la música") }
     var recognizedSong by remember { mutableStateOf<RadarRecognizedSong?>(null) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     var hummingQuery by remember { mutableStateOf("") }
     var hummingResults by remember { mutableStateOf<List<RadarRecognizedSong>>(emptyList()) }
     var isSearchingHumming by remember { mutableStateOf(false) }
@@ -117,6 +123,46 @@ fun DaveRadarDialog(
         label = "PulseAlpha"
     )
 
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            startListening()
+        } else {
+            searchError = "Se requiere permiso de micrófono para escuchar e identificar la música ambiental."
+        }
+    }
+
+    fun startListening() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            AuraHaptic.click(view)
+            isListening = true
+            recognizedSong = null
+            searchError = null
+            listenProgress = 0f
+            statusMessage = "Iniciando micrófono..."
+
+            scope.launch {
+                val result = DaveRadarManager.identifyFromSurroundings(
+                    context = context,
+                    onProgress = { p -> listenProgress = p },
+                    onStatusUpdate = { s -> statusMessage = s }
+                )
+                isListening = false
+                result.onSuccess { song ->
+                    AuraHaptic.heavy(view)
+                    recognizedSong = song
+                    searchError = null
+                }.onFailure { ex ->
+                    AuraHaptic.tick(view)
+                    searchError = ex.message ?: "No se encontró la música. Intenta más cerca del parlante."
+                }
+            }
+        } else {
+            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     val voiceLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -132,26 +178,6 @@ fun DaveRadarDialog(
                     isSearchingHumming = false
                     res.onSuccess { hummingResults = it }
                 }
-            }
-        }
-    }
-
-    fun startListening() {
-        AuraHaptic.click(view)
-        isListening = true
-        recognizedSong = null
-        listenProgress = 0f
-
-        scope.launch {
-            val result = DaveRadarManager.identifyFromSurroundings(context) { p ->
-                listenProgress = p
-            }
-            isListening = false
-            result.onSuccess { song ->
-                AuraHaptic.heavy(view)
-                recognizedSong = song
-            }.onFailure {
-                Toast.makeText(context, "No se pudo identificar la canción. Intenta más cerca del parlante.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -229,6 +255,7 @@ fun DaveRadarDialog(
                             .clickable {
                                 AuraHaptic.tick(view)
                                 selectedTab = 0
+                                searchError = null
                             }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -248,6 +275,7 @@ fun DaveRadarDialog(
                             .clickable {
                                 AuraHaptic.tick(view)
                                 selectedTab = 1
+                                searchError = null
                             }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -265,81 +293,7 @@ fun DaveRadarDialog(
 
                 if (selectedTab == 0) {
                     // Modo Escuchar Entorno (Estilo Shazam)
-                    if (recognizedSong == null) {
-                        Box(
-                            modifier = Modifier
-                                .size(170.dp)
-                                .clickable(enabled = !isListening) { startListening() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isListening) {
-                                Canvas(modifier = Modifier.matchParentSize()) {
-                                    drawCircle(
-                                        color = Color(0xFF00F0FF).copy(alpha = pulseAlpha),
-                                        radius = (size.minDimension / 2) * pulseScale,
-                                        style = Stroke(width = 3.dp.toPx())
-                                    )
-                                    drawCircle(
-                                        color = Color(0xFF8B5CF6).copy(alpha = pulseAlpha * 0.7f),
-                                        radius = (size.minDimension / 2.5f) * pulseScale,
-                                        style = Stroke(width = 2.dp.toPx())
-                                    )
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(110.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            listOf(Color(0xFF38BDF8), Color(0xFF1E3A8A))
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (isListening) Icons.Default.Hearing else Icons.Default.Radar,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(52.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        if (isListening) {
-                            Text(
-                                text = "Escuchando música del ambiente...",
-                                color = Color(0xFF00F0FF),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { listenProgress },
-                                modifier = Modifier
-                                    .fillMaxWidth(0.7f)
-                                    .height(4.dp)
-                                    .clip(RoundedCornerShape(2.dp)),
-                                color = Color(0xFF00F0FF),
-                                trackColor = Color(0xFF1E293B)
-                            )
-                        } else {
-                            Text(
-                                text = "Toca el radar para identificar la música",
-                                color = Color.White,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                            Text(
-                                text = "Acerca el celular a la radio o parlante",
-                                color = Color(0xFF94A3B8),
-                                fontSize = 11.sp
-                            )
-                        }
-                    } else {
+                    if (recognizedSong != null) {
                         // Canción encontrada
                         val song = recognizedSong!!
                         Column(
@@ -403,6 +357,7 @@ fun DaveRadarDialog(
                             Button(
                                 onClick = {
                                     recognizedSong = null
+                                    searchError = null
                                     startListening()
                                 },
                                 modifier = Modifier.fillMaxWidth(),
@@ -411,6 +366,166 @@ fun DaveRadarDialog(
                             ) {
                                 Text("Buscar Otra Canción", color = Color(0xFF94A3B8), fontSize = 12.sp)
                             }
+                        }
+                    } else if (searchError != null && !isListening) {
+                        // Estado explícito: NO se encontró la música
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF13182E))
+                                .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFEF4444).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Hearing,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF87171),
+                                    modifier = Modifier.size(34.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text(
+                                text = "No se encontró la música",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = Color.White,
+                                textAlign = TextAlign.Center
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Text(
+                                text = searchError ?: "No se detectó ninguna coincidencia en el catálogo acústico. Intenta acercarte más al parlante y reducir el ruido ambiental.",
+                                fontSize = 12.sp,
+                                color = Color(0xFF94A3B8),
+                                textAlign = TextAlign.Center,
+                                lineHeight = 16.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(
+                                onClick = {
+                                    searchError = null
+                                    startListening()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Reintentar con el Radar", fontWeight = FontWeight.Bold)
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            Button(
+                                onClick = {
+                                    searchError = null
+                                    selectedTab = 1
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B))
+                            ) {
+                                Icon(Icons.Default.Mic, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF00F0FF))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Tararear o buscar letra", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                            }
+                        }
+                    } else {
+                        // Radar en reposo o escuchando activamente
+                        Box(
+                            modifier = Modifier
+                                .size(170.dp)
+                                .clickable(enabled = !isListening) { startListening() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isListening) {
+                                Canvas(modifier = Modifier.matchParentSize()) {
+                                    drawCircle(
+                                        color = Color(0xFF00F0FF).copy(alpha = pulseAlpha),
+                                        radius = (size.minDimension / 2) * pulseScale,
+                                        style = Stroke(width = 3.dp.toPx())
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFF8B5CF6).copy(alpha = pulseAlpha * 0.7f),
+                                        radius = (size.minDimension / 2.5f) * pulseScale,
+                                        style = Stroke(width = 2.dp.toPx())
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(110.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.radialGradient(
+                                            listOf(Color(0xFF38BDF8), Color(0xFF1E3A8A))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (isListening) Icons.Default.Hearing else Icons.Default.Radar,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(52.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        if (isListening) {
+                            Text(
+                                text = statusMessage,
+                                color = Color(0xFF00F0FF),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(
+                                progress = { listenProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.7f)
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = Color(0xFF00F0FF),
+                                trackColor = Color(0xFF1E293B)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Mantén el celular cerca del sonido (~7s)...",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp
+                            )
+                        } else {
+                            Text(
+                                text = "Toca el radar para identificar la música",
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Acerca el celular a la radio o parlante",
+                                color = Color(0xFF94A3B8),
+                                fontSize = 11.sp
+                            )
                         }
                     }
                 } else {
